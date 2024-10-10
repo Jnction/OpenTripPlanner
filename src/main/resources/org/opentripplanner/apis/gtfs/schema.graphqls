@@ -710,6 +710,24 @@ type Leg {
     """
     originModesWithParentStation: [TransitMode!]
   ): [Leg!]
+  "Previous legs with same origin and destination stops or stations"
+  previousLegs(
+    """
+    Transportation modes for which all stops in the parent station are used as possible destination stops
+    for the previous legs. For modes not listed, only the exact destination stop of the leg is considered.
+    """
+    destinationModesWithParentStation: [TransitMode!],
+    """
+    The number of alternative legs searched. If fewer than the requested number are found,
+    then only the found legs are returned.
+    """
+    numberOfLegs: Int!,
+    """
+    Transportation modes for which all stops in the parent station are used as possible origin stops
+    for the previous legs. For modes not listed, only the exact origin stop of the leg is considered.
+    """
+    originModesWithParentStation: [TransitMode!]
+  ): [Leg!]
   """
   Special booking information for the pick up stop of this leg if, for example, it needs
   to be booked in advance. This could be due to a flexible or on-demand service.
