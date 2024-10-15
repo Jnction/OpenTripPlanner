@@ -128,17 +128,7 @@ public final class TripPattern
     this.netexSubMode = requireNonNull(builder.getNetexSubmode());
     this.containsMultipleModes = builder.getContainsMultipleModes();
 
-    if (builder.getScheduledTimetable() != null) {
-      if (builder.getScheduledTimetableBuilder() != null) {
-        throw new IllegalArgumentException(
-          "Cannot provide both scheduled timetable and scheduled timetable builder"
-        );
-      }
-      this.scheduledTimetable = builder.getScheduledTimetable();
-    } else {
-      this.scheduledTimetable =
-        builder.getScheduledTimetableBuilder().withTripPattern(this).build();
-    }
+    this.scheduledTimetable = builder.getScheduledTimetableBuilder().withTripPattern(this).build();
 
     this.originalTripPattern = builder.getOriginalTripPattern();
 
@@ -469,7 +459,7 @@ public final class TripPattern
       Objects.equals(this.containsMultipleModes, other.containsMultipleModes) &&
       Objects.equals(this.name, other.name) &&
       Objects.equals(this.stopPattern, other.stopPattern) &&
-      Objects.equals(this.scheduledTimetable, other.scheduledTimetable)
+      this.scheduledTimetable.sameAs(other.scheduledTimetable)
     );
   }
 
