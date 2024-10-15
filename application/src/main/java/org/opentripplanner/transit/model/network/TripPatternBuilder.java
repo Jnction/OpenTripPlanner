@@ -28,6 +28,7 @@ public final class TripPatternBuilder
   private SubMode netexSubMode;
   private boolean containsMultipleModes;
   private StopPattern stopPattern;
+  private Timetable scheduledTimetable;
   private TimetableBuilder scheduledTimetableBuilder;
   private String name;
 
@@ -49,7 +50,7 @@ public final class TripPatternBuilder
     this.netexSubMode = original.getNetexSubmode();
     this.containsMultipleModes = original.getContainsMultipleModes();
     this.stopPattern = original.getStopPattern();
-    this.scheduledTimetableBuilder = original.getScheduledTimetable().copyOf();
+    this.scheduledTimetable = original.getScheduledTimetable();
     this.createdByRealtimeUpdate = original.isCreatedByRealtimeUpdater();
     this.originalTripPattern = original.getOriginalTripPattern();
     this.hopGeometries =
@@ -92,13 +93,24 @@ public final class TripPatternBuilder
   }
 
   public TripPatternBuilder withScheduledTimeTable(Timetable scheduledTimetable) {
-    this.scheduledTimetableBuilder = scheduledTimetable.copyOf();
+    if (scheduledTimetableBuilder != null) {
+      throw new IllegalStateException(
+        "Cannot set scheduled Timetable after scheduled Timetable builder is created"
+      );
+    }
+    this.scheduledTimetable = scheduledTimetable;
     return this;
   }
 
   public TripPatternBuilder withScheduledTimeTableBuilder(
     UnaryOperator<TimetableBuilder> producer
   ) {
+    // create a builder for the scheduled timetable only if it needs to be modified.
+    // otherwise reuse the existing timetable
+    if (scheduledTimetableBuilder == null) {
+      scheduledTimetableBuilder = scheduledTimetable.copyOf();
+      scheduledTimetable = null;
+    }
     producer.apply(scheduledTimetableBuilder);
     return this;
   }
@@ -129,6 +141,9 @@ public final class TripPatternBuilder
   }
 
   public Direction getDirection() {
+    if (scheduledTimetable != null) {
+      return scheduledTimetable.getDirection();
+    }
     return scheduledTimetableBuilder.getDirection();
   }
 
@@ -155,6 +170,10 @@ public final class TripPatternBuilder
 
   public StopPattern getStopPattern() {
     return stopPattern;
+  }
+
+  public Timetable getScheduledTimetable() {
+    return scheduledTimetable;
   }
 
   public TimetableBuilder getScheduledTimetableBuilder() {

@@ -20,7 +20,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.opentripplanner.framework.time.ServiceDateUtils;
@@ -483,14 +482,5 @@ public class Timetable implements Serializable {
       // Pattern is created only for real-time updates
       return null;
     }
-  }
-
-  public boolean sameAs(Timetable other) {
-    return (
-      Objects.equals(pattern, other.pattern) &&
-      Objects.equals(tripTimes, other.tripTimes) &&
-      Objects.equals(frequencyEntries, other.frequencyEntries) &&
-      Objects.equals(serviceDate, other.serviceDate)
-    );
   }
 }
