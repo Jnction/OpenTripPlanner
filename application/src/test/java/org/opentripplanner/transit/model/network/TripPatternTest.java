@@ -126,7 +126,7 @@ class TripPatternTest {
       .of(id("extended"))
       .withName(NAME)
       .withRoute(ROUTE)
-      .withStopPattern(TransitModelForTest.stopPattern(STOP_A, STOP_B, STOP_C, STOP_X))
+      .withStopPattern(TimetableRepositoryForTest.stopPattern(STOP_A, STOP_B, STOP_C, STOP_X))
       .withHopGeometries(HOP_GEOMETRIES)
       .build();
     assertEquals(
