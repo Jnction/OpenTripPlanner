@@ -11,14 +11,17 @@ import static org.opentripplanner.transit.model.basic.TransitMode.GONDOLA;
 import static org.opentripplanner.transit.model.basic.TransitMode.MONORAIL;
 import static org.opentripplanner.transit.model.basic.TransitMode.RAIL;
 import static org.opentripplanner.transit.model.basic.TransitMode.SUBWAY;
+import static org.opentripplanner.transit.model.basic.TransitMode.COACH;
 import static org.opentripplanner.transit.model.basic.TransitMode.TAXI;
 import static org.opentripplanner.transit.model.basic.TransitMode.TRAM;
 import static org.opentripplanner.transit.model.basic.TransitMode.TROLLEYBUS;
 
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.transit.model.basic.TransitMode;
 
 class TransitModeMapperTest {
@@ -82,5 +85,17 @@ class TransitModeMapperTest {
   @MethodSource("testCases")
   void map(int mode, TransitMode expectedMode) {
     assertEquals(expectedMode, TransitModeMapper.mapMode(mode));
+  }
+
+  @Test
+  void testCoachFeatureFlag() {
+    OTPFeature.GtfsCoach.testOff(() -> {
+      assertEquals(BUS, TransitModeMapper.mapMode(200));
+      assertEquals(BUS, TransitModeMapper.mapMode(299));
+    });
+    OTPFeature.GtfsCoach.testOn(() -> {
+      assertEquals(COACH, TransitModeMapper.mapMode(200));
+      assertEquals(COACH, TransitModeMapper.mapMode(299));
+    });
   }
 }
