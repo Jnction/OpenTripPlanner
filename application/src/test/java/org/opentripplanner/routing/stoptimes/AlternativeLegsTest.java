@@ -51,7 +51,7 @@ class AlternativeLegsTest extends GtfsTest {
       originalLeg,
       3,
       transitService,
-      true,
+      AlternativeLegs.SearchDirection.PREVIOUS,
       AlternativeLegsFilter.NO_FILTER
     );
 
@@ -85,7 +85,7 @@ class AlternativeLegsTest extends GtfsTest {
       originalLeg,
       3,
       transitService,
-      false,
+      AlternativeLegs.SearchDirection.NEXT,
       AlternativeLegsFilter.NO_FILTER
     );
 
@@ -119,7 +119,7 @@ class AlternativeLegsTest extends GtfsTest {
       originalLeg,
       2,
       transitService,
-      false,
+      AlternativeLegs.SearchDirection.NEXT,
       AlternativeLegsFilter.NO_FILTER
     );
 
@@ -147,7 +147,7 @@ class AlternativeLegsTest extends GtfsTest {
       originalLeg,
       2,
       transitService,
-      false,
+      AlternativeLegs.SearchDirection.NEXT,
       AlternativeLegsFilter.NO_FILTER
     );
     var legs = toString(alternativeLegs);
