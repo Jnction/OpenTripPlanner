@@ -1,7 +1,6 @@
 package org.opentripplanner.updater.trip.moduletests.addition;
 
 import static com.google.transit.realtime.GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED;
-import static com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -162,13 +161,10 @@ class AddedTest implements RealtimeTestConstants {
     var env = RealtimeTestEnvironment.gtfs().build();
     var builder = new TripUpdateBuilder(ADDED_TRIP_ID, SERVICE_DATE, ADDED, TIME_ZONE);
 
-    // A1: scheduled 08:30:00
-    // B1: scheduled 08:40:00, delay 300 seconds (actual 08:45:00)
-    // C1: scheduled 08:55:00
     builder
-      .addStopTime(STOP_A1_ID, 30)
-      .addStopTime(STOP_B1_ID, 45, 300)
-      .addStopTime(STOP_C1_ID, 55);
+      .addStopTime(STOP_A1_ID, 30600)
+      .addStopTime(STOP_B1_ID, 31500, 300)
+      .addStopTime(STOP_C1_ID, 32100);
 
     var tripUpdate = builder.build();
     env.applyTripUpdate(tripUpdate);
@@ -180,9 +176,9 @@ class AddedTest implements RealtimeTestConstants {
     var forTodayAddedTripIndex = forToday.getTripIndex(ADDED_TRIP_ID);
     var tripTimes = forToday.getTripTimes(forTodayAddedTripIndex);
     assertEquals(0, tripTimes.getDepartureDelay(0));
-    assertEquals(30600, tripTimes.getDepartureTime(0)); // 08:30:00
+    assertEquals(30600, tripTimes.getDepartureTime(0));
     assertEquals(300, tripTimes.getArrivalDelay(1));
-    assertEquals(31500, tripTimes.getArrivalTime(1)); // 08:45:00
+    assertEquals(31500, tripTimes.getArrivalTime(1));
   }
 
   private TripPattern assertAddedTrip(String tripId, RealtimeTestEnvironment env) {

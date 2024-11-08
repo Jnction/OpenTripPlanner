@@ -37,10 +37,21 @@ public class TripUpdateBuilder {
     this.midnight = ServiceDateUtils.asStartOfService(serviceDate, zoneId);
   }
 
-  public TripUpdateBuilder addStopTime(String stopId, int minutes) {
+  public TripUpdateBuilder(
+    String routeId,
+    String tripId,
+    LocalDate serviceDate,
+    GtfsRealtime.TripDescriptor.ScheduleRelationship scheduleRelationship,
+    ZoneId zoneId
+  ) {
+    this(tripId, serviceDate, scheduleRelationship, zoneId);
+    tripDescriptorBuilder.setRouteId(routeId);
+  }
+
+  public TripUpdateBuilder addStopTime(String stopId, int secondsFromMidnight) {
     return addStopTime(
       stopId,
-      minutes,
+      secondsFromMidnight,
       NO_VALUE,
       NO_DELAY,
       NO_DELAY,
@@ -49,10 +60,10 @@ public class TripUpdateBuilder {
     );
   }
 
-  public TripUpdateBuilder addStopTime(String stopId, int minutes, int delay) {
+  public TripUpdateBuilder addStopTime(String stopId, int estimatedSecondsFromMidnight, int delay) {
     return addStopTime(
       stopId,
-      minutes,
+      estimatedSecondsFromMidnight,
       NO_VALUE,
       delay,
       delay,
@@ -61,10 +72,14 @@ public class TripUpdateBuilder {
     );
   }
 
-  public TripUpdateBuilder addStopTime(String stopId, int minutes, DropOffPickupType pickDrop) {
+  public TripUpdateBuilder addStopTime(
+    String stopId,
+    int secondsFromMidnight,
+    DropOffPickupType pickDrop
+  ) {
     return addStopTime(
       stopId,
-      minutes,
+      secondsFromMidnight,
       NO_VALUE,
       NO_DELAY,
       NO_DELAY,
@@ -123,10 +138,10 @@ public class TripUpdateBuilder {
     );
   }
 
-  public TripUpdateBuilder addSkippedStop(String stopId, int minutes) {
+  public TripUpdateBuilder addSkippedStop(String stopId, int secondsFromMidnight) {
     return addStopTime(
       stopId,
-      minutes,
+      secondsFromMidnight,
       NO_VALUE,
       NO_DELAY,
       NO_DELAY,
@@ -135,10 +150,14 @@ public class TripUpdateBuilder {
     );
   }
 
-  public TripUpdateBuilder addSkippedStop(String stopId, int minutes, DropOffPickupType pickDrop) {
+  public TripUpdateBuilder addSkippedStop(
+    String stopId,
+    int secondsFromMidnight,
+    DropOffPickupType pickDrop
+  ) {
     return addStopTime(
       stopId,
-      minutes,
+      secondsFromMidnight,
       NO_VALUE,
       NO_DELAY,
       NO_DELAY,
@@ -158,7 +177,7 @@ public class TripUpdateBuilder {
 
   private TripUpdateBuilder addStopTime(
     String stopId,
-    int minutes,
+    int secondsFromMidnight,
     int stopSequence,
     int arrivalDelay,
     int departureDelay,
@@ -189,8 +208,8 @@ public class TripUpdateBuilder {
     final GtfsRealtime.TripUpdate.StopTimeEvent.Builder arrivalBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
     final GtfsRealtime.TripUpdate.StopTimeEvent.Builder departureBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
 
-    if (minutes > NO_VALUE) {
-      var epochSeconds = midnight.plusHours(8).plusMinutes(minutes).toEpochSecond();
+    if (secondsFromMidnight > NO_VALUE) {
+      var epochSeconds = midnight.plusSeconds(secondsFromMidnight).toEpochSecond();
       arrivalBuilder.setTime(epochSeconds);
       departureBuilder.setTime(epochSeconds);
     }
