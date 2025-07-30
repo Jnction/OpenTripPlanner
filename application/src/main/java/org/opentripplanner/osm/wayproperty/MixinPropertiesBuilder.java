@@ -1,5 +1,9 @@
 package org.opentripplanner.osm.wayproperty;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+import org.opentripplanner.osm.TraverseDirection;
 import org.opentripplanner.osm.wayproperty.specifier.OsmSpecifier;
 import org.opentripplanner.street.model.StreetTraversalPermission;
 
@@ -68,6 +72,20 @@ public class MixinPropertiesBuilder {
     this.defaultBuilder.removePermission(permission);
     this.forwardBuilder.removePermission(permission);
     this.backwardBuilder.removePermission(permission);
+    return this;
+  }
+
+  public MixinPropertiesBuilder directional(
+    @Nullable TraverseDirection direction,
+    Consumer<MixinDirectionalPropertiesBuilder> action
+  ) {
+    var builder = direction == null
+      ? defaultBuilder
+      : switch (direction) {
+        case FORWARD -> forwardBuilder;
+        case BACKWARD -> backwardBuilder;
+      };
+    action.accept(builder);
     return this;
   }
 
