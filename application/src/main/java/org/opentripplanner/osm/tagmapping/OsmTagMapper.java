@@ -17,6 +17,7 @@ import org.opentripplanner.osm.wayproperty.MixinPropertiesBuilder;
 import org.opentripplanner.osm.wayproperty.WayProperties;
 import org.opentripplanner.osm.wayproperty.WayPropertySet;
 import org.opentripplanner.osm.wayproperty.specifier.BestMatchSpecifier;
+import org.opentripplanner.osm.wayproperty.specifier.Condition;
 import org.opentripplanner.osm.wayproperty.specifier.Condition.Equals;
 import org.opentripplanner.osm.wayproperty.specifier.Condition.Not;
 import org.opentripplanner.osm.wayproperty.specifier.ExactMatchSpecifier;
@@ -66,7 +67,7 @@ public class OsmTagMapper {
 
     /* PEDESTRIAN */
     props.setProperties("highway=corridor", withModes(PEDESTRIAN).walkSafety(0.8));
-    props.setProperties("highway=steps", withModes(PEDESTRIAN).walkSafety(1.2));
+    props.setProperties("highway=steps", withModes(PEDESTRIAN).walkSafety(0.6));
     props.setProperties("highway=crossing", withModes(PEDESTRIAN).walkSafety(0.8));
     props.setProperties("highway=platform", withModes(PEDESTRIAN));
     props.setProperties("public_transport=platform", withModes(PEDESTRIAN));
@@ -184,7 +185,13 @@ public class OsmTagMapper {
     props.setMixinProperties(
       new ExactMatchSpecifier(
         new Equals("bicycle", "designated"),
-        new Not(new Equals("highway", "cycleway"))
+        new Condition.OneOfOrAbsent("cycleway"),
+        new Not(new Equals("highway", "cycleway")),
+        new Not(new Equals("lcn", "yes")),
+        new Not(new Equals("rcn", "yes")),
+        new Not(new Equals("ncn", "yes")),
+        new Not(new Equals("bicycle_road", "yes")),
+        new Not(new Equals("cyclestreet", "yes"))
       ),
       ofBicycleSafety(0.8)
     );
@@ -209,7 +216,21 @@ public class OsmTagMapper {
     // prefer walking on sidewalks
     props.setMixinProperties(
       new LogicalOrSpecifier("sidewalk=yes", "sidewalk=left", "sidewalk=right", "sidewalk=both"),
-      ofWalkSafety(0.25)
+      ofWalkSafety(0.8)
+    );
+
+    props.setMixinProperties(
+      new LogicalOrSpecifier(
+        "highway=trunk;sidewalk=yes",
+        "highway=trunk;sidewalk=left",
+        "highway=trunk;sidewalk=right",
+        "highway=trunk;sidewalk=both",
+        "highway=trunk_link;sidewalk=yes",
+        "highway=trunk_link;sidewalk=left",
+        "highway=trunk_link;sidewalk=right",
+        "highway=trunk_link;sidewalk=both"
+      ),
+      ofWalkSafety(0.5)
     );
 
     props.setMixinProperties("sidewalk=lane", ofWalkSafety(0.6));

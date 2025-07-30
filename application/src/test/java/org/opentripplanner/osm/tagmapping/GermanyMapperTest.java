@@ -64,7 +64,7 @@ public class GermanyMapperTest {
       way.addTag("zone:traffic", "DE:urban");
       assertEquals(0.9, wps.getDataForWay(way).forward().bicycleSafety(), epsilon);
       // walk safety should be default
-      assertEquals(1, wps.getDataForWay(way).forward().walkSafety(), epsilon);
+      assertEquals(0.8, wps.getDataForWay(way).forward().walkSafety(), epsilon);
     }
 
     @Test
@@ -85,7 +85,7 @@ public class GermanyMapperTest {
       way.addTag("source:maxspeed", "sign");
       way.addTag("surface", "asphalt");
       way.addTag("tracktype", "grade1");
-      assertEquals(0.693, wps.getDataForWay(way).forward().bicycleSafety(), epsilon);
+      assertEquals(0.56, wps.getDataForWay(way).forward().bicycleSafety(), epsilon);
     }
 
     @Test

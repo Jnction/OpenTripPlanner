@@ -22,54 +22,53 @@ Lower safety values make an OSM way more desirable and higher values less desira
 <!-- props BEGIN -->
 <!-- NOTE! This section is auto-generated. Do not change, change doc in code instead. -->
 
-| specifier                                        | permission               | bike safety | walk safety |
-|--------------------------------------------------|--------------------------|-------------|-------------|
-| `highway=track`                                  | `PEDESTRIAN_AND_BICYCLE` |             |             |
-| `highway=track; present(surface)`                | `PEDESTRIAN_AND_BICYCLE` |             |             |
-| `highway=residential; junction=roundabout`       | `ALL`                    | 0.98        |             |
-| `present(highway); junction=roundabout`          | `BICYCLE_AND_CAR`        |             |             |
-| `highway=pedestrian`                             | `PEDESTRIAN`             |             |             |
-| `highway=residential; maxspeed=30`               | `ALL`                    | 0.9         |             |
-| `highway=footway; bicycle=yes`                   | `PEDESTRIAN_AND_BICYCLE` | 0.8         |             |
-| `footway=sidewalk; highway=footway; bicycle=yes` | `PEDESTRIAN_AND_BICYCLE` | 1.2         |             |
-| `highway=unclassified; cycleway=lane`            | `ALL`                    | 0.87        |             |
-| `mtb:scale=3`                                    | `NONE`                   |             |             |
-| `mtb:scale=4`                                    | `NONE`                   |             |             |
-| `mtb:scale=5`                                    | `NONE`                   |             |             |
-| `mtb:scale=6`                                    | `NONE`                   |             |             |
-| `highway=bridleway`                              | `NONE`                   | 1.3         | 1.3         |
-| `highway=corridor`                               | `PEDESTRIAN`             |             | 0.8         |
-| `highway=steps`                                  | `PEDESTRIAN`             |             | 1.2         |
-| `highway=crossing`                               | `PEDESTRIAN`             |             | 0.8         |
-| `highway=platform`                               | `PEDESTRIAN`             |             |             |
-| `public_transport=platform`                      | `PEDESTRIAN`             |             |             |
-| `railway=platform`                               | `PEDESTRIAN`             |             |             |
-| `highway=pedestrian`                             | `PEDESTRIAN`             | 0.9         | 0.7         |
-| `highway=footway`                                | `PEDESTRIAN`             | 1.1         | 0.6         |
-| `mtb:scale=1`                                    | `PEDESTRIAN`             | 1.5         | 1.5         |
-| `mtb:scale=2`                                    | `PEDESTRIAN`             | 3.0         | 3.0         |
-| `highway=cycleway`                               | `BICYCLE`                | 0.6         | 2.0         |
-| `mtb:scale=0`                                    | `PEDESTRIAN_AND_BICYCLE` |             |             |
-| `highway=path`                                   | `PEDESTRIAN_AND_BICYCLE` | 0.75        | 0.75        |
-| `highway=living_street`                          | `ALL`                    | 0.9         | 0.9         |
-| `highway=unclassified`                           | `ALL`                    |             |             |
-| `highway=road`                                   | `ALL`                    |             |             |
-| `highway=byway`                                  | `ALL`                    | 1.3         | 1.3         |
-| `highway=track`                                  | `ALL`                    | 1.3         | 1.3         |
-| `highway=service`                                | `ALL`                    | 1.1         | 1.1         |
-| `highway=residential`                            | `ALL`                    | 0.98        | 0.98        |
-| `highway=residential_link`                       | `ALL`                    | 0.98        | 0.98        |
-| `highway=tertiary`                               | `ALL`                    |             |             |
-| `highway=tertiary_link`                          | `ALL`                    |             |             |
-| `highway=secondary`                              | `ALL`                    | 1.5         | 1.5         |
-| `highway=secondary_link`                         | `ALL`                    | 1.5         | 1.5         |
-| `highway=primary`                                | `ALL`                    | 2.06        | 2.06        |
-| `highway=primary_link`                           | `ALL`                    | 2.06        | 2.06        |
-| `highway=trunk`                                  | `ALL`                    | 7.47        | 7.47        |
-| `highway=trunk_link`                             | `ALL`                    | 2.06        | 7.47        |
-| `highway=motorway_link`                          | `CAR`                    | 2.06        |             |
-| `highway=motorway`                               | `CAR`                    | 8.0         |             |
-| `motorroad=yes`                                  | `CAR`                    |             |             |
+| specifier                                  | permission               | bike safety | walk safety |
+|--------------------------------------------|--------------------------|-------------|-------------|
+| `highway=track`                            | `PEDESTRIAN_AND_BICYCLE` |             |             |
+| `highway=track; present(surface)`          | `PEDESTRIAN_AND_BICYCLE` |             |             |
+| `highway=residential; junction=roundabout` | `ALL`                    | 0.98        |             |
+| `present(highway); junction=roundabout`    | `BICYCLE_AND_CAR`        |             |             |
+| `highway=pedestrian`                       | `PEDESTRIAN`             |             |             |
+| `highway=residential; maxspeed=30`         | `ALL`                    | 0.9         |             |
+| `highway=footway; bicycle=yes`             | `PEDESTRIAN_AND_BICYCLE` | 0.8         |             |
+| `highway=unclassified; cycleway=lane`      | `ALL`                    | 0.87        |             |
+| `mtb:scale=3`                              | `NONE`                   |             |             |
+| `mtb:scale=4`                              | `NONE`                   |             |             |
+| `mtb:scale=5`                              | `NONE`                   |             |             |
+| `mtb:scale=6`                              | `NONE`                   |             |             |
+| `highway=bridleway`                        | `NONE`                   | 1.3         | 1.3         |
+| `highway=corridor`                         | `PEDESTRIAN`             |             | 0.8         |
+| `highway=steps`                            | `PEDESTRIAN`             |             | 0.6         |
+| `highway=crossing`                         | `PEDESTRIAN`             |             | 0.8         |
+| `highway=platform`                         | `PEDESTRIAN`             |             |             |
+| `public_transport=platform`                | `PEDESTRIAN`             |             |             |
+| `railway=platform`                         | `PEDESTRIAN`             |             |             |
+| `highway=pedestrian`                       | `PEDESTRIAN`             | 0.9         | 0.7         |
+| `highway=footway`                          | `PEDESTRIAN`             | 1.1         | 0.6         |
+| `mtb:scale=1`                              | `PEDESTRIAN`             | 1.5         | 1.5         |
+| `mtb:scale=2`                              | `PEDESTRIAN`             | 3.0         | 3.0         |
+| `highway=cycleway`                         | `BICYCLE`                | 0.6         | 2.0         |
+| `mtb:scale=0`                              | `PEDESTRIAN_AND_BICYCLE` |             |             |
+| `highway=path`                             | `PEDESTRIAN_AND_BICYCLE` | 0.75        | 0.75        |
+| `highway=living_street`                    | `ALL`                    | 0.9         | 0.9         |
+| `highway=unclassified`                     | `ALL`                    |             |             |
+| `highway=road`                             | `ALL`                    |             |             |
+| `highway=byway`                            | `ALL`                    | 1.3         | 1.3         |
+| `highway=track`                            | `ALL`                    | 1.3         | 1.3         |
+| `highway=service`                          | `ALL`                    | 1.1         | 1.1         |
+| `highway=residential`                      | `ALL`                    | 0.98        | 0.98        |
+| `highway=residential_link`                 | `ALL`                    | 0.98        | 0.98        |
+| `highway=tertiary`                         | `ALL`                    |             |             |
+| `highway=tertiary_link`                    | `ALL`                    |             |             |
+| `highway=secondary`                        | `ALL`                    | 1.5         | 1.5         |
+| `highway=secondary_link`                   | `ALL`                    | 1.5         | 1.5         |
+| `highway=primary`                          | `ALL`                    | 2.06        | 2.06        |
+| `highway=primary_link`                     | `ALL`                    | 2.06        | 2.06        |
+| `highway=trunk`                            | `ALL`                    | 7.47        | 7.47        |
+| `highway=trunk_link`                       | `ALL`                    | 2.06        | 7.47        |
+| `highway=motorway_link`                    | `CAR`                    | 2.06        |             |
+| `highway=motorway`                         | `CAR`                    | 8.0         |             |
+| `motorroad=yes`                            | `CAR`                    |             |             |
 
 <!-- props END -->
 
@@ -82,54 +81,56 @@ way properties. Multiple mixins can apply to the same way and their effects comp
 <!-- mixins BEGIN -->
 <!-- NOTE! This section is auto-generated. Do not change, change doc in code instead. -->
 
-| matcher                                                    | bicycle safety                                      | walk safety |
-|------------------------------------------------------------|-----------------------------------------------------|-------------|
-| `highway=tertiary`                                         | 1.2                                                 |             |
-| `maxspeed=70`                                              | 1.5                                                 |             |
-| `maxspeed=80`                                              | 2.0                                                 |             |
-| `maxspeed=90`                                              | 3.0                                                 |             |
-| `maxspeed=100`                                             | 5.0                                                 |             |
-| `tracktype=grade1`                                         |                                                     |             |
-| `tracktype=grade2`                                         | 1.1                                                 |             |
-| `tracktype=grade3`                                         | 1.15                                                |             |
-| `tracktype=grade4`                                         | 1.3                                                 |             |
-| `tracktype=grade5`                                         | 1.5                                                 |             |
-| `lit=no`                                                   | 1.05                                                |             |
-| `cycleway=lane`                                            | 0.87                                                |             |
-| `cycleway=share_busway`                                    | 0.92                                                |             |
-| `cycleway=opposite_lane`                                   | no direction: 1.0 <br> forward: 1.0 <br> back: 0.87 |             |
-| `cycleway=track`                                           | 0.75                                                |             |
-| `cycleway=opposite_track`                                  | no direction: 1.0 <br> forward: 1.0 <br> back: 0.75 |             |
-| `cycleway=shared_lane`                                     | 0.77                                                |             |
-| `cycleway=opposite`                                        | no direction: 1.0 <br> forward: 1.0 <br> back: 1.4  |             |
-| `foot=designated; Not[condition=highway=footway]`          |                                                     | 0.6         |
-| `footway=sidewalk`                                         | 2.5                                                 |             |
-| `footway=crossing`                                         | 2.5                                                 |             |
-| `bicycle=designated; Not[condition=highway=cycleway]`      | 0.8                                                 |             |
-| `lcn=yes¦rcn=yes¦ncn=yes¦bicycle_road=yes¦cyclestreet=yes` | 0.7                                                 |             |
-| `sidewalk=yes¦sidewalk=left¦sidewalk=right¦sidewalk=both`  |                                                     | 0.25        |
-| `sidewalk=lane`                                            |                                                     | 0.6         |
-| `surface=unpaved`                                          | 1.18                                                |             |
-| `surface=compacted`                                        | 1.18                                                |             |
-| `surface=wood`                                             | 1.18                                                |             |
-| `surface=cobblestone`                                      | 1.3                                                 |             |
-| `surface=sett`                                             | 1.3                                                 |             |
-| `surface=unhewn_cobblestone`                               | 1.5                                                 |             |
-| `surface=grass_paver`                                      | 1.3                                                 |             |
-| `surface=pebblestone`                                      | 1.3                                                 |             |
-| `surface=metal`                                            | 1.3                                                 |             |
-| `surface=ground`                                           | 1.5                                                 |             |
-| `surface=dirt`                                             | 1.5                                                 |             |
-| `surface=earth`                                            | 1.5                                                 |             |
-| `surface=grass`                                            | 1.5                                                 |             |
-| `surface=mud`                                              | 1.5                                                 |             |
-| `surface=woodchip`                                         | 1.5                                                 |             |
-| `surface=gravel`                                           | 1.5                                                 |             |
-| `surface=artifical_turf`                                   | 1.5                                                 |             |
-| `surface=sand`                                             | 100.0                                               |             |
-| `foot=discouraged`                                         |                                                     | 3.0         |
-| `bicycle=discouraged`                                      | 3.0                                                 |             |
-| `foot=use_sidepath`                                        |                                                     | 5.0         |
-| `bicycle=use_sidepath`                                     | 5.0                                                 |             |
+| matcher                                                                                                                                                                                                                                                       | bicycle safety                                      | walk safety |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|-------------|
+| `footway=sidewalk; highway=footway; bicycle=yes`                                                                                                                                                                                                              | 0.6                                                 |             |
+| `highway=tertiary`                                                                                                                                                                                                                                            | 1.2                                                 |             |
+| `maxspeed=70`                                                                                                                                                                                                                                                 | 1.5                                                 |             |
+| `maxspeed=80`                                                                                                                                                                                                                                                 | 2.0                                                 |             |
+| `maxspeed=90`                                                                                                                                                                                                                                                 | 3.0                                                 |             |
+| `maxspeed=100`                                                                                                                                                                                                                                                | 5.0                                                 |             |
+| `tracktype=grade1`                                                                                                                                                                                                                                            |                                                     |             |
+| `tracktype=grade2`                                                                                                                                                                                                                                            | 1.1                                                 |             |
+| `tracktype=grade3`                                                                                                                                                                                                                                            | 1.15                                                |             |
+| `tracktype=grade4`                                                                                                                                                                                                                                            | 1.3                                                 |             |
+| `tracktype=grade5`                                                                                                                                                                                                                                            | 1.5                                                 |             |
+| `lit=no`                                                                                                                                                                                                                                                      | 1.05                                                |             |
+| `cycleway=lane`                                                                                                                                                                                                                                               | 0.87                                                |             |
+| `cycleway=share_busway`                                                                                                                                                                                                                                       | 0.92                                                |             |
+| `cycleway=opposite_lane`                                                                                                                                                                                                                                      | no direction: 1.0 <br> forward: 1.0 <br> back: 0.87 |             |
+| `cycleway=track`                                                                                                                                                                                                                                              | 0.75                                                |             |
+| `cycleway=opposite_track`                                                                                                                                                                                                                                     | no direction: 1.0 <br> forward: 1.0 <br> back: 0.75 |             |
+| `cycleway=shared_lane`                                                                                                                                                                                                                                        | 0.77                                                |             |
+| `cycleway=opposite`                                                                                                                                                                                                                                           | no direction: 1.0 <br> forward: 1.0 <br> back: 1.4  |             |
+| `foot=designated; Not[condition=highway=footway]`                                                                                                                                                                                                             |                                                     | 0.6         |
+| `footway=sidewalk`                                                                                                                                                                                                                                            | 2.5                                                 |             |
+| `footway=crossing`                                                                                                                                                                                                                                            | 2.5                                                 |             |
+| `bicycle=designated; cycleway not one of [no, none] or absent; Not[condition=highway=cycleway]; Not[condition=lcn=yes]; Not[condition=rcn=yes]; Not[condition=ncn=yes]; Not[condition=bicycle_road=yes]; Not[condition=cyclestreet=yes]`                      | 0.8                                                 |             |
+| `lcn=yes¦rcn=yes¦ncn=yes¦bicycle_road=yes¦cyclestreet=yes`                                                                                                                                                                                                    | 0.7                                                 |             |
+| `sidewalk=yes¦sidewalk=left¦sidewalk=right¦sidewalk=both`                                                                                                                                                                                                     |                                                     | 0.8         |
+| `highway=trunk; sidewalk=yes¦highway=trunk; sidewalk=left¦highway=trunk; sidewalk=right¦highway=trunk; sidewalk=both¦highway=trunk_link; sidewalk=yes¦highway=trunk_link; sidewalk=left¦highway=trunk_link; sidewalk=right¦highway=trunk_link; sidewalk=both` |                                                     | 0.5         |
+| `sidewalk=lane`                                                                                                                                                                                                                                               |                                                     | 0.6         |
+| `surface=unpaved`                                                                                                                                                                                                                                             | 1.18                                                |             |
+| `surface=compacted`                                                                                                                                                                                                                                           | 1.18                                                |             |
+| `surface=wood`                                                                                                                                                                                                                                                | 1.18                                                |             |
+| `surface=cobblestone`                                                                                                                                                                                                                                         | 1.3                                                 |             |
+| `surface=sett`                                                                                                                                                                                                                                                | 1.3                                                 |             |
+| `surface=unhewn_cobblestone`                                                                                                                                                                                                                                  | 1.5                                                 |             |
+| `surface=grass_paver`                                                                                                                                                                                                                                         | 1.3                                                 |             |
+| `surface=pebblestone`                                                                                                                                                                                                                                         | 1.3                                                 |             |
+| `surface=metal`                                                                                                                                                                                                                                               | 1.3                                                 |             |
+| `surface=ground`                                                                                                                                                                                                                                              | 1.5                                                 |             |
+| `surface=dirt`                                                                                                                                                                                                                                                | 1.5                                                 |             |
+| `surface=earth`                                                                                                                                                                                                                                               | 1.5                                                 |             |
+| `surface=grass`                                                                                                                                                                                                                                               | 1.5                                                 |             |
+| `surface=mud`                                                                                                                                                                                                                                                 | 1.5                                                 |             |
+| `surface=woodchip`                                                                                                                                                                                                                                            | 1.5                                                 |             |
+| `surface=gravel`                                                                                                                                                                                                                                              | 1.5                                                 |             |
+| `surface=artifical_turf`                                                                                                                                                                                                                                      | 1.5                                                 |             |
+| `surface=sand`                                                                                                                                                                                                                                                | 100.0                                               |             |
+| `foot=discouraged`                                                                                                                                                                                                                                            |                                                     | 3.0         |
+| `bicycle=discouraged`                                                                                                                                                                                                                                         | 3.0                                                 |             |
+| `foot=use_sidepath`                                                                                                                                                                                                                                           |                                                     | 5.0         |
+| `bicycle=use_sidepath`                                                                                                                                                                                                                                        | 5.0                                                 |             |
 
 <!-- mixins END -->
