@@ -1,6 +1,11 @@
 package org.opentripplanner.osm.wayproperty;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+import org.opentripplanner.osm.TraverseDirection;
 import org.opentripplanner.osm.wayproperty.specifier.OsmSpecifier;
+import org.opentripplanner.street.model.StreetTraversalPermission;
 
 /**
  * Builder for {@link MixinProperties}. If you don't set the safety features they will have a default
@@ -8,12 +13,9 @@ import org.opentripplanner.osm.wayproperty.specifier.OsmSpecifier;
  */
 public class MixinPropertiesBuilder {
 
-  private double walkSafety = 1;
-  private double bicycleSafety = 1;
-  private double forwardBicycleSafety = 1;
-  private double backwardBicycleSafety = 1;
-  private double forwardWalkSafety = 1;
-  private double backwardWalkSafety = 1;
+  final MixinDirectionalPropertiesBuilder defaultBuilder = new MixinDirectionalPropertiesBuilder();
+  final MixinDirectionalPropertiesBuilder forwardBuilder = new MixinDirectionalPropertiesBuilder();
+  final MixinDirectionalPropertiesBuilder backwardBuilder = new MixinDirectionalPropertiesBuilder();
 
   public static MixinPropertiesBuilder ofWalkSafety(double safety) {
     return new MixinPropertiesBuilder().walkSafety(safety);
@@ -34,9 +36,9 @@ public class MixinPropertiesBuilder {
    * 1, with all others scaled proportionately.
    */
   public MixinPropertiesBuilder bicycleSafety(double value, double forward, double back) {
-    this.bicycleSafety = value;
-    this.forwardBicycleSafety = forward;
-    this.backwardBicycleSafety = back;
+    this.defaultBuilder.bicycleSafety(value);
+    this.forwardBuilder.bicycleSafety(forward);
+    this.backwardBuilder.bicycleSafety(back);
     return this;
   }
 
@@ -47,21 +49,52 @@ public class MixinPropertiesBuilder {
    * 1, with all others scaled proportionately.
    */
   public MixinPropertiesBuilder walkSafety(double walkSafety) {
-    this.walkSafety = walkSafety;
-    this.forwardWalkSafety = walkSafety;
-    this.backwardWalkSafety = walkSafety;
+    this.defaultBuilder.walkSafety(walkSafety);
+    this.forwardBuilder.walkSafety(walkSafety);
+    this.backwardBuilder.walkSafety(walkSafety);
+    return this;
+  }
+
+  /**
+   * Add the same permission to all directions
+   */
+  public MixinPropertiesBuilder addPermission(StreetTraversalPermission permission) {
+    this.defaultBuilder.addPermission(permission);
+    this.forwardBuilder.addPermission(permission);
+    this.backwardBuilder.addPermission(permission);
+    return this;
+  }
+
+  /**
+   * Remove the same permission to all directions
+   */
+  public MixinPropertiesBuilder removePermission(StreetTraversalPermission permission) {
+    this.defaultBuilder.removePermission(permission);
+    this.forwardBuilder.removePermission(permission);
+    this.backwardBuilder.removePermission(permission);
+    return this;
+  }
+
+  public MixinPropertiesBuilder directional(
+    @Nullable TraverseDirection direction,
+    Consumer<MixinDirectionalPropertiesBuilder> action
+  ) {
+    var builder = direction == null
+      ? defaultBuilder
+      : switch (direction) {
+        case FORWARD -> forwardBuilder;
+        case BACKWARD -> backwardBuilder;
+      };
+    action.accept(builder);
     return this;
   }
 
   public MixinProperties build(OsmSpecifier spec) {
     return new MixinProperties(
       spec,
-      walkSafety,
-      bicycleSafety,
-      forwardWalkSafety,
-      forwardBicycleSafety,
-      backwardWalkSafety,
-      backwardBicycleSafety
+      defaultBuilder.build(),
+      forwardBuilder.build(),
+      backwardBuilder.build()
     );
   }
 }

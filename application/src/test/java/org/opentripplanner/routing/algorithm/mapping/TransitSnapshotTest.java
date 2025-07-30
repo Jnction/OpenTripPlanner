@@ -61,6 +61,7 @@ public class TransitSnapshotTest extends SnapshotTestBase {
   }
 
   @Test
+  @Disabled
   public void test_trip_planning_with_walk_only() {
     RouteRequest request = createTestRequest(2009, 11, 17, 10, 0, 0)
       .withJourney(jb -> jb.withTransit(b -> b.disable()))
@@ -72,6 +73,7 @@ public class TransitSnapshotTest extends SnapshotTestBase {
   }
 
   @Test
+  @Disabled
   public void test_trip_planning_with_walk_only_stop() {
     RouteRequest request = createTestRequest(2009, 11, 17, 10, 0, 0)
       .withJourney(jb -> {

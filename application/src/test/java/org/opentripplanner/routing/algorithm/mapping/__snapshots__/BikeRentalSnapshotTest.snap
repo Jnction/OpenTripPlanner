@@ -32,7 +32,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 3271,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -47,7 +47,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -133,7 +133,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 488,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -206,7 +206,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 118,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 5,
@@ -414,7 +414,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 285,
+          "generalizedCost" : 946,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 15,
@@ -493,7 +493,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 2538,
+      "generalizedCost" : 4703,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -508,7 +508,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 865,
+          "generalizedCost" : 2357,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 34,
@@ -794,7 +794,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 472,
+          "generalizedCost" : 1145,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 18,
@@ -912,7 +912,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 1804,
+      "generalizedCost" : 2605,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -927,7 +927,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 336,
+          "generalizedCost" : 962,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 6,
@@ -1148,7 +1148,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 77,
+          "generalizedCost" : 252,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 3,
@@ -1227,7 +1227,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 3271,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -1242,7 +1242,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -1328,7 +1328,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 488,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -1401,7 +1401,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 118,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 5,
@@ -1609,7 +1609,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 285,
+          "generalizedCost" : 946,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 15,
@@ -1688,7 +1688,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 3271,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -1703,7 +1703,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -1789,7 +1789,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 488,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -1862,7 +1862,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 118,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 5,
@@ -2070,7 +2070,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 285,
+          "generalizedCost" : 946,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 15,
@@ -2149,7 +2149,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           }
         ]
       },
-      "generalizedCost" : 1804,
+      "generalizedCost" : 2605,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2164,7 +2164,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 336,
+          "generalizedCost" : 962,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 6,
@@ -2385,7 +2385,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 77,
+          "generalizedCost" : 252,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 3,
@@ -2448,7 +2448,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 1036,
+      "generalizedCost" : 1937,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2463,7 +2463,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -2549,7 +2549,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 488,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -2622,7 +2622,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 338,
+          "generalizedCost" : 905,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -2711,7 +2711,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 830,
+      "generalizedCost" : 1199,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2726,7 +2726,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -2812,7 +2812,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 541,
+          "generalizedCost" : 655,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 11,
@@ -2914,7 +2914,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 829,
+      "generalizedCost" : 1198,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2929,7 +2929,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 543,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -3015,7 +3015,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 540,
+          "generalizedCost" : 654,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 10,
@@ -3139,7 +3139,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           }
         ]
       },
-      "generalizedCost" : 2119,
+      "generalizedCost" : 2911,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -3154,7 +3154,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 261,
+          "generalizedCost" : 653,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 10,
@@ -3401,7 +3401,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 167,
+          "generalizedCost" : 234,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -3474,7 +3474,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 399,
+          "generalizedCost" : 477,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -3547,7 +3547,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 168,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -3622,10 +3622,10 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1260,
+      "duration" : 1286,
       "elevationGained" : 0.0,
       "elevationLost" : 0.0,
-      "endTime" : "2009-10-21T23:35:16.000+00:00",
+      "endTime" : "2009-10-21T23:35:42.000+00:00",
       "fare" : {
         "details" : { },
         "fare" : { },
@@ -3652,7 +3652,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           }
         ]
       },
-      "generalizedCost" : 2503,
+      "generalizedCost" : 4636,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -3667,7 +3667,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 442,
+          "generalizedCost" : 1064,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 17,
@@ -3741,8 +3741,8 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "agencyUrl" : "http://trimet.org",
           "arrivalDelay" : 0,
           "departureDelay" : 0,
-          "distance" : 1942.25,
-          "endTime" : "2009-10-21T23:28:03.000+00:00",
+          "distance" : 1732.6,
+          "endTime" : "2009-10-21T23:27:32.000+00:00",
           "from" : {
             "arrival" : "2009-10-21T23:18:00.000+00:00",
             "departure" : "2009-10-21T23:18:00.000+00:00",
@@ -3756,7 +3756,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 1203,
+          "generalizedCost" : 1172,
           "headsign" : "Beaverton TC",
           "interlineWithPreviousLeg" : false,
           "intermediateStops" : [
@@ -3863,24 +3863,11 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "stopSequence" : 108,
               "vertexType" : "TRANSIT",
               "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:27:32.000+00:00",
-              "departure" : "2009-10-21T23:27:32.000+00:00",
-              "lat" : 45.523512,
-              "lon" : -122.698081,
-              "name" : "W Burnside & NW 23rd",
-              "stopCode" : "755",
-              "stopId" : "prt:755",
-              "stopIndex" : 108,
-              "stopSequence" : 109,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
             }
           ],
           "legGeometry" : {
-            "length" : 56,
-            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC??APu@lJMhBI`@"
+            "length" : 51,
+            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC"
           },
           "mode" : "BUS",
           "pathway" : false,
@@ -3894,15 +3881,15 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "startTime" : "2009-10-21T23:18:00.000+00:00",
           "steps" : [ ],
           "to" : {
-            "arrival" : "2009-10-21T23:28:03.000+00:00",
-            "departure" : "2009-10-21T23:28:03.000+00:00",
-            "lat" : 45.523897,
-            "lon" : -122.700681,
-            "name" : "W Burnside & NW 23rd Pl",
-            "stopCode" : "9555",
-            "stopId" : "prt:9555",
-            "stopIndex" : 109,
-            "stopSequence" : 110,
+            "arrival" : "2009-10-21T23:27:32.000+00:00",
+            "departure" : "2009-10-21T23:27:32.000+00:00",
+            "lat" : 45.523512,
+            "lon" : -122.698081,
+            "name" : "W Burnside & NW 23rd",
+            "stopCode" : "755",
+            "stopId" : "prt:755",
+            "stopIndex" : 108,
+            "stopSequence" : 109,
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
@@ -3914,66 +3901,66 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "agencyTimeZoneOffset" : -25200000,
           "arrivalDelay" : 0,
           "departureDelay" : 0,
-          "distance" : 563.7,
-          "endTime" : "2009-10-21T23:35:16.000+00:00",
+          "distance" : 635.65,
+          "endTime" : "2009-10-21T23:35:42.000+00:00",
           "from" : {
-            "arrival" : "2009-10-21T23:28:03.000+00:00",
-            "departure" : "2009-10-21T23:28:03.000+00:00",
-            "lat" : 45.523897,
-            "lon" : -122.700681,
-            "name" : "W Burnside & NW 23rd Pl",
-            "stopCode" : "9555",
-            "stopId" : "prt:9555",
+            "arrival" : "2009-10-21T23:27:32.000+00:00",
+            "departure" : "2009-10-21T23:27:32.000+00:00",
+            "lat" : 45.523512,
+            "lon" : -122.698081,
+            "name" : "W Burnside & NW 23rd",
+            "stopCode" : "755",
+            "stopId" : "prt:755",
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 858,
+          "generalizedCost" : 2400,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
-            "length" : 34,
-            "points" : "ikztGh~{kVNDEVUzACPOUQO_@Yc@[QMMEOKOIECGCIAMCGCGAECECECOOMOGKIFMLk@BsABGDGBoCBkCDkC@"
+            "length" : 35,
+            "points" : "}hztG`n{kVNBA@A`@UD_@JOBM?U@K??R?DCF?D?bAA@?@A@]^c@d@EF[ZKL]^GFgBnBIFMLk@BsABGDGBoCBkCDkC@"
           },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
           "rentedBike" : false,
           "route" : "",
-          "startTime" : "2009-10-21T23:28:03.000+00:00",
+          "startTime" : "2009-10-21T23:27:32.000+00:00",
           "steps" : [
             {
               "absoluteDirection" : "WEST",
               "area" : false,
               "bogusName" : false,
-              "distance" : 54.63,
+              "distance" : 14.5,
               "elevation" : "",
-              "lat" : 45.5238156,
-              "lon" : -122.7007199,
+              "lat" : 45.5234386,
+              "lon" : -122.6981028,
               "relativeDirection" : "DEPART",
               "stayOn" : false,
               "streetName" : "West Burnside Street",
               "walkingBike" : false
             },
             {
-              "absoluteDirection" : "NORTHEAST",
+              "absoluteDirection" : "NORTH",
               "area" : false,
               "bogusName" : false,
-              "distance" : 176.41,
+              "distance" : 65.91,
               "elevation" : "",
-              "lat" : 45.5239733,
-              "lon" : -122.701384,
+              "lat" : 45.5234583,
+              "lon" : -122.6982868,
               "relativeDirection" : "RIGHT",
               "stayOn" : false,
-              "streetName" : "Northwest 24th Place",
+              "streetName" : "Northwest 23rd Avenue",
               "walkingBike" : false
             },
             {
-              "absoluteDirection" : "NORTHWEST",
+              "absoluteDirection" : "WEST",
               "area" : false,
               "bogusName" : false,
-              "distance" : 15.26,
+              "distance" : 237.84,
               "elevation" : "",
-              "lat" : 45.5253583,
-              "lon" : -122.7003357,
+              "lat" : 45.5240426,
+              "lon" : -122.6984042,
               "relativeDirection" : "LEFT",
               "stayOn" : false,
               "streetName" : "Northwest Westover Road",
@@ -3994,7 +3981,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             }
           ],
           "to" : {
-            "arrival" : "2009-10-21T23:35:16.000+00:00",
+            "arrival" : "2009-10-21T23:35:42.000+00:00",
             "lat" : 45.52832,
             "lon" : -122.70059,
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
@@ -4007,11 +3994,11 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
       "startTime" : "2009-10-21T23:14:16.000+00:00",
       "tooSloped" : false,
       "transfers" : 0,
-      "transitTime" : 603,
+      "transitTime" : 572,
       "waitingTime" : 0,
-      "walkDistance" : 851.52,
+      "walkDistance" : 923.47,
       "walkLimitExceeded" : false,
-      "walkTime" : 657
+      "walkTime" : 714
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
@@ -4045,7 +4032,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           }
         ]
       },
-      "generalizedCost" : 2351,
+      "generalizedCost" : 4157,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4060,7 +4047,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 392,
+          "generalizedCost" : 1009,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 15,
@@ -4294,7 +4281,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "agencyTimeZoneOffset" : -25200000,
           "arrivalDelay" : 0,
           "departureDelay" : 0,
-          "distance" : 580.63,
+          "distance" : 581.2,
           "endTime" : "2009-10-21T23:37:14.000+00:00",
           "from" : {
             "arrival" : "2009-10-21T23:29:50.000+00:00",
@@ -4307,11 +4294,11 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 881,
+          "generalizedCost" : 2071,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
-            "length" : 12,
-            "points" : "}~{tGnq{kV?LVAF?J?FtKlCClCEnCElCElCCB?"
+            "length" : 25,
+            "points" : "}~{tGnq{kV?LVAF?J?L?rBCLAJ?H?l@Ab@?XAJ?~BEL?L?rBCJ?LArBCL??j@DhJB?"
           },
           "mode" : "WALK",
           "pathway" : false,
@@ -4324,7 +4311,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "absoluteDirection" : "SOUTH",
               "area" : false,
               "bogusName" : false,
-              "distance" : 24.9,
+              "distance" : 421.37,
               "elevation" : "",
               "lat" : 45.5321578,
               "lon" : -122.6987026,
@@ -4337,23 +4324,23 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "absoluteDirection" : "WEST",
               "area" : false,
               "bogusName" : false,
-              "distance" : 158.45,
+              "distance" : 158.43,
               "elevation" : "",
-              "lat" : 45.531934,
-              "lon" : -122.698695,
+              "lat" : 45.5283699,
+              "lon" : -122.6985634,
               "relativeDirection" : "RIGHT",
               "stayOn" : false,
-              "streetName" : "Northwest Overton Street",
+              "streetName" : "Northwest Johnson Street",
               "walkingBike" : false
             },
             {
               "absoluteDirection" : "SOUTH",
               "area" : false,
               "bogusName" : false,
-              "distance" : 397.28,
+              "distance" : 1.42,
               "elevation" : "",
-              "lat" : 45.5318916,
-              "lon" : -122.7007283,
+              "lat" : 45.5283327,
+              "lon" : -122.7005966,
               "relativeDirection" : "LEFT",
               "stayOn" : false,
               "streetName" : "Northwest 24th Avenue",
@@ -4376,9 +4363,659 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
       "transfers" : 0,
       "transitTime" : 477,
       "waitingTime" : 0,
-      "walkDistance" : 833.51,
+      "walkDistance" : 834.08,
       "walkLimitExceeded" : false,
       "walkTime" : 645
+    },
+    {
+      "arrivedAtDestinationWithRentedBicycle" : false,
+      "duration" : 1205,
+      "elevationGained" : 0.0,
+      "elevationLost" : 0.0,
+      "endTime" : "2009-10-21T23:38:37.000+00:00",
+      "fare" : {
+        "details" : { },
+        "fare" : { },
+        "legProducts" : [
+          {
+            "legIndices" : [
+              1
+            ],
+            "products" : [
+              {
+                "amount" : {
+                  "cents" : 200,
+                  "currency" : {
+                    "currency" : "USD",
+                    "currencyCode" : "USD",
+                    "defaultFractionDigits" : 2,
+                    "symbol" : "$"
+                  }
+                },
+                "id" : "prt:8",
+                "name" : "regular"
+              }
+            ]
+          },
+          {
+            "legIndices" : [
+              3
+            ],
+            "products" : [
+              {
+                "amount" : {
+                  "cents" : 200,
+                  "currency" : {
+                    "currency" : "USD",
+                    "currencyCode" : "USD",
+                    "defaultFractionDigits" : 2,
+                    "symbol" : "$"
+                  }
+                },
+                "id" : "prt:8",
+                "name" : "regular"
+              }
+            ]
+          }
+        ]
+      },
+      "generalizedCost" : 4081,
+      "legs" : [
+        {
+          "agencyTimeZoneOffset" : -25200000,
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 252.88,
+          "endTime" : "2009-10-21T23:21:53.000+00:00",
+          "from" : {
+            "departure" : "2009-10-21T23:18:32.000+00:00",
+            "lat" : 45.52523,
+            "lon" : -122.67525,
+            "name" : "NW Everett St. & NW 5th Ave. (P3)",
+            "vertexType" : "NORMAL"
+          },
+          "generalizedCost" : 1009,
+          "interlineWithPreviousLeg" : false,
+          "legGeometry" : {
+            "length" : 15,
+            "points" : "ssztGh_wkV?`@?LK?uBBK?K@sBBM??D?L@\\?lCC??E"
+          },
+          "mode" : "WALK",
+          "pathway" : false,
+          "realTime" : false,
+          "rentedBike" : false,
+          "route" : "",
+          "startTime" : "2009-10-21T23:18:32.000+00:00",
+          "steps" : [
+            {
+              "absoluteDirection" : "WEST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 17.98,
+              "elevation" : "",
+              "lat" : 45.5252279,
+              "lon" : -122.6752499,
+              "relativeDirection" : "DEPART",
+              "stayOn" : false,
+              "streetName" : "Northwest Everett Street",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "NORTH",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 158.01,
+              "elevation" : "",
+              "lat" : 45.5252242,
+              "lon" : -122.6754806,
+              "relativeDirection" : "RIGHT",
+              "stayOn" : false,
+              "streetName" : "Northwest 5th Avenue",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "WEST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 74.23,
+              "elevation" : "",
+              "lat" : 45.5266447,
+              "lon" : -122.6755391,
+              "relativeDirection" : "LEFT",
+              "stayOn" : false,
+              "streetName" : "Northwest Glisan Street",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "NORTH",
+              "area" : false,
+              "bogusName" : true,
+              "distance" : 2.66,
+              "elevation" : "",
+              "lat" : 45.5266303,
+              "lon" : -122.6764917,
+              "relativeDirection" : "RIGHT",
+              "stayOn" : false,
+              "streetName" : "path",
+              "walkingBike" : false
+            }
+          ],
+          "to" : {
+            "arrival" : "2009-10-21T23:21:53.000+00:00",
+            "departure" : "2009-10-21T23:21:53.000+00:00",
+            "lat" : 45.526655,
+            "lon" : -122.676462,
+            "name" : "NW Glisan & 6th",
+            "stopCode" : "10803",
+            "stopId" : "prt:10803",
+            "vertexType" : "TRANSIT",
+            "zoneId" : "0"
+          },
+          "transitLeg" : false,
+          "walkingBike" : false
+        },
+        {
+          "agencyId" : "prt:prt",
+          "agencyName" : "TriMet",
+          "agencyTimeZoneOffset" : -25200000,
+          "agencyUrl" : "http://trimet.org",
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 1798.77,
+          "endTime" : "2009-10-21T23:28:24.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:21:53.000+00:00",
+            "departure" : "2009-10-21T23:21:53.000+00:00",
+            "lat" : 45.526655,
+            "lon" : -122.676462,
+            "name" : "NW Glisan & 6th",
+            "stopCode" : "10803",
+            "stopId" : "prt:10803",
+            "stopIndex" : 85,
+            "stopSequence" : 86,
+            "vertexType" : "TRANSIT",
+            "zoneId" : "0"
+          },
+          "generalizedCost" : 991,
+          "headsign" : "Montgomery Park",
+          "interlineWithPreviousLeg" : false,
+          "intermediateStops" : [
+            {
+              "arrival" : "2009-10-21T23:22:57.000+00:00",
+              "departure" : "2009-10-21T23:22:57.000+00:00",
+              "lat" : 45.528799,
+              "lon" : -122.677238,
+              "name" : "NW Station Way & Union Station",
+              "stopCode" : "12801",
+              "stopId" : "prt:12801",
+              "stopIndex" : 86,
+              "stopSequence" : 87,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "0"
+            },
+            {
+              "arrival" : "2009-10-21T23:25:00.000+00:00",
+              "departure" : "2009-10-21T23:25:00.000+00:00",
+              "lat" : 45.531582,
+              "lon" : -122.681193,
+              "name" : "NW Northrup & 10th",
+              "stopCode" : "12802",
+              "stopId" : "prt:12802",
+              "stopIndex" : 87,
+              "stopSequence" : 88,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "1"
+            },
+            {
+              "arrival" : "2009-10-21T23:25:33.000+00:00",
+              "departure" : "2009-10-21T23:25:33.000+00:00",
+              "lat" : 45.531534,
+              "lon" : -122.683319,
+              "name" : "NW 12th & Northrup",
+              "stopCode" : "12796",
+              "stopId" : "prt:12796",
+              "stopIndex" : 88,
+              "stopSequence" : 89,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "1"
+            },
+            {
+              "arrival" : "2009-10-21T23:26:04.000+00:00",
+              "departure" : "2009-10-21T23:26:04.000+00:00",
+              "lat" : 45.531503,
+              "lon" : -122.685357,
+              "name" : "NW Northrup & 14th",
+              "stopCode" : "10775",
+              "stopId" : "prt:10775",
+              "stopIndex" : 89,
+              "stopSequence" : 90,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "1"
+            },
+            {
+              "arrival" : "2009-10-21T23:27:07.000+00:00",
+              "departure" : "2009-10-21T23:27:07.000+00:00",
+              "lat" : 45.531434,
+              "lon" : -122.689417,
+              "name" : "NW Northrup & 18th",
+              "stopCode" : "10776",
+              "stopId" : "prt:10776",
+              "stopIndex" : 90,
+              "stopSequence" : 91,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "1"
+            }
+          ],
+          "legGeometry" : {
+            "length" : 45,
+            "points" : "i|ztG|fwkV?LqCFmCDYBGDEBGJkAzAQR??KNa@b@MJuBBY?OHW@u@~@aD`EcBhBBrD@xC??@l@BlE@lD???XBjEBpD???VBlE?dA@t@?b@?h@BfEBrD???VBhEFtKDvJ"
+          },
+          "mode" : "BUS",
+          "pathway" : false,
+          "realTime" : false,
+          "route" : "Broadway/Halsey",
+          "routeId" : "prt:77",
+          "routeLongName" : "Broadway/Halsey",
+          "routeShortName" : "77",
+          "routeType" : 3,
+          "serviceDate" : "2009-10-21",
+          "startTime" : "2009-10-21T23:21:53.000+00:00",
+          "steps" : [ ],
+          "to" : {
+            "arrival" : "2009-10-21T23:28:24.000+00:00",
+            "departure" : "2009-10-21T23:28:24.000+00:00",
+            "lat" : 45.531346,
+            "lon" : -122.694455,
+            "name" : "NW Northrup & 21st",
+            "stopCode" : "10777",
+            "stopId" : "prt:10777",
+            "stopIndex" : 91,
+            "stopSequence" : 92,
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "transitLeg" : true,
+          "tripBlockId" : "7710",
+          "tripId" : "prt:771W1370"
+        },
+        {
+          "agencyTimeZoneOffset" : -25200000,
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 16.99,
+          "endTime" : "2009-10-21T23:28:38.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:28:24.000+00:00",
+            "departure" : "2009-10-21T23:28:24.000+00:00",
+            "lat" : 45.531346,
+            "lon" : -122.694455,
+            "name" : "NW Northrup & 21st",
+            "stopCode" : "10777",
+            "stopId" : "prt:10777",
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "generalizedCost" : 55,
+          "interlineWithPreviousLeg" : false,
+          "legGeometry" : {
+            "length" : 7,
+            "points" : "{y{tGjwzkV@??FCD?P?FE?"
+          },
+          "mode" : "WALK",
+          "pathway" : false,
+          "realTime" : false,
+          "rentedBike" : false,
+          "route" : "",
+          "startTime" : "2009-10-21T23:28:24.000+00:00",
+          "steps" : [
+            {
+              "absoluteDirection" : "NORTHWEST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 6.22,
+              "elevation" : "",
+              "lat" : 45.5313357,
+              "lon" : -122.6944546,
+              "relativeDirection" : "DEPART",
+              "stayOn" : false,
+              "streetName" : "Northwest Northrup Street",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "WEST",
+              "area" : false,
+              "bogusName" : true,
+              "distance" : 10.76,
+              "elevation" : "",
+              "lat" : 45.5313555,
+              "lon" : -122.6945215,
+              "relativeDirection" : "SLIGHTLY_LEFT",
+              "stayOn" : false,
+              "streetName" : "path",
+              "walkingBike" : false
+            }
+          ],
+          "to" : {
+            "arrival" : "2009-10-21T23:28:38.000+00:00",
+            "departure" : "2009-10-21T23:31:17.000+00:00",
+            "lat" : 45.531383,
+            "lon" : -122.694659,
+            "name" : "NW 21st & Northrup",
+            "stopCode" : "7127",
+            "stopId" : "prt:7127",
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "transitLeg" : false,
+          "walkingBike" : false
+        },
+        {
+          "agencyId" : "prt:prt",
+          "agencyName" : "TriMet",
+          "agencyTimeZoneOffset" : -25200000,
+          "agencyUrl" : "http://trimet.org",
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 396.55,
+          "endTime" : "2009-10-21T23:33:25.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:28:38.000+00:00",
+            "departure" : "2009-10-21T23:31:17.000+00:00",
+            "lat" : 45.531383,
+            "lon" : -122.694659,
+            "name" : "NW 21st & Northrup",
+            "stopCode" : "7127",
+            "stopId" : "prt:7127",
+            "stopIndex" : 13,
+            "stopSequence" : 14,
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "generalizedCost" : 887,
+          "headsign" : "136th Ave",
+          "interlineWithPreviousLeg" : false,
+          "intermediateStops" : [
+            {
+              "arrival" : "2009-10-21T23:32:00.000+00:00",
+              "departure" : "2009-10-21T23:32:00.000+00:00",
+              "lat" : 45.529982,
+              "lon" : -122.694639,
+              "name" : "NW 21st & Lovejoy",
+              "stopCode" : "7121",
+              "stopId" : "prt:7121",
+              "stopIndex" : 14,
+              "stopSequence" : 15,
+              "vertexType" : "TRANSIT",
+              "zoneId" : "1"
+            }
+          ],
+          "legGeometry" : {
+            "length" : 10,
+            "points" : "cz{tGhxzkVR?lCEtBC??VA~BALAnCExBC"
+          },
+          "mode" : "BUS",
+          "pathway" : false,
+          "realTime" : false,
+          "route" : "Holgate/NW 21st",
+          "routeId" : "prt:17",
+          "routeLongName" : "Holgate/NW 21st",
+          "routeShortName" : "17",
+          "routeType" : 3,
+          "serviceDate" : "2009-10-21",
+          "startTime" : "2009-10-21T23:31:17.000+00:00",
+          "steps" : [ ],
+          "to" : {
+            "arrival" : "2009-10-21T23:33:25.000+00:00",
+            "departure" : "2009-10-21T23:33:25.000+00:00",
+            "lat" : 45.527818,
+            "lon" : -122.694539,
+            "name" : "NW 21st & Irving",
+            "stopCode" : "7114",
+            "stopId" : "prt:7114",
+            "stopIndex" : 15,
+            "stopSequence" : 16,
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "transitLeg" : true,
+          "tripBlockId" : "1708",
+          "tripId" : "prt:170W1470"
+        },
+        {
+          "agencyTimeZoneOffset" : -25200000,
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 29.46,
+          "endTime" : "2009-10-21T23:34:51.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:33:25.000+00:00",
+            "departure" : "2009-10-21T23:33:25.000+00:00",
+            "lat" : 45.527818,
+            "lon" : -122.694539,
+            "name" : "NW 21st & Irving",
+            "stopCode" : "7114",
+            "stopId" : "prt:7114",
+            "vertexType" : "TRANSIT",
+            "zoneId" : "1"
+          },
+          "generalizedCost" : 238,
+          "interlineWithPreviousLeg" : false,
+          "legGeometry" : {
+            "length" : 5,
+            "points" : "yc{tGzwzkV?IB?LAAo@"
+          },
+          "mode" : "WALK",
+          "pathway" : false,
+          "realTime" : false,
+          "rentedBike" : false,
+          "route" : "",
+          "startTime" : "2009-10-21T23:33:25.000+00:00",
+          "steps" : [
+            {
+              "absoluteDirection" : "SOUTH",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 10.17,
+              "elevation" : "",
+              "lat" : 45.5278191,
+              "lon" : -122.6944828,
+              "relativeDirection" : "DEPART",
+              "stayOn" : false,
+              "streetName" : "Northwest 21st Avenue",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "EAST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 19.29,
+              "elevation" : "",
+              "lat" : 45.5277276,
+              "lon" : -122.6944793,
+              "relativeDirection" : "LEFT",
+              "stayOn" : false,
+              "streetName" : "Northwest Irving Street",
+              "walkingBike" : false
+            }
+          ],
+          "to" : {
+            "arrival" : "2009-10-21T23:34:51.000+00:00",
+            "bikeShareId" : "-102323",
+            "departure" : "2009-10-21T23:34:51.000+00:00",
+            "lat" : 45.5278491,
+            "lon" : -122.6942362,
+            "name" : "-102323",
+            "networks" : [
+              "test-network"
+            ],
+            "vertexType" : "BIKESHARE"
+          },
+          "transitLeg" : false,
+          "walkingBike" : false
+        },
+        {
+          "agencyTimeZoneOffset" : -25200000,
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 493.43,
+          "endTime" : "2009-10-21T23:37:11.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:34:51.000+00:00",
+            "bikeShareId" : "-102323",
+            "departure" : "2009-10-21T23:34:51.000+00:00",
+            "lat" : 45.5278491,
+            "lon" : -122.6942362,
+            "name" : "-102323",
+            "networks" : [
+              "test-network"
+            ],
+            "vertexType" : "BIKESHARE"
+          },
+          "generalizedCost" : 477,
+          "interlineWithPreviousLeg" : false,
+          "legGeometry" : {
+            "length" : 7,
+            "points" : "ic{tG~uzkV@n@@vAD|HDtKFrJWA"
+          },
+          "mode" : "BICYCLE",
+          "pathway" : false,
+          "realTime" : false,
+          "rentedBike" : true,
+          "route" : "",
+          "startTime" : "2009-10-21T23:34:51.000+00:00",
+          "steps" : [
+            {
+              "absoluteDirection" : "WEST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 480.08,
+              "elevation" : "",
+              "lat" : 45.5277322,
+              "lon" : -122.6942318,
+              "relativeDirection" : "HARD_LEFT",
+              "stayOn" : false,
+              "streetName" : "Northwest Irving Street",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "NORTH",
+              "area" : false,
+              "bogusName" : true,
+              "distance" : 13.36,
+              "elevation" : "",
+              "lat" : 45.5276173,
+              "lon" : -122.7003923,
+              "relativeDirection" : "RIGHT",
+              "stayOn" : false,
+              "streetName" : "path",
+              "walkingBike" : true
+            }
+          ],
+          "to" : {
+            "arrival" : "2009-10-21T23:37:11.000+00:00",
+            "bikeShareId" : "-102309",
+            "departure" : "2009-10-21T23:37:11.000+00:00",
+            "lat" : 45.5277374,
+            "lon" : -122.7003879,
+            "name" : "-102309",
+            "networks" : [
+              "test-network"
+            ],
+            "vertexType" : "BIKESHARE"
+          },
+          "transitLeg" : false,
+          "walkingBike" : false
+        },
+        {
+          "agencyTimeZoneOffset" : -25200000,
+          "arrivalDelay" : 0,
+          "departureDelay" : 0,
+          "distance" : 106.59,
+          "endTime" : "2009-10-21T23:38:37.000+00:00",
+          "from" : {
+            "arrival" : "2009-10-21T23:37:11.000+00:00",
+            "bikeShareId" : "-102309",
+            "departure" : "2009-10-21T23:37:11.000+00:00",
+            "lat" : 45.5277374,
+            "lon" : -122.7003879,
+            "name" : "-102309",
+            "networks" : [
+              "test-network"
+            ],
+            "vertexType" : "BIKESHARE"
+          },
+          "generalizedCost" : 423,
+          "interlineWithPreviousLeg" : false,
+          "legGeometry" : {
+            "length" : 4,
+            "points" : "ic{tGl|{kVV@?d@kC@"
+          },
+          "mode" : "WALK",
+          "pathway" : false,
+          "realTime" : false,
+          "rentedBike" : false,
+          "route" : "",
+          "startTime" : "2009-10-21T23:37:11.000+00:00",
+          "steps" : [
+            {
+              "absoluteDirection" : "SOUTH",
+              "area" : false,
+              "bogusName" : true,
+              "distance" : 13.36,
+              "elevation" : "",
+              "lat" : 45.5277374,
+              "lon" : -122.7003879,
+              "relativeDirection" : "HARD_RIGHT",
+              "stayOn" : false,
+              "streetName" : "path",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "WEST",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 14.7,
+              "elevation" : "",
+              "lat" : 45.5276173,
+              "lon" : -122.7003923,
+              "relativeDirection" : "RIGHT",
+              "stayOn" : false,
+              "streetName" : "Northwest Irving Street",
+              "walkingBike" : false
+            },
+            {
+              "absoluteDirection" : "NORTH",
+              "area" : false,
+              "bogusName" : false,
+              "distance" : 78.53,
+              "elevation" : "",
+              "lat" : 45.5276138,
+              "lon" : -122.700581,
+              "relativeDirection" : "RIGHT",
+              "stayOn" : false,
+              "streetName" : "Northwest 24th Avenue",
+              "walkingBike" : false
+            }
+          ],
+          "to" : {
+            "arrival" : "2009-10-21T23:38:37.000+00:00",
+            "lat" : 45.52832,
+            "lon" : -122.70059,
+            "name" : "SW Johnson St. & NW 24th Ave. (P1)",
+            "vertexType" : "NORMAL"
+          },
+          "transitLeg" : false,
+          "walkingBike" : false
+        }
+      ],
+      "startTime" : "2009-10-21T23:18:32.000+00:00",
+      "tooSloped" : false,
+      "transfers" : 1,
+      "transitTime" : 519,
+      "waitingTime" : 159,
+      "walkDistance" : 899.35,
+      "walkLimitExceeded" : false,
+      "walkTime" : 527
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
@@ -4412,7 +5049,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           }
         ]
       },
-      "generalizedCost" : 2119,
+      "generalizedCost" : 2911,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4427,7 +5064,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 261,
+          "generalizedCost" : 653,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 10,
@@ -4674,7 +5311,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 167,
+          "generalizedCost" : 234,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -4747,7 +5384,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 399,
+          "generalizedCost" : 477,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 7,
@@ -4820,7 +5457,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 168,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 4,
@@ -4895,10 +5532,10 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1320,
+      "duration" : 1346,
       "elevationGained" : 0.0,
       "elevationLost" : 0.0,
-      "endTime" : "2009-10-21T23:51:16.000+00:00",
+      "endTime" : "2009-10-21T23:51:42.000+00:00",
       "fare" : {
         "details" : { },
         "fare" : { },
@@ -4925,7 +5562,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           }
         ]
       },
-      "generalizedCost" : 2563,
+      "generalizedCost" : 4696,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4940,7 +5577,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 442,
+          "generalizedCost" : 1064,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
             "length" : 17,
@@ -5014,8 +5651,8 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "agencyUrl" : "http://trimet.org",
           "arrivalDelay" : 0,
           "departureDelay" : 0,
-          "distance" : 1942.25,
-          "endTime" : "2009-10-21T23:44:03.000+00:00",
+          "distance" : 1732.6,
+          "endTime" : "2009-10-21T23:43:32.000+00:00",
           "from" : {
             "arrival" : "2009-10-21T23:33:00.000+00:00",
             "departure" : "2009-10-21T23:33:00.000+00:00",
@@ -5029,7 +5666,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 1263,
+          "generalizedCost" : 1232,
           "headsign" : "Beaverton TC",
           "interlineWithPreviousLeg" : false,
           "intermediateStops" : [
@@ -5136,24 +5773,11 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "stopSequence" : 108,
               "vertexType" : "TRANSIT",
               "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:43:32.000+00:00",
-              "departure" : "2009-10-21T23:43:32.000+00:00",
-              "lat" : 45.523512,
-              "lon" : -122.698081,
-              "name" : "W Burnside & NW 23rd",
-              "stopCode" : "755",
-              "stopId" : "prt:755",
-              "stopIndex" : 108,
-              "stopSequence" : 109,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
             }
           ],
           "legGeometry" : {
-            "length" : 56,
-            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC??APu@lJMhBI`@"
+            "length" : 51,
+            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC"
           },
           "mode" : "BUS",
           "pathway" : false,
@@ -5167,15 +5791,15 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "startTime" : "2009-10-21T23:33:00.000+00:00",
           "steps" : [ ],
           "to" : {
-            "arrival" : "2009-10-21T23:44:03.000+00:00",
-            "departure" : "2009-10-21T23:44:03.000+00:00",
-            "lat" : 45.523897,
-            "lon" : -122.700681,
-            "name" : "W Burnside & NW 23rd Pl",
-            "stopCode" : "9555",
-            "stopId" : "prt:9555",
-            "stopIndex" : 109,
-            "stopSequence" : 110,
+            "arrival" : "2009-10-21T23:43:32.000+00:00",
+            "departure" : "2009-10-21T23:43:32.000+00:00",
+            "lat" : 45.523512,
+            "lon" : -122.698081,
+            "name" : "W Burnside & NW 23rd",
+            "stopCode" : "755",
+            "stopId" : "prt:755",
+            "stopIndex" : 108,
+            "stopSequence" : 109,
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
@@ -5187,66 +5811,66 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "agencyTimeZoneOffset" : -25200000,
           "arrivalDelay" : 0,
           "departureDelay" : 0,
-          "distance" : 563.7,
-          "endTime" : "2009-10-21T23:51:16.000+00:00",
+          "distance" : 635.65,
+          "endTime" : "2009-10-21T23:51:42.000+00:00",
           "from" : {
-            "arrival" : "2009-10-21T23:44:03.000+00:00",
-            "departure" : "2009-10-21T23:44:03.000+00:00",
-            "lat" : 45.523897,
-            "lon" : -122.700681,
-            "name" : "W Burnside & NW 23rd Pl",
-            "stopCode" : "9555",
-            "stopId" : "prt:9555",
+            "arrival" : "2009-10-21T23:43:32.000+00:00",
+            "departure" : "2009-10-21T23:43:32.000+00:00",
+            "lat" : 45.523512,
+            "lon" : -122.698081,
+            "name" : "W Burnside & NW 23rd",
+            "stopCode" : "755",
+            "stopId" : "prt:755",
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 858,
+          "generalizedCost" : 2400,
           "interlineWithPreviousLeg" : false,
           "legGeometry" : {
-            "length" : 34,
-            "points" : "ikztGh~{kVNDEVUzACPOUQO_@Yc@[QMMEOKOIECGCIAMCGCGAECECECOOMOGKIFMLk@BsABGDGBoCBkCDkC@"
+            "length" : 35,
+            "points" : "}hztG`n{kVNBA@A`@UD_@JOBM?U@K??R?DCF?D?bAA@?@A@]^c@d@EF[ZKL]^GFgBnBIFMLk@BsABGDGBoCBkCDkC@"
           },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
           "rentedBike" : false,
           "route" : "",
-          "startTime" : "2009-10-21T23:44:03.000+00:00",
+          "startTime" : "2009-10-21T23:43:32.000+00:00",
           "steps" : [
             {
               "absoluteDirection" : "WEST",
               "area" : false,
               "bogusName" : false,
-              "distance" : 54.63,
+              "distance" : 14.5,
               "elevation" : "",
-              "lat" : 45.5238156,
-              "lon" : -122.7007199,
+              "lat" : 45.5234386,
+              "lon" : -122.6981028,
               "relativeDirection" : "DEPART",
               "stayOn" : false,
               "streetName" : "West Burnside Street",
               "walkingBike" : false
             },
             {
-              "absoluteDirection" : "NORTHEAST",
+              "absoluteDirection" : "NORTH",
               "area" : false,
               "bogusName" : false,
-              "distance" : 176.41,
+              "distance" : 65.91,
               "elevation" : "",
-              "lat" : 45.5239733,
-              "lon" : -122.701384,
+              "lat" : 45.5234583,
+              "lon" : -122.6982868,
               "relativeDirection" : "RIGHT",
               "stayOn" : false,
-              "streetName" : "Northwest 24th Place",
+              "streetName" : "Northwest 23rd Avenue",
               "walkingBike" : false
             },
             {
-              "absoluteDirection" : "NORTHWEST",
+              "absoluteDirection" : "WEST",
               "area" : false,
               "bogusName" : false,
-              "distance" : 15.26,
+              "distance" : 237.84,
               "elevation" : "",
-              "lat" : 45.5253583,
-              "lon" : -122.7003357,
+              "lat" : 45.5240426,
+              "lon" : -122.6984042,
               "relativeDirection" : "LEFT",
               "stayOn" : false,
               "streetName" : "Northwest Westover Road",
@@ -5267,7 +5891,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             }
           ],
           "to" : {
-            "arrival" : "2009-10-21T23:51:16.000+00:00",
+            "arrival" : "2009-10-21T23:51:42.000+00:00",
             "lat" : 45.52832,
             "lon" : -122.70059,
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
@@ -5280,378 +5904,11 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
       "startTime" : "2009-10-21T23:29:16.000+00:00",
       "tooSloped" : false,
       "transfers" : 0,
-      "transitTime" : 663,
+      "transitTime" : 632,
       "waitingTime" : 0,
-      "walkDistance" : 851.52,
+      "walkDistance" : 923.47,
       "walkLimitExceeded" : false,
-      "walkTime" : 657
-    },
-    {
-      "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1122,
-      "elevationGained" : 0.0,
-      "elevationLost" : 0.0,
-      "endTime" : "2009-10-21T23:56:14.000+00:00",
-      "fare" : {
-        "details" : { },
-        "fare" : { },
-        "legProducts" : [
-          {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
-              }
-            ]
-          }
-        ]
-      },
-      "generalizedCost" : 2351,
-      "legs" : [
-        {
-          "agencyTimeZoneOffset" : -25200000,
-          "arrivalDelay" : 0,
-          "departureDelay" : 0,
-          "distance" : 252.88,
-          "endTime" : "2009-10-21T23:40:53.000+00:00",
-          "from" : {
-            "departure" : "2009-10-21T23:37:32.000+00:00",
-            "lat" : 45.52523,
-            "lon" : -122.67525,
-            "name" : "NW Everett St. & NW 5th Ave. (P3)",
-            "vertexType" : "NORMAL"
-          },
-          "generalizedCost" : 392,
-          "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "ssztGh_wkV?`@?LK?uBBK?K@sBBM??D?L@\\?lCC??E"
-          },
-          "mode" : "WALK",
-          "pathway" : false,
-          "realTime" : false,
-          "rentedBike" : false,
-          "route" : "",
-          "startTime" : "2009-10-21T23:37:32.000+00:00",
-          "steps" : [
-            {
-              "absoluteDirection" : "WEST",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 17.98,
-              "elevation" : "",
-              "lat" : 45.5252279,
-              "lon" : -122.6752499,
-              "relativeDirection" : "DEPART",
-              "stayOn" : false,
-              "streetName" : "Northwest Everett Street",
-              "walkingBike" : false
-            },
-            {
-              "absoluteDirection" : "NORTH",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 158.01,
-              "elevation" : "",
-              "lat" : 45.5252242,
-              "lon" : -122.6754806,
-              "relativeDirection" : "RIGHT",
-              "stayOn" : false,
-              "streetName" : "Northwest 5th Avenue",
-              "walkingBike" : false
-            },
-            {
-              "absoluteDirection" : "WEST",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 74.23,
-              "elevation" : "",
-              "lat" : 45.5266447,
-              "lon" : -122.6755391,
-              "relativeDirection" : "LEFT",
-              "stayOn" : false,
-              "streetName" : "Northwest Glisan Street",
-              "walkingBike" : false
-            },
-            {
-              "absoluteDirection" : "NORTH",
-              "area" : false,
-              "bogusName" : true,
-              "distance" : 2.66,
-              "elevation" : "",
-              "lat" : 45.5266303,
-              "lon" : -122.6764917,
-              "relativeDirection" : "RIGHT",
-              "stayOn" : false,
-              "streetName" : "path",
-              "walkingBike" : false
-            }
-          ],
-          "to" : {
-            "arrival" : "2009-10-21T23:40:53.000+00:00",
-            "departure" : "2009-10-21T23:40:53.000+00:00",
-            "lat" : 45.526655,
-            "lon" : -122.676462,
-            "name" : "NW Glisan & 6th",
-            "stopCode" : "10803",
-            "stopId" : "prt:10803",
-            "vertexType" : "TRANSIT",
-            "zoneId" : "0"
-          },
-          "transitLeg" : false,
-          "walkingBike" : false
-        },
-        {
-          "agencyId" : "prt:prt",
-          "agencyName" : "TriMet",
-          "agencyTimeZoneOffset" : -25200000,
-          "agencyUrl" : "http://trimet.org",
-          "arrivalDelay" : 0,
-          "departureDelay" : 0,
-          "distance" : 2232.31,
-          "endTime" : "2009-10-21T23:48:50.000+00:00",
-          "from" : {
-            "arrival" : "2009-10-21T23:40:53.000+00:00",
-            "departure" : "2009-10-21T23:40:53.000+00:00",
-            "lat" : 45.526655,
-            "lon" : -122.676462,
-            "name" : "NW Glisan & 6th",
-            "stopCode" : "10803",
-            "stopId" : "prt:10803",
-            "stopIndex" : 85,
-            "stopSequence" : 86,
-            "vertexType" : "TRANSIT",
-            "zoneId" : "0"
-          },
-          "generalizedCost" : 1077,
-          "headsign" : "Montgomery Park",
-          "interlineWithPreviousLeg" : false,
-          "intermediateStops" : [
-            {
-              "arrival" : "2009-10-21T23:41:57.000+00:00",
-              "departure" : "2009-10-21T23:41:57.000+00:00",
-              "lat" : 45.528799,
-              "lon" : -122.677238,
-              "name" : "NW Station Way & Union Station",
-              "stopCode" : "12801",
-              "stopId" : "prt:12801",
-              "stopIndex" : 86,
-              "stopSequence" : 87,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "0"
-            },
-            {
-              "arrival" : "2009-10-21T23:44:00.000+00:00",
-              "departure" : "2009-10-21T23:44:00.000+00:00",
-              "lat" : 45.531582,
-              "lon" : -122.681193,
-              "name" : "NW Northrup & 10th",
-              "stopCode" : "12802",
-              "stopId" : "prt:12802",
-              "stopIndex" : 87,
-              "stopSequence" : 88,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:44:33.000+00:00",
-              "departure" : "2009-10-21T23:44:33.000+00:00",
-              "lat" : 45.531534,
-              "lon" : -122.683319,
-              "name" : "NW 12th & Northrup",
-              "stopCode" : "12796",
-              "stopId" : "prt:12796",
-              "stopIndex" : 88,
-              "stopSequence" : 89,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:45:04.000+00:00",
-              "departure" : "2009-10-21T23:45:04.000+00:00",
-              "lat" : 45.531503,
-              "lon" : -122.685357,
-              "name" : "NW Northrup & 14th",
-              "stopCode" : "10775",
-              "stopId" : "prt:10775",
-              "stopIndex" : 89,
-              "stopSequence" : 90,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:46:07.000+00:00",
-              "departure" : "2009-10-21T23:46:07.000+00:00",
-              "lat" : 45.531434,
-              "lon" : -122.689417,
-              "name" : "NW Northrup & 18th",
-              "stopCode" : "10776",
-              "stopId" : "prt:10776",
-              "stopIndex" : 90,
-              "stopSequence" : 91,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:47:24.000+00:00",
-              "departure" : "2009-10-21T23:47:24.000+00:00",
-              "lat" : 45.531346,
-              "lon" : -122.694455,
-              "name" : "NW Northrup & 21st",
-              "stopCode" : "10777",
-              "stopId" : "prt:10777",
-              "stopIndex" : 91,
-              "stopSequence" : 92,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            },
-            {
-              "arrival" : "2009-10-21T23:47:55.000+00:00",
-              "departure" : "2009-10-21T23:47:55.000+00:00",
-              "lat" : 45.531308,
-              "lon" : -122.696445,
-              "name" : "NW Northrup & 22nd",
-              "stopCode" : "10778",
-              "stopId" : "prt:10778",
-              "stopIndex" : 92,
-              "stopSequence" : 93,
-              "vertexType" : "TRANSIT",
-              "zoneId" : "1"
-            }
-          ],
-          "legGeometry" : {
-            "length" : 53,
-            "points" : "i|ztG|fwkV?LqCFmCDYBGDEBGJkAzAQR??KNa@b@MJuBBY?OHW@u@~@aD`EcBhBBrD@xC??@l@BlE@lD???XBjEBpD???VBlE?dA@t@?b@?h@BfEBrD???VBhEFtKDvJ??@\\DnJ???d@FtKmCBo@@"
-          },
-          "mode" : "BUS",
-          "pathway" : false,
-          "realTime" : false,
-          "route" : "Broadway/Halsey",
-          "routeId" : "prt:77",
-          "routeLongName" : "Broadway/Halsey",
-          "routeShortName" : "77",
-          "routeType" : 3,
-          "serviceDate" : "2009-10-21",
-          "startTime" : "2009-10-21T23:40:53.000+00:00",
-          "steps" : [ ],
-          "to" : {
-            "arrival" : "2009-10-21T23:48:50.000+00:00",
-            "departure" : "2009-10-21T23:48:50.000+00:00",
-            "lat" : 45.532159,
-            "lon" : -122.698634,
-            "name" : "NW 23rd & Overton",
-            "stopCode" : "8981",
-            "stopId" : "prt:8981",
-            "stopIndex" : 93,
-            "stopSequence" : 94,
-            "vertexType" : "TRANSIT",
-            "zoneId" : "1"
-          },
-          "transitLeg" : true,
-          "tripBlockId" : "7708",
-          "tripId" : "prt:771W1380"
-        },
-        {
-          "agencyTimeZoneOffset" : -25200000,
-          "arrivalDelay" : 0,
-          "departureDelay" : 0,
-          "distance" : 580.63,
-          "endTime" : "2009-10-21T23:56:14.000+00:00",
-          "from" : {
-            "arrival" : "2009-10-21T23:48:50.000+00:00",
-            "departure" : "2009-10-21T23:48:50.000+00:00",
-            "lat" : 45.532159,
-            "lon" : -122.698634,
-            "name" : "NW 23rd & Overton",
-            "stopCode" : "8981",
-            "stopId" : "prt:8981",
-            "vertexType" : "TRANSIT",
-            "zoneId" : "1"
-          },
-          "generalizedCost" : 881,
-          "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 12,
-            "points" : "}~{tGnq{kV?LVAF?J?FtKlCClCEnCElCElCCB?"
-          },
-          "mode" : "WALK",
-          "pathway" : false,
-          "realTime" : false,
-          "rentedBike" : false,
-          "route" : "",
-          "startTime" : "2009-10-21T23:48:50.000+00:00",
-          "steps" : [
-            {
-              "absoluteDirection" : "SOUTH",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 24.9,
-              "elevation" : "",
-              "lat" : 45.5321578,
-              "lon" : -122.6987026,
-              "relativeDirection" : "DEPART",
-              "stayOn" : false,
-              "streetName" : "Northwest 23rd Avenue",
-              "walkingBike" : false
-            },
-            {
-              "absoluteDirection" : "WEST",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 158.45,
-              "elevation" : "",
-              "lat" : 45.531934,
-              "lon" : -122.698695,
-              "relativeDirection" : "RIGHT",
-              "stayOn" : false,
-              "streetName" : "Northwest Overton Street",
-              "walkingBike" : false
-            },
-            {
-              "absoluteDirection" : "SOUTH",
-              "area" : false,
-              "bogusName" : false,
-              "distance" : 397.28,
-              "elevation" : "",
-              "lat" : 45.5318916,
-              "lon" : -122.7007283,
-              "relativeDirection" : "LEFT",
-              "stayOn" : false,
-              "streetName" : "Northwest 24th Avenue",
-              "walkingBike" : false
-            }
-          ],
-          "to" : {
-            "arrival" : "2009-10-21T23:56:14.000+00:00",
-            "lat" : 45.52832,
-            "lon" : -122.70059,
-            "name" : "SW Johnson St. & NW 24th Ave. (P1)",
-            "vertexType" : "NORMAL"
-          },
-          "transitLeg" : false,
-          "walkingBike" : false
-        }
-      ],
-      "startTime" : "2009-10-21T23:37:32.000+00:00",
-      "tooSloped" : false,
-      "transfers" : 0,
-      "transitTime" : 477,
-      "waitingTime" : 0,
-      "walkDistance" : 833.51,
-      "walkLimitExceeded" : false,
-      "walkTime" : 645
+      "walkTime" : 714
     }
   ]
 ]
