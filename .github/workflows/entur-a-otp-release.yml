@@ -87,3 +87,11 @@ jobs:
           echo "ser_ver_id=${SER_VER_ID}" >> $GITHUB_OUTPUT
       - name: Create Summary
         run: cat .custom_release_summary.md >> $GITHUB_STEP_SUMMARY
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.set_version.outputs.version }}
+          name: Release ${{ steps.set_version.outputs.version }} (${{steps.set_ser_ver_id.outputs.ser_ver_id}})
+          body_path: .custom_release_summary.md
+          repository: my_gh_org/my_gh_repo
+          token: ${{ secrets.ENTUR_OTP_CI_BUILD }}
