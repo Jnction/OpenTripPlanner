@@ -18,6 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner._support.time.ZoneIds;
+import org.opentripplanner.ext.fares.impl._support.FareModelForTest;
 import org.opentripplanner.ext.fares.model.FareRuleSet;
 import org.opentripplanner.framework.geometry.WgsCoordinate;
 import org.opentripplanner.framework.i18n.NonLocalizedString;
@@ -296,11 +297,11 @@ public class AtlantaFareServiceTest implements PlanTestConstants {
 
     @Override
     protected Money getLegPrice(Leg leg, FareType fareType, Collection<FareRuleSet> fareRules) {
-      var routeShortName = leg.getRoute().getShortName();
+      var routeShortName = leg.route().getShortName();
       if (routeShortName == null) {
         return DEFAULT_TEST_RIDE_PRICE;
       }
-      routeShortName = leg.getRoute().getShortName().toLowerCase();
+      routeShortName = leg.route().getShortName().toLowerCase();
 
       // Testing, return default test ride price.
       return switch (routeShortName) {

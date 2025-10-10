@@ -18,9 +18,11 @@ import org.opentripplanner.model.PickDrop;
 import org.opentripplanner.model.StopTimesInPattern;
 import org.opentripplanner.model.Timetable;
 import org.opentripplanner.model.TripTimeOnDate;
+import org.opentripplanner.transit.api.request.TripTimeOnDateRequest;
+import org.opentripplanner.transit.model.filter.expr.Matcher;
+import org.opentripplanner.transit.model.filter.transit.TripTimeOnDateMatcherFactory;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.StopLocation;
-import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.utils.time.ServiceDateUtils;
 
@@ -54,7 +56,8 @@ class StopTimesHelper {
     Duration timeRange,
     int numberOfDepartures,
     ArrivalDeparture arrivalDeparture,
-    boolean includeCancelledTrips
+    boolean includeCancelledTrips,
+    Comparator<TripTimeOnDate> sortOrder
   ) {
     if (numberOfDepartures <= 0) {
       return List.of();
@@ -74,13 +77,36 @@ class StopTimesHelper {
         numberOfDepartures,
         arrivalDeparture,
         includeCancelledTrips,
-        false
+        sortOrder
       );
 
       result.addAll(getStopTimesInPattern(pattern, pq));
     }
 
     return result;
+  }
+
+  List<TripTimeOnDate> findTripTimesOnDate(TripTimeOnDateRequest request) {
+    Matcher<TripTimeOnDate> matcher = TripTimeOnDateMatcherFactory.of(request);
+    return request
+      .stopLocations()
+      .stream()
+      .flatMap(stopLocation ->
+        stopTimesForStop(
+          stopLocation,
+          request.time(),
+          request.timeWindow(),
+          request.numberOfDepartures(),
+          request.arrivalDeparture(),
+          true,
+          request.sortOrder()
+        )
+          .stream()
+          .flatMap(st -> st.times.stream())
+          .filter(matcher::match)
+      )
+      .sorted(request.sortOrder())
+      .toList();
   }
 
   /**
@@ -118,7 +144,7 @@ class StopTimesHelper {
             continue;
           }
           for (TripTimes t : tt.getTripTimes()) {
-            if (TripTimesHelper.skipByTripCancellation(t, includeCancellations)) {
+            if (TripTimesHelper.skipByTripCancellationOrDeletion(t, includeCancellations)) {
               continue;
             }
             if (servicesRunning.contains(t.getServiceCode())) {
@@ -167,7 +193,7 @@ class StopTimesHelper {
       numberOfDepartures,
       arrivalDeparture,
       includeCancellations,
-      true
+      TripTimeOnDate.compareByDeparture()
     );
 
     return new ArrayList<>(pq);
@@ -196,7 +222,7 @@ class StopTimesHelper {
     int numberOfDepartures,
     ArrivalDeparture arrivalDeparture,
     boolean includeCancellations,
-    boolean includeReplaced
+    Comparator<TripTimeOnDate> sortOrder
   ) {
     ZoneId zoneId = transitService.getTimeZone();
     LocalDate startDate = startTime.atZone(zoneId).toLocalDate().minusDays(1);
@@ -208,18 +234,13 @@ class StopTimesHelper {
     // The bounded priority Q is used to keep a sorted short list of trip times. We can not
     // rely on the trip times to be in order because of real-time updates. This code can
     // probably be optimized, and the trip search in the Raptor search does almost the same
-    // thing. This is no part of a routing request, but is a used frequently in some
+    // thing. This is not part of a routing request, but is a used frequently in some
     // operation like Entur for "departure boards" (apps, widgets, screens on platforms, and
     // hotel lobbies). Setting the numberOfDepartures and timeRange to a big number for a
     // transit hub could result in a DOS attack, but there are probably other more effective
     // ways to do it.
     //
-    // The {@link MinMaxPriorityQueue} is marked beta, but we do not have a god alternative.
-    MinMaxPriorityQueue<TripTimeOnDate> pq = MinMaxPriorityQueue.orderedBy(
-      Comparator.comparing(
-        (TripTimeOnDate tts) -> tts.getServiceDayMidnight() + tts.getRealtimeDeparture()
-      )
-    )
+    MinMaxPriorityQueue<TripTimeOnDate> pq = MinMaxPriorityQueue.orderedBy(sortOrder)
       .maximumSize(numberOfDepartures)
       .create();
 
@@ -236,13 +257,13 @@ class StopTimesHelper {
       var servicesRunning = transitService.getServiceCodesRunningForDate(serviceDate);
 
       List<StopLocation> stops = pattern.getStops();
-      for (int stopIndex = 0; stopIndex < stops.size(); stopIndex++) {
-        StopLocation currStop = stops.get(stopIndex);
+      for (int stopPos = 0; stopPos < stops.size(); stopPos++) {
+        StopLocation currStop = stops.get(stopPos);
         if (currStop == stop) {
-          if (skipByPickUpDropOff(pattern, arrivalDeparture, stopIndex)) {
+          if (skipByPickUpDropOff(pattern, arrivalDeparture, stopPos)) {
             continue;
           }
-          if (skipByStopCancellation(pattern, includeCancellations, stopIndex)) {
+          if (skipByStopCancellation(pattern, includeCancellations, stopPos)) {
             continue;
           }
 
@@ -250,23 +271,17 @@ class StopTimesHelper {
             if (!servicesRunning.contains(tripTimes.getServiceCode())) {
               continue;
             }
-            if (TripTimesHelper.skipByTripCancellation(tripTimes, includeCancellations)) {
-              continue;
-            }
-            if (
-              !includeReplaced &&
-              isReplacedByAnotherPattern(tripTimes.getTrip(), serviceDate, pattern, transitService)
-            ) {
+            if (TripTimesHelper.skipByTripCancellationOrDeletion(tripTimes, includeCancellations)) {
               continue;
             }
 
             boolean departureTimeInRange =
-              tripTimes.getDepartureTime(stopIndex) >= secondsSinceMidnight &&
-              tripTimes.getDepartureTime(stopIndex) <= secondsSinceMidnight + timeRangeSeconds;
+              tripTimes.getDepartureTime(stopPos) >= secondsSinceMidnight &&
+              tripTimes.getDepartureTime(stopPos) <= secondsSinceMidnight + timeRangeSeconds;
 
             boolean arrivalTimeInRange =
-              tripTimes.getArrivalTime(stopIndex) >= secondsSinceMidnight &&
-              tripTimes.getArrivalTime(stopIndex) <= secondsSinceMidnight + timeRangeSeconds;
+              tripTimes.getArrivalTime(stopPos) >= secondsSinceMidnight &&
+              tripTimes.getArrivalTime(stopPos) <= secondsSinceMidnight + timeRangeSeconds;
 
             // ARRIVAL: Arrival time has to be within range
             // DEPARTURES: Departure time has to be within range
@@ -276,7 +291,7 @@ class StopTimesHelper {
               (arrivalDeparture != DEPARTURES && arrivalTimeInRange)
             ) {
               pq.add(
-                new TripTimeOnDate(tripTimes, stopIndex, pattern, serviceDate, midnight.toInstant())
+                new TripTimeOnDate(tripTimes, stopPos, pattern, serviceDate, midnight.toInstant())
               );
             }
           }
@@ -287,26 +302,13 @@ class StopTimesHelper {
     return pq;
   }
 
-  private static boolean isReplacedByAnotherPattern(
-    Trip trip,
-    LocalDate serviceDate,
-    TripPattern pattern,
-    TransitService transitService
-  ) {
-    final TripPattern replacement = transitService.findNewTripPatternForModifiedTrip(
-      trip.getId(),
-      serviceDate
-    );
-    return replacement != null && !replacement.equals(pattern);
-  }
-
   private static boolean skipByPickUpDropOff(
     TripPattern pattern,
     ArrivalDeparture arrivalDeparture,
-    int stopIndex
+    int stopPos
   ) {
-    boolean noPickup = pattern.getBoardType(stopIndex).is(PickDrop.NONE);
-    boolean noDropoff = pattern.getAlightType(stopIndex).is(PickDrop.NONE);
+    boolean noPickup = pattern.getBoardType(stopPos).is(PickDrop.NONE);
+    boolean noDropoff = pattern.getAlightType(stopPos).is(PickDrop.NONE);
 
     if (noPickup && noDropoff) {
       return true;
@@ -323,10 +325,10 @@ class StopTimesHelper {
   private static boolean skipByStopCancellation(
     TripPattern pattern,
     boolean includeCancelled,
-    int stopIndex
+    int stopPos
   ) {
-    boolean pickupCancelled = pattern.getBoardType(stopIndex).is(PickDrop.CANCELLED);
-    boolean dropOffCancelled = pattern.getAlightType(stopIndex).is(PickDrop.CANCELLED);
+    boolean pickupCancelled = pattern.getBoardType(stopPos).is(PickDrop.CANCELLED);
+    boolean dropOffCancelled = pattern.getAlightType(stopPos).is(PickDrop.CANCELLED);
 
     return (pickupCancelled || dropOffCancelled) && !includeCancelled;
   }

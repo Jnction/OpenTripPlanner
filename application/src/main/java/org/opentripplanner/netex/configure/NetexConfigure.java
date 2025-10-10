@@ -3,8 +3,8 @@ package org.opentripplanner.netex.configure;
 import java.util.ArrayList;
 import java.util.List;
 import org.opentripplanner.datastore.api.CompositeDataSource;
-import org.opentripplanner.graph_builder.ConfiguredDataSource;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
+import org.opentripplanner.graph_builder.model.ConfiguredCompositeDataSource;
 import org.opentripplanner.model.impl.OtpTransitServiceBuilder;
 import org.opentripplanner.netex.NetexBundle;
 import org.opentripplanner.netex.NetexModule;
@@ -13,6 +13,7 @@ import org.opentripplanner.netex.loader.NetexDataSourceHierarchy;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.standalone.config.BuildConfig;
+import org.opentripplanner.transit.model.framework.DeduplicatorService;
 import org.opentripplanner.transit.service.TimetableRepository;
 
 /**
@@ -35,15 +36,16 @@ public class NetexConfigure {
   }
 
   public NetexModule createNetexModule(
-    Iterable<ConfiguredDataSource<NetexFeedParameters>> netexSources,
+    Iterable<ConfiguredCompositeDataSource<NetexFeedParameters>> netexSources,
     TimetableRepository timetableRepository,
     VehicleParkingRepository parkingRepsitory,
     Graph graph,
+    DeduplicatorService deduplicator,
     DataImportIssueStore issueStore
   ) {
     List<NetexBundle> netexBundles = new ArrayList<>();
 
-    for (ConfiguredDataSource<NetexFeedParameters> it : netexSources) {
+    for (ConfiguredCompositeDataSource<NetexFeedParameters> it : netexSources) {
       var transitServiceBuilder = new OtpTransitServiceBuilder(
         timetableRepository.getSiteRepository(),
         issueStore
@@ -53,6 +55,7 @@ public class NetexConfigure {
 
     return new NetexModule(
       graph,
+      deduplicator,
       timetableRepository,
       parkingRepsitory,
       issueStore,
@@ -65,9 +68,9 @@ public class NetexConfigure {
   /** public to enable testing */
   public NetexBundle netexBundle(
     OtpTransitServiceBuilder transitServiceBuilder,
-    ConfiguredDataSource<NetexFeedParameters> configuredDataSource
+    ConfiguredCompositeDataSource<NetexFeedParameters> configuredDataSource
   ) {
-    var source = (CompositeDataSource) configuredDataSource.dataSource();
+    var source = configuredDataSource.dataSource();
     var config = configuredDataSource.config();
 
     return new NetexBundle(

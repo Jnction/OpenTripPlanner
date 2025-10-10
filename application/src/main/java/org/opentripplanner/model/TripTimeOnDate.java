@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.opentripplanner.framework.i18n.I18NString;
 import org.opentripplanner.transit.model.network.TripPattern;
@@ -16,6 +18,8 @@ import org.opentripplanner.transit.model.timetable.StopTimeKey;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.model.timetable.booking.BookingInfo;
+import org.opentripplanner.utils.lang.IntUtils;
+import org.opentripplanner.utils.tostring.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +34,7 @@ public class TripTimeOnDate {
   public static final int UNDEFINED = -1;
 
   private final TripTimes tripTimes;
-  private final int stopIndex;
+  private final int stopPosition;
   // This is only needed because TripTimes has no reference to TripPattern
   private final TripPattern tripPattern;
 
@@ -39,9 +43,9 @@ public class TripTimeOnDate {
 
   private final long midnight;
 
-  public TripTimeOnDate(TripTimes tripTimes, int stopIndex, TripPattern tripPattern) {
+  public TripTimeOnDate(TripTimes tripTimes, int stopPosition, TripPattern tripPattern) {
     this.tripTimes = tripTimes;
-    this.stopIndex = stopIndex;
+    this.stopPosition = stopPosition;
     this.tripPattern = tripPattern;
     this.serviceDate = null;
     this.midnight = UNDEFINED;
@@ -49,13 +53,13 @@ public class TripTimeOnDate {
 
   public TripTimeOnDate(
     TripTimes tripTimes,
-    int stopIndex,
+    int stopPosition,
     TripPattern tripPattern,
     @Nullable LocalDate serviceDate,
     @Nullable Instant midnight
   ) {
     this.tripTimes = tripTimes;
-    this.stopIndex = stopIndex;
+    this.stopPosition = stopPosition;
     this.tripPattern = tripPattern;
     this.serviceDate = serviceDate;
     this.midnight = midnight != null ? midnight.getEpochSecond() : UNDEFINED;
@@ -76,6 +80,33 @@ public class TripTimeOnDate {
     List<TripTimeOnDate> out = new ArrayList<>();
     for (int i = 0; i < times.getNumStops(); ++i) {
       out.add(new TripTimeOnDate(times, i, table.getPattern()));
+    }
+    return out;
+  }
+
+  /**
+   * Must pass in both Timetable and Trip, because TripTimes do not have a reference to
+   * StopPatterns.
+   * <br>
+   * If the timetable does not contain the trip, scheduledTimetable is used instead.
+   *
+   * @param table the timetable for the service day
+   * @param serviceDate service day to set
+   */
+  public static List<TripTimeOnDate> fromTripTimesWithScheduleFallback(
+    Timetable table,
+    Trip trip,
+    LocalDate serviceDate,
+    Instant midnight
+  ) {
+    TripTimes times = table.getTripTimes(trip);
+    if (times == null) {
+      Timetable scheduledTimetable = table.getPattern().getScheduledTimetable();
+      return fromTripTimes(scheduledTimetable, trip);
+    }
+    List<TripTimeOnDate> out = new ArrayList<>();
+    for (int i = 0; i < times.getNumStops(); ++i) {
+      out.add(new TripTimeOnDate(times, i, table.getPattern(), serviceDate, midnight));
     }
     return out;
   }
@@ -137,77 +168,108 @@ public class TripTimeOnDate {
     );
   }
 
+  /**
+   * A comparator that uses real time departure if it is available, otherwise the scheduled departure.
+   */
   public static Comparator<TripTimeOnDate> compareByDeparture() {
     return Comparator.comparing(t -> t.getServiceDayMidnight() + t.getRealtimeDeparture());
   }
 
-  public StopLocation getStop() {
-    return tripPattern.getStop(stopIndex);
+  /**
+   * A comparator that uses the scheduled departure time only.
+   */
+  public static Comparator<TripTimeOnDate> compareByScheduledDeparture() {
+    return Comparator.comparing(t -> t.getServiceDayMidnight() + t.getScheduledDeparture());
   }
 
-  public int getStopIndex() {
-    return stopIndex;
+  public StopLocation getStop() {
+    return tripPattern.getStop(stopPosition);
+  }
+
+  public int getStopPosition() {
+    return stopPosition;
   }
 
   public TripTimes getTripTimes() {
     return tripTimes;
   }
 
-  public int getStopCount() {
-    return tripTimes.getNumStops();
+  /**
+   * Returns true if there is either a scheduled arrival or a scheduled departure time.
+   * If neither is the case, this indicates that it's a flexible time window instead.
+   */
+  public boolean hasScheduledTimes() {
+    return (
+      tripTimes.getScheduledArrivalTime(stopPosition) != StopTime.MISSING_VALUE &&
+      tripTimes.getScheduledDepartureTime(stopPosition) != StopTime.MISSING_VALUE
+    );
   }
 
   public int getScheduledArrival() {
-    return tripTimes.getScheduledArrivalTime(stopIndex);
+    return tripTimes.getScheduledArrivalTime(stopPosition);
+  }
+
+  /**
+   * Returns the scheduled arrival as an Instant.
+   */
+  public Instant scheduledArrival() {
+    return toInstant(getScheduledArrival());
   }
 
   /**
    * @return The GTFS stop sequence of the stop time.
    */
   public int getGtfsSequence() {
-    return tripTimes.gtfsSequenceOfStopIndex(stopIndex);
+    return tripTimes.gtfsSequenceOfStopIndex(stopPosition);
   }
 
   public int getScheduledDeparture() {
-    return tripTimes.getScheduledDepartureTime(stopIndex);
+    return tripTimes.getScheduledDepartureTime(stopPosition);
+  }
+
+  /**
+   * Returns the scheduled departure as an Instant.
+   */
+  public Instant scheduledDeparture() {
+    return toInstant(getScheduledDeparture());
   }
 
   public int getRealtimeArrival() {
     return isCancelledStop() || isNoDataStop()
-      ? tripTimes.getScheduledArrivalTime(stopIndex)
-      : tripTimes.getArrivalTime(stopIndex);
+      ? tripTimes.getScheduledArrivalTime(stopPosition)
+      : tripTimes.getArrivalTime(stopPosition);
   }
 
   public int getRealtimeDeparture() {
     return isCancelledStop() || isNoDataStop()
-      ? tripTimes.getScheduledDepartureTime(stopIndex)
-      : tripTimes.getDepartureTime(stopIndex);
+      ? tripTimes.getScheduledDepartureTime(stopPosition)
+      : tripTimes.getDepartureTime(stopPosition);
   }
 
   /**
    * Returns the actual arrival time if available. Otherwise -1 is returned.
    */
   public int getActualArrival() {
-    return isRecordedStop() ? tripTimes.getArrivalTime(stopIndex) : UNDEFINED;
+    return isRecordedStop() ? tripTimes.getArrivalTime(stopPosition) : UNDEFINED;
   }
 
   /**
    * Returns the actual departure time if available. Otherwise -1 is returned.
    */
   public int getActualDeparture() {
-    return isRecordedStop() ? tripTimes.getDepartureTime(stopIndex) : UNDEFINED;
+    return isRecordedStop() ? tripTimes.getDepartureTime(stopPosition) : UNDEFINED;
   }
 
   public int getArrivalDelay() {
-    return isCancelledStop() || isNoDataStop() ? 0 : tripTimes.getArrivalDelay(stopIndex);
+    return isCancelledStop() || isNoDataStop() ? 0 : tripTimes.getArrivalDelay(stopPosition);
   }
 
   public int getDepartureDelay() {
-    return isCancelledStop() || isNoDataStop() ? 0 : tripTimes.getDepartureDelay(stopIndex);
+    return isCancelledStop() || isNoDataStop() ? 0 : tripTimes.getDepartureDelay(stopPosition);
   }
 
   public boolean isTimepoint() {
-    return tripTimes.isTimepoint(stopIndex);
+    return tripTimes.isTimepoint(stopPosition);
   }
 
   public boolean isRealtime() {
@@ -216,13 +278,13 @@ public class TripTimeOnDate {
 
   public boolean isCancelledStop() {
     return (
-      tripTimes.isCancelledStop(stopIndex) ||
-      tripPattern.isBoardAndAlightAt(stopIndex, PickDrop.CANCELLED)
+      tripTimes.isCancelledStop(stopPosition) ||
+      tripPattern.isBoardAndAlightAt(stopPosition, PickDrop.CANCELLED)
     );
   }
 
   public boolean isPredictionInaccurate() {
-    return tripTimes.isPredictionInaccurate(stopIndex);
+    return tripTimes.isPredictionInaccurate(stopPosition);
   }
 
   /** Return {code true} if stop is cancelled, or trip is canceled/replaced */
@@ -235,7 +297,7 @@ public class TripTimeOnDate {
   }
 
   public boolean isNoDataStop() {
-    return tripTimes.isNoDataStop(stopIndex);
+    return tripTimes.isNoDataStop(stopPosition);
   }
 
   /**
@@ -243,17 +305,17 @@ public class TripTimeOnDate {
    * This information is currently only available from SIRI feeds.
    */
   public boolean isRecordedStop() {
-    return tripTimes.isRecordedStop(stopIndex);
+    return tripTimes.isRecordedStop(stopPosition);
   }
 
   public RealTimeState getRealTimeState() {
-    return tripTimes.isNoDataStop(stopIndex)
+    return tripTimes.isNoDataStop(stopPosition)
       ? RealTimeState.SCHEDULED
       : tripTimes.getRealTimeState();
   }
 
   public OccupancyStatus getOccupancyStatus() {
-    return tripTimes.getOccupancyStatus(stopIndex);
+    return tripTimes.getOccupancyStatus(stopPosition);
   }
 
   public long getServiceDayMidnight() {
@@ -268,17 +330,13 @@ public class TripTimeOnDate {
     return tripTimes.getTrip();
   }
 
-  public String getBlockId() {
-    return tripTimes.getTrip().getGtfsBlockId();
-  }
-
   public I18NString getHeadsign() {
-    return tripTimes.getHeadsign(stopIndex);
+    return tripTimes.getHeadsign(stopPosition);
   }
 
   /** @return a list of via names visible at this stop, or an empty list if there are no vias. */
   public List<String> getHeadsignVias() {
-    return tripTimes.getHeadsignVias(stopIndex);
+    return tripTimes.getHeadsignVias(stopPosition);
   }
 
   public PickDrop getPickupType() {
@@ -290,12 +348,12 @@ public class TripTimeOnDate {
         serviceDate
       );
 
-      return tripPattern.getBoardType(stopIndex);
+      return tripPattern.getBoardType(stopPosition);
     }
 
-    return tripTimes.isCanceled() || tripTimes.isCancelledStop(stopIndex)
+    return tripTimes.isCanceled() || tripTimes.isCancelledStop(stopPosition)
       ? PickDrop.CANCELLED
-      : tripPattern.getBoardType(stopIndex);
+      : tripPattern.getBoardType(stopPosition);
   }
 
   public PickDrop getDropoffType() {
@@ -307,24 +365,24 @@ public class TripTimeOnDate {
         serviceDate
       );
 
-      return tripPattern.getAlightType(stopIndex);
+      return tripPattern.getAlightType(stopPosition);
     }
 
-    return tripTimes.isCanceled() || tripTimes.isCancelledStop(stopIndex)
+    return tripTimes.isCanceled() || tripTimes.isCancelledStop(stopPosition)
       ? PickDrop.CANCELLED
-      : tripPattern.getAlightType(stopIndex);
+      : tripPattern.getAlightType(stopPosition);
   }
 
   public StopTimeKey getStopTimeKey() {
-    return StopTimeKey.of(tripTimes.getTrip().getId(), stopIndex).build();
+    return StopTimeKey.of(tripTimes.getTrip().getId(), stopPosition).build();
   }
 
   public BookingInfo getPickupBookingInfo() {
-    return tripTimes.getPickupBookingInfo(stopIndex);
+    return tripTimes.getPickupBookingInfo(stopPosition);
   }
 
   public BookingInfo getDropOffBookingInfo() {
-    return tripTimes.getDropOffBookingInfo(stopIndex);
+    return tripTimes.getDropOffBookingInfo(stopPosition);
   }
 
   @Override
@@ -332,7 +390,7 @@ public class TripTimeOnDate {
     if (o == null || getClass() != o.getClass()) return false;
     TripTimeOnDate that = (TripTimeOnDate) o;
     return (
-      stopIndex == that.stopIndex &&
+      stopPosition == that.stopPosition &&
       midnight == that.midnight &&
       Objects.equals(tripTimes, that.tripTimes) &&
       Objects.equals(tripPattern, that.tripPattern) &&
@@ -342,6 +400,100 @@ public class TripTimeOnDate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(tripTimes, stopIndex, tripPattern, serviceDate, midnight);
+    return Objects.hash(tripTimes, stopPosition, tripPattern, serviceDate, midnight);
+  }
+
+  public TripPattern pattern() {
+    return tripPattern;
+  }
+
+  /**
+   * Returns the previous stop times in the trip. If it's the first stop in the trip, it returns an
+   * empty list.
+   */
+  public List<TripTimeOnDate> previousTimes() {
+    return previousTimes(stopPosition);
+  }
+
+  /**
+   * Returns the previous {@code count} stop times in the trip. If it's the first stop in the trip, it returns an
+   * empty list.
+   */
+  public List<TripTimeOnDate> previousTimes(int count) {
+    count = Math.min(count, stopPosition);
+    // IntStream.range is (inclusive, exclusive)
+    return IntStream.range(stopPosition - count, stopPosition)
+      .mapToObj(this::atStopPosition)
+      .toList();
+  }
+
+  /**
+   * Returns the next stop times in the trip. If it's the last stop in the trip it returns an empty list.
+   */
+  public List<TripTimeOnDate> nextTimes() {
+    return nextTimes(tripTimes.getNumStops() - stopPosition - 1);
+  }
+
+  /**
+   * Returns the next {@code count} stop times in the trip. If it's the last stop in the trip it returns an empty list.
+   */
+  public List<TripTimeOnDate> nextTimes(int count) {
+    count = Math.min(count, tripTimes.getNumStops() - stopPosition - 1);
+    // IntStream.range is (inclusive, exclusive)
+    return IntStream.range(stopPosition + 1, stopPosition + count + 1)
+      .mapToObj(this::atStopPosition)
+      .toList();
+  }
+
+  /**
+   * Returns the real-time arrival, if available.
+   */
+  public Optional<Instant> realtimeArrival() {
+    return optionalInstant(getRealtimeArrival());
+  }
+
+  /**
+   * Returns the real-time departure, if available.
+   */
+  public Optional<Instant> realtimeDeparture() {
+    return optionalInstant(getRealtimeDeparture());
+  }
+
+  private TripTimeOnDate atStopPosition(int stopPosition) {
+    IntUtils.requireInRange(stopPosition, 0, tripTimes.getNumStops() - 1, "stopPosition");
+    return new TripTimeOnDate(
+      tripTimes,
+      stopPosition,
+      tripPattern,
+      serviceDate,
+      Instant.ofEpochSecond(midnight)
+    );
+  }
+
+  /**
+   * If real time data is available for this stop (call) then it is returned or an empty Optional
+   * otherwise.
+   */
+  private Optional<Instant> optionalInstant(int secondsSinceMidnight) {
+    if (isCancelledStop() || isRealtime()) {
+      return Optional.of(toInstant(secondsSinceMidnight));
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  private Instant toInstant(int secondsSinceMidnight) {
+    return Instant.ofEpochSecond(midnight).plusSeconds(secondsSinceMidnight);
+  }
+
+  @Override
+  public String toString() {
+    return ToStringBuilder.of(TripTimeOnDate.class)
+      .addObj("trip", tripTimes.getTrip())
+      .addNum("stopPosition", stopPosition)
+      .addServiceTime("arrival", getScheduledArrival())
+      .addServiceTime("departure", getScheduledArrival())
+      .addDate("serviceDate", serviceDate)
+      .toString();
   }
 }

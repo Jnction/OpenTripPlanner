@@ -2,13 +2,14 @@ package org.opentripplanner.gtfs.mapping;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.FareProduct;
 import org.opentripplanner.transit.model.basic.Money;
 
 class FareProductMapperTest {
+
+  public static final IdFactory ID_FACTORY = new IdFactory("1");
 
   @Test
   void map() {
@@ -20,10 +21,9 @@ class FareProductMapperTest {
     gtfs.setDurationAmount(1);
     gtfs.setDurationUnit(5);
 
-    var mapper = new FareProductMapper();
+    var mapper = new FareProductMapper(ID_FACTORY);
     var internal = mapper.map(gtfs);
 
-    assertEquals(internal.validity(), Duration.ofDays(31));
     assertEquals(internal.price(), Money.usDollars(1));
     assertEquals(internal.price().minorUnitAmount(), 100);
   }
@@ -36,7 +36,7 @@ class FareProductMapperTest {
     gtfs.setName("day pass");
     gtfs.setCurrency("JPY");
 
-    var mapper = new FareProductMapper();
+    var mapper = new FareProductMapper(ID_FACTORY);
     var internal = mapper.map(gtfs);
 
     assertEquals(internal.price().toString(), "¥100");

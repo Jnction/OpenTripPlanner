@@ -38,37 +38,19 @@ public class SelectRequest implements Serializable {
     this.routes = builder.routes;
   }
 
-  public boolean matches(TripPattern tripPattern) {
-    if (
-      // If the pattern contains multiple modes, we will do the filtering in
-      // SelectRequest.matches(TripTimes)
-      !tripPattern.getContainsMultipleModes() &&
-      this.transportModeFilter != null &&
-      !this.transportModeFilter.match(tripPattern.getMode(), tripPattern.getNetexSubmode())
-    ) {
-      return false;
-    }
+  /**
+   * Will return false if the pattern doesn't match the filter and true if it matches or needs to
+   * look at the Trip level to be sure decide.
+   */
+  public boolean matchesPatternSelect(TripPattern tripPattern) {
+    return matchesPattern(tripPattern, true);
+  }
 
-    if (!agencies.isEmpty() && !agencies.contains(tripPattern.getRoute().getAgency().getId())) {
-      return false;
-    }
-
-    if (!routes.isEmpty() && !routes.contains(tripPattern.getRoute().getId())) {
-      return false;
-    }
-
-    if (!groupOfRoutes.isEmpty()) {
-      var ids = new ArrayList<FeedScopedId>();
-      for (var gor : tripPattern.getRoute().getGroupsOfRoutes()) {
-        ids.add(gor.getId());
-      }
-
-      if (Collections.disjoint(groupOfRoutes, ids)) {
-        return false;
-      }
-    }
-
-    return true;
+  /**
+   * Will return true if the pattern matches the filter and false if it doesn't match or might not match.
+   */
+  public boolean matchesPatternNot(TripPattern tripPattern) {
+    return matchesPattern(tripPattern, false);
   }
 
   /**
@@ -96,7 +78,7 @@ public class SelectRequest implements Serializable {
 
   @Override
   public String toString() {
-    return ToStringBuilder.of(SelectRequest.class)
+    return ToStringBuilder.ofEmbeddedType()
       .addObj("transportModes", transportModesToString(), null)
       .addCol("agencies", agencies, List.of())
       .addObj("routes", routes, List.of())
@@ -119,15 +101,52 @@ public class SelectRequest implements Serializable {
     return routes;
   }
 
+  private boolean matchesPattern(TripPattern tripPattern, boolean maybeValue) {
+    if (!agencies.isEmpty() && !agencies.contains(tripPattern.getRoute().getAgency().getId())) {
+      return false;
+    }
+
+    if (!routes.isEmpty() && !routes.contains(tripPattern.getRoute().getId())) {
+      return false;
+    }
+
+    if (!groupOfRoutes.isEmpty()) {
+      var ids = new ArrayList<FeedScopedId>();
+      for (var gor : tripPattern.getRoute().getGroupsOfRoutes()) {
+        ids.add(gor.getId());
+      }
+
+      if (Collections.disjoint(groupOfRoutes, ids)) {
+        return false;
+      }
+    }
+
+    if (this.transportModeFilter != null) {
+      // If the pattern contains multiple modes, we will do the filtering in
+      // SelectRequest.matches(TripTimes)
+      if (tripPattern.getContainsMultipleModes()) {
+        return maybeValue;
+      }
+      if (!this.transportModeFilter.match(tripPattern.getMode(), tripPattern.getNetexSubmode())) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   private String transportModesToString() {
     if (transportModes == null) {
       return null;
+    }
+    if (transportModes.isEmpty()) {
+      return "EMPTY";
     }
     if (transportModes.stream().allMatch(MainAndSubMode::isMainModeOnly)) {
       int size = transportModes.size();
       int total = MainAndSubMode.all().size();
       if (size == total) {
-        return "ALL-MAIN-MODES";
+        return "ALL";
       }
       if (size + 3 >= total) {
         // If 3 or less of the main modes are *excluded* we guess that the user did exclude, and

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -17,7 +18,7 @@ import org.opentripplanner.framework.i18n.I18NString;
 import org.opentripplanner.framework.i18n.LocalizedString;
 import org.opentripplanner.graph_builder.model.GraphBuilderModule;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.graph.index.StreetIndex;
+import org.opentripplanner.routing.graphfinder.StopResolver;
 import org.opentripplanner.routing.linking.VertexLinker;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildService;
 import org.opentripplanner.service.osminfo.model.Platform;
@@ -67,34 +68,39 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
 
   private final Graph graph;
 
+  private final StopResolver stopResolver;
   private final OsmInfoGraphBuildService osmInfoGraphBuildService;
-  private final TimetableRepository timetableRepository;
   private final VertexFactory vertexFactory;
+  private final VertexLinker linker;
 
-  private VertexLinker linker;
-
+  /**
+   * @param timetableRepository This module requires the timetable repository because at the time
+   *                            of the instantiation the site repository is empty.
+   */
   @Inject
   public OsmBoardingLocationsModule(
     Graph graph,
-    OsmInfoGraphBuildService osmInfoGraphBuildService,
-    TimetableRepository timetableRepository
+    TimetableRepository timetableRepository,
+    VertexLinker linker,
+    OsmInfoGraphBuildService osmInfoGraphBuildService
   ) {
     this.graph = graph;
+    this.stopResolver = id ->
+      Objects.requireNonNull(timetableRepository.getSiteRepository().getRegularStop(id));
     this.osmInfoGraphBuildService = osmInfoGraphBuildService;
-    this.timetableRepository = timetableRepository;
     this.vertexFactory = new VertexFactory(graph);
+    this.linker = linker;
   }
 
   @Override
   public void buildGraph() {
     LOG.info("Improving boarding locations by checking OSM entities...");
 
-    StreetIndex streetIndex = graph.getStreetIndexSafe(timetableRepository.getSiteRepository());
-    this.linker = streetIndex.getVertexLinker();
+    graph.index();
     int successes = 0;
 
     for (TransitStopVertex ts : graph.getVerticesOfType(TransitStopVertex.class)) {
-      // if the street is already linked there is no need to linked it again,
+      // if the street is already linked there is no need to link it again,
       // could happened if using the prune isolated island
       boolean alreadyLinked = false;
       for (Edge e : ts.getOutgoing()) {
@@ -106,8 +112,9 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
       if (alreadyLinked) continue;
       // only connect transit stops that are not part of a pathway network
       if (!ts.hasPathways()) {
-        if (!connectVertexToStop(ts, streetIndex)) {
-          LOG.debug("Could not connect {} at {}", ts.getStop().getCode(), ts.getCoordinate());
+        var stop = stopResolver.getStop(ts.getId());
+        if (!connectVertexToStop(ts, stop, graph)) {
+          LOG.debug("Could not connect {} at {}", ts.getId(), ts.getCoordinate());
         } else {
           successes++;
         }
@@ -116,10 +123,10 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
     LOG.info("Found {} OSM references which match a stop's id or code", successes);
   }
 
-  private boolean connectVertexToStop(TransitStopVertex ts, StreetIndex index) {
-    if (connectVertexToNode(ts, index)) return true;
+  private boolean connectVertexToStop(TransitStopVertex ts, RegularStop stop, Graph index) {
+    if (connectVertexToNode(ts, stop, index)) return true;
 
-    if (connectVertexToWay(ts, index)) return true;
+    if (connectVertexToWay(ts, stop, index)) return true;
 
     return connectVertexToArea(ts, index);
   }
@@ -139,10 +146,10 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
    *
    * @return if the vertex has been connected
    */
-  private boolean connectVertexToArea(TransitStopVertex ts, StreetIndex index) {
-    RegularStop stop = ts.getStop();
-    var nearbyAreaGroups = index
-      .getEdgesForEnvelope(getEnvelope(ts))
+  private boolean connectVertexToArea(TransitStopVertex ts, Graph graph) {
+    var stop = stopResolver.getStop(ts.getId());
+    var nearbyAreaGroups = graph
+      .findEdges(getEnvelope(ts))
       .stream()
       .filter(AreaEdge.class::isInstance)
       .map(AreaEdge.class::cast)
@@ -180,11 +187,10 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
    *
    * @return if the vertex has been connected
    */
-  private boolean connectVertexToWay(TransitStopVertex ts, StreetIndex index) {
-    var stop = ts.getStop();
+  private boolean connectVertexToWay(TransitStopVertex ts, RegularStop stop, Graph graph) {
     var nearbyEdges = new HashMap<Platform, List<Edge>>();
 
-    for (var edge : index.getEdgesForEnvelope(getEnvelope(ts))) {
+    for (var edge : graph.findEdges(getEnvelope(ts))) {
       osmInfoGraphBuildService
         .findPlatform(edge)
         .ifPresent(platform -> {
@@ -229,16 +235,16 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
    *
    * @return If the vertex has been connected.
    */
-  private boolean connectVertexToNode(TransitStopVertex ts, StreetIndex index) {
-    var nearbyBoardingLocations = index
-      .getVerticesForEnvelope(getEnvelope(ts))
+  private boolean connectVertexToNode(TransitStopVertex ts, RegularStop stop, Graph graph) {
+    var nearbyBoardingLocations = graph
+      .findVertices(getEnvelope(ts))
       .stream()
       .filter(OsmBoardingLocationVertex.class::isInstance)
       .map(OsmBoardingLocationVertex.class::cast)
       .collect(Collectors.toSet());
 
     for (var boardingLocation : nearbyBoardingLocations) {
-      if (matchesReference(ts.getStop(), boardingLocation.references)) {
+      if (matchesReference(stop, boardingLocation.references)) {
         if (!boardingLocation.isConnectedToStreetNetwork()) {
           linker.linkVertexPermanently(
             boardingLocation,
@@ -248,7 +254,7 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
               getConnectingEdges(boardingLocation, osmBoardingLocationVertex, splitVertex)
           );
         }
-        linkBoardingLocationToStop(ts, ts.getStop().getCode(), boardingLocation);
+        linkBoardingLocationToStop(ts, stop.getCode(), boardingLocation);
         return true;
       }
     }

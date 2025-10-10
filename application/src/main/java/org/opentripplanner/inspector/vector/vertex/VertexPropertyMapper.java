@@ -40,7 +40,16 @@ public class VertexPropertyMapper extends PropertyMapper<Vertex> {
         );
         default -> List.of();
       };
-    return ListUtils.combine(baseProps, properties);
+
+    return ListUtils.combine(baseProps, properties, areaStops(input));
+  }
+
+  private List<KeyValue> areaStops(Vertex input) {
+    if (input.areaStops().isEmpty()) {
+      return List.of();
+    } else {
+      return List.of(kv("areaStops", input.areaStops()));
+    }
   }
 
   private Set<TraverseMode> spacesFor(VehicleParking vehicleParking) {

@@ -31,6 +31,10 @@ public class TransitFilterRequest implements Serializable, TransitFilter {
     return Collections.unmodifiableList(Arrays.asList(select));
   }
 
+  public List<SelectRequest> not() {
+    return Collections.unmodifiableList(Arrays.asList(not));
+  }
+
   public static Builder of() {
     return new Builder();
   }
@@ -62,7 +66,7 @@ public class TransitFilterRequest implements Serializable, TransitFilter {
     if (select.length != 0) {
       var anyMatch = false;
       for (SelectRequest s : select) {
-        if (s.matches(tripPattern)) {
+        if (s.matchesPatternSelect(tripPattern)) {
           anyMatch = true;
           break;
         }
@@ -73,7 +77,7 @@ public class TransitFilterRequest implements Serializable, TransitFilter {
     }
 
     for (SelectRequest s : not) {
-      if (s.matches(tripPattern)) {
+      if (s.matchesPatternNot(tripPattern)) {
         return false;
       }
     }
@@ -107,7 +111,10 @@ public class TransitFilterRequest implements Serializable, TransitFilter {
 
   @Override
   public String toString() {
-    return ToStringBuilder.of(TransitFilterRequest.class)
+    if (select.length == 0 && not.length == 0) {
+      return "ALL";
+    }
+    return ToStringBuilder.ofEmbeddedType()
       .addCol("select", Arrays.asList(select))
       .addCol("not", Arrays.asList(not))
       .toString();

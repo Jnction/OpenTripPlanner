@@ -18,7 +18,7 @@ import org.opentripplanner.model.Frequency;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.model.impl.OtpTransitServiceBuilder;
 import org.opentripplanner.transit.model.framework.DataValidationException;
-import org.opentripplanner.transit.model.framework.Deduplicator;
+import org.opentripplanner.transit.model.framework.DeduplicatorService;
 import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.StopPattern;
@@ -26,8 +26,8 @@ import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.network.TripPatternBuilder;
 import org.opentripplanner.transit.model.timetable.Direction;
 import org.opentripplanner.transit.model.timetable.FrequencyEntry;
+import org.opentripplanner.transit.model.timetable.ScheduledTripTimes;
 import org.opentripplanner.transit.model.timetable.Trip;
-import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.model.timetable.TripTimesFactory;
 import org.opentripplanner.utils.logging.ProgressTracker;
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ public class GenerateTripPatternsOperation {
 
   private final OtpTransitServiceBuilder transitServiceBuilder;
   private final DataImportIssueStore issueStore;
-  private final Deduplicator deduplicator;
+  private final DeduplicatorService deduplicator;
   private final Set<FeedScopedId> calendarServiceIds;
   private final GeometryProcessor geometryProcessor;
 
@@ -60,7 +60,7 @@ public class GenerateTripPatternsOperation {
   public GenerateTripPatternsOperation(
     OtpTransitServiceBuilder builder,
     DataImportIssueStore issueStore,
-    Deduplicator deduplicator,
+    DeduplicatorService deduplicator,
     Set<FeedScopedId> calendarServiceIds,
     GeometryProcessor geometryProcessor
   ) {
@@ -120,7 +120,7 @@ public class GenerateTripPatternsOperation {
    */
   private void collectFrequencyByTrip() {
     for (Frequency freq : transitServiceBuilder.getFrequencies()) {
-      frequenciesForTrip.put(freq.getTrip(), freq);
+      frequenciesForTrip.put(freq.trip(), freq);
     }
   }
 
@@ -149,7 +149,7 @@ public class GenerateTripPatternsOperation {
     TripPatternBuilder tripPatternBuilder = findOrCreateTripPattern(stopPattern, trip);
 
     // Create a TripTimes object for this list of stoptimes, which form one trip.
-    TripTimes tripTimes = TripTimesFactory.tripTimes(trip, stopTimes, deduplicator);
+    ScheduledTripTimes tripTimes = TripTimesFactory.tripTimes(trip, stopTimes, deduplicator);
 
     // If this trip is referenced by one or more lines in frequencies.txt, wrap it in a FrequencyEntry.
     List<Frequency> frequencies = frequenciesForTrip.get(trip);

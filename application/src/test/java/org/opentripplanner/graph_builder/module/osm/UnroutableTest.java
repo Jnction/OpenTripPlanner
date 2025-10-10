@@ -9,6 +9,7 @@ import org.opentripplanner.astar.model.ShortestPathTree;
 import org.opentripplanner.osm.DefaultOsmProvider;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.StreetMode;
+import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
@@ -19,7 +20,6 @@ import org.opentripplanner.street.search.StreetSearchBuilder;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.EuclideanRemainingWeightHeuristic;
 import org.opentripplanner.test.support.ResourceLoader;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 
 /**
  * Verify that OSM ways that represent proposed or as yet unbuilt roads are not used for routing.
@@ -28,14 +28,13 @@ import org.opentripplanner.transit.model.framework.Deduplicator;
  *
  * @author abyrd
  */
-public class UnroutableTest {
+class UnroutableTest {
 
   private Graph graph;
 
   @BeforeEach
   public void setUp() throws Exception {
-    var deduplicator = new Deduplicator();
-    graph = new Graph(deduplicator);
+    graph = new Graph();
 
     var osmDataFile = ResourceLoader.of(UnroutableTest.class).file("bridge_construction.osm.pbf");
     DefaultOsmProvider provider = new DefaultOsmProvider(osmDataFile, true);
@@ -57,17 +56,18 @@ public class UnroutableTest {
    */
   @Test
   public void testOnBoardRouting() {
-    RouteRequest options = new RouteRequest();
-    options.journey().direct().setMode(StreetMode.BIKE);
+    var request = RouteRequest.of()
+      .withJourney(j -> j.withDirect(new StreetRequest(StreetMode.BIKE)))
+      .buildDefault();
 
     Vertex from = graph.getVertex(VertexLabel.osm(2003617278));
     Vertex to = graph.getVertex(VertexLabel.osm(40446276));
     ShortestPathTree<State, Edge, Vertex> spt = StreetSearchBuilder.of()
-      .setHeuristic(new EuclideanRemainingWeightHeuristic())
-      .setRequest(options)
-      .setStreetRequest(options.journey().direct())
-      .setFrom(from)
-      .setTo(to)
+      .withHeuristic(new EuclideanRemainingWeightHeuristic())
+      .withRequest(request)
+      .withStreetRequest(request.journey().direct())
+      .withFrom(from)
+      .withTo(to)
       .getShortestPathTree();
 
     GraphPath<State, Edge, Vertex> path = spt.getPath(to);

@@ -3,12 +3,13 @@ package org.opentripplanner.updater.vehicle_rental.datasources;
 import org.opentripplanner.ext.smoovebikerental.SmooveBikeRentalDataSource;
 import org.opentripplanner.ext.smoovebikerental.SmooveBikeRentalDataSourceParameters;
 import org.opentripplanner.framework.io.OtpHttpClientFactory;
+import org.opentripplanner.updater.vehicle_rental.datasources.gbfs.GbfsVehicleRentalDataSource;
 import org.opentripplanner.updater.vehicle_rental.datasources.params.GbfsVehicleRentalDataSourceParameters;
 import org.opentripplanner.updater.vehicle_rental.datasources.params.VehicleRentalDataSourceParameters;
 
 public class VehicleRentalDataSourceFactory {
 
-  public static VehicleRentalDatasource create(
+  public static VehicleRentalDataSource create(
     VehicleRentalDataSourceParameters source,
     OtpHttpClientFactory otpHttpClientFactory
   ) {

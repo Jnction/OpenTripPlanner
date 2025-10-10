@@ -14,9 +14,8 @@ import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildRepo
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.test.support.GeoJsonIo;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 
-public class SimpleAreaTest {
+class SimpleAreaTest {
 
   @Test
   void walkableArea() {
@@ -38,7 +37,7 @@ public class SimpleAreaTest {
       .addWayFromNodes(outside1, inside1)
       .build();
 
-    var graph = new Graph(new Deduplicator());
+    var graph = new Graph();
     var osmModule = OsmModule.of(
       provider,
       graph,

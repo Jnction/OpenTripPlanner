@@ -29,7 +29,7 @@ import org.opentripplanner.utils.time.DurationUtils;
 
 /**
  * A debug logger which can be plugged into Raptor to do debug logging to standard error. This is
- * used by the REST API, SpeedTest and in module tests.
+ * used by the SpeedTest and in module tests.
  * <p>
  * See the Raptor design doc for a general description of the logging functionality.
  */
@@ -67,8 +67,8 @@ public class SystemErrDebugLogger implements DebugLogger {
   }
 
   /**
-   * This should be passed into the {@link DebugRequestBuilder#stopArrivalListener(Consumer)} using
-   * a lambda to enable debugging stop arrivals.
+   * This should be passed into the {@link DebugRequestBuilder#withStopArrivalListener(Consumer)}
+   * using a lambda to enable debugging stop arrivals.
    */
   public void stopArrivalLister(DebugEvent<ArrivalView<?>> e) {
     printIterationHeader(e.iterationStartTime());
@@ -82,7 +82,7 @@ public class SystemErrDebugLogger implements DebugLogger {
   }
 
   /**
-   * This should be passed into the {@link DebugRequestBuilder#patternRideDebugListener(Consumer)}
+   * This should be passed into the {@link DebugRequestBuilder#withPatternRideDebugListener(Consumer)}
    * using a lambda to enable debugging pattern ride events.
    */
   public void patternRideLister(DebugEvent<PatternRideView<?, ?>> e) {
@@ -97,7 +97,7 @@ public class SystemErrDebugLogger implements DebugLogger {
   }
 
   /**
-   * This should be passed into the {@link DebugRequestBuilder#pathFilteringListener(Consumer)}
+   * This should be passed into the {@link DebugRequestBuilder#withPathFilteringListener(Consumer)}
    * using a lambda to enable debugging paths put in the final result pareto-set.
    */
   public void pathFilteringListener(DebugEvent<RaptorPath<?>> e) {

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.routing.algorithm.GraphRoutingTest;
 import org.opentripplanner.routing.api.request.RouteRequest;
+import org.opentripplanner.routing.api.request.RouteRequestBuilder;
 import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.service.vehiclerental.model.RentalVehicleType;
@@ -97,7 +99,7 @@ public class BikeRentalTest extends GraphRoutingTest {
       B,
       C,
       false,
-      new RouteRequest(),
+      RouteRequest.defaultValue(),
       StreetMode.BIKE
     );
 
@@ -111,7 +113,7 @@ public class BikeRentalTest extends GraphRoutingTest {
       B,
       C,
       false,
-      new RouteRequest(),
+      RouteRequest.defaultValue(),
       StreetMode.BIKE
     );
 
@@ -155,7 +157,10 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testNoBikesAvailable() {
-    ((VehicleRentalStation) B1.getStation()).vehiclesAvailable = 0;
+    // Replace B1 with a station that has no bikes available
+    var stationWithNoBikes =
+      ((VehicleRentalStation) B1.getStation()).copyOf().withVehiclesAvailable(0).build();
+    B1.setStation(stationWithNoBikes);
 
     assertPath(
       S1,
@@ -178,7 +183,13 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testNoSpacesAvailable() {
-    ((VehicleRentalStation) B2.getStation()).spacesAvailable = 0;
+    // Replace B2 with a station that has no spaces available
+    var stationWithNoSpaces =
+      ((VehicleRentalStation) B2.getStation()).copyOf()
+        .withSpacesAvailable(0)
+        .withVehicleSpacesAvailable(Map.of())
+        .build();
+    B2.setStation(stationWithNoSpaces);
 
     assertPath(
       S1,
@@ -201,7 +212,10 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testIgnoreAvailabilityNoBikesAvailable() {
-    ((VehicleRentalStation) B1.getStation()).vehiclesAvailable = 0;
+    // Replace B1 with a station that has no bikes available
+    var stationWithNoBikes =
+      ((VehicleRentalStation) B1.getStation()).copyOf().withVehiclesAvailable(0).build();
+    B1.setStation(stationWithNoBikes);
 
     assertPath(
       S1,
@@ -216,7 +230,10 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testIgnoreAvailabilityNoSpacesAvailable() {
-    ((VehicleRentalStation) B2.getStation()).spacesAvailable = 0;
+    // Replace B2 with a station that has no spaces available
+    var stationWithNoSpaces =
+      ((VehicleRentalStation) B2.getStation()).copyOf().withSpacesAvailable(0).build();
+    B2.setStation(stationWithNoSpaces);
 
     assertPath(
       S1,
@@ -232,12 +249,13 @@ public class BikeRentalTest extends GraphRoutingTest {
   @Test
   public void testFloatingBike() {
     VehicleRentalPlace station = B1.getStation();
-    VehicleRentalVehicle vehicle = new VehicleRentalVehicle();
-    vehicle.latitude = station.getLatitude();
-    vehicle.longitude = station.getLongitude();
-    vehicle.id = station.getId();
-    vehicle.name = station.getName();
-    vehicle.vehicleType = RentalVehicleType.getDefaultType(station.getId().getFeedId());
+    VehicleRentalVehicle vehicle = VehicleRentalVehicle.of()
+      .withLatitude(station.latitude())
+      .withLongitude(station.longitude())
+      .withId(station.id())
+      .withName(station.name())
+      .withVehicleType(RentalVehicleType.getDefaultType(station.id().getFeedId()))
+      .build();
     B1.setStation(vehicle);
 
     assertPath(
@@ -270,7 +288,12 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testBikeRentalFromStationWantToKeepCantKeep() {
-    ((VehicleRentalStation) B1.getStation()).isArrivingInRentalVehicleAtDestinationAllowed = false;
+    // Replace B1 with a station that doesn't allow keeping vehicles at destination
+    var stationCantKeep =
+      ((VehicleRentalStation) B1.getStation()).copyOf()
+        .withIsArrivingInRentalVehicleAtDestinationAllowed(false)
+        .build();
+    B1.setStation(stationCantKeep);
 
     assertPath(
       S1,
@@ -305,7 +328,12 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testBikeRentalFromStationWantToKeepCanKeep() {
-    ((VehicleRentalStation) B1.getStation()).isArrivingInRentalVehicleAtDestinationAllowed = true;
+    // Replace B1 with a station that allows keeping vehicles at destination
+    var stationCanKeep =
+      ((VehicleRentalStation) B1.getStation()).copyOf()
+        .withIsArrivingInRentalVehicleAtDestinationAllowed(true)
+        .build();
+    B1.setStation(stationCanKeep);
 
     assertPath(
       S1,
@@ -340,7 +368,12 @@ public class BikeRentalTest extends GraphRoutingTest {
 
   @Test
   public void testBikeRentalFromStationWantToKeepCanKeepButCostly() {
-    ((VehicleRentalStation) B1.getStation()).isArrivingInRentalVehicleAtDestinationAllowed = true;
+    // Replace B1 with a station that allows keeping vehicles at destination
+    var stationCanKeep =
+      ((VehicleRentalStation) B1.getStation()).copyOf()
+        .withIsArrivingInRentalVehicleAtDestinationAllowed(true)
+        .build();
+    B1.setStation(stationCanKeep);
     int keepRentedBicycleAtDestinationCost = 1000;
 
     assertPath(
@@ -432,7 +465,7 @@ public class BikeRentalTest extends GraphRoutingTest {
     Set<String> bannedNetworks,
     Set<String> allowedNetworks
   ) {
-    Consumer<RouteRequest> setter = options -> {
+    Consumer<RouteRequestBuilder> setter = options -> {
       options.withPreferences(preferences ->
         preferences.withBike(bike ->
           bike.withRental(rental -> {
@@ -462,7 +495,7 @@ public class BikeRentalTest extends GraphRoutingTest {
     Set<String> bannedNetworks,
     Set<String> allowedNetworks
   ) {
-    Consumer<RouteRequest> setter = options -> {
+    Consumer<RouteRequestBuilder> setter = options -> {
       options.withPreferences(preferences ->
         preferences.withBike(bike ->
           bike.withRental(rental -> {
@@ -604,15 +637,13 @@ public class BikeRentalTest extends GraphRoutingTest {
     Vertex fromVertex,
     Vertex toVertex,
     boolean arriveBy,
-    Consumer<RouteRequest> optionsSetter
+    Consumer<RouteRequestBuilder> optionsSetter
   ) {
-    var request = new RouteRequest();
+    var builder = RouteRequest.of().withArriveBy(arriveBy);
 
-    request.setArriveBy(arriveBy);
+    optionsSetter.accept(builder);
 
-    optionsSetter.accept(request);
-
-    request.withPreferences(preferences ->
+    builder.withPreferences(preferences ->
       preferences.withBike(bike ->
         bike.withRental(rental ->
           rental.withPickupTime(42).withPickupCost(62).withDropOffCost(33).withDropOffTime(15)
@@ -624,7 +655,7 @@ public class BikeRentalTest extends GraphRoutingTest {
       fromVertex,
       toVertex,
       arriveBy,
-      request,
+      builder.buildDefault(),
       StreetMode.BIKE_RENTAL
     );
   }
@@ -637,11 +668,11 @@ public class BikeRentalTest extends GraphRoutingTest {
     StreetMode streetMode
   ) {
     var tree = StreetSearchBuilder.of()
-      .setHeuristic(new EuclideanRemainingWeightHeuristic())
-      .setRequest(options)
-      .setStreetRequest(new StreetRequest(streetMode))
-      .setFrom(fromVertex)
-      .setTo(toVertex)
+      .withHeuristic(new EuclideanRemainingWeightHeuristic())
+      .withRequest(options)
+      .withStreetRequest(new StreetRequest(streetMode))
+      .withFrom(fromVertex)
+      .withTo(toVertex)
       .getShortestPathTree();
 
     var path = tree.getPath(arriveBy ? fromVertex : toVertex);

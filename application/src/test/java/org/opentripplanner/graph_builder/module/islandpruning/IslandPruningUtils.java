@@ -22,7 +22,7 @@ class IslandPruningUtils {
   ) {
     try {
       var deduplicator = new Deduplicator();
-      var graph = new Graph(deduplicator);
+      var graph = new Graph();
       var timetableRepository = new TimetableRepository(new SiteRepository(), deduplicator);
       // Add street data from OSM
       var osmProvider = new DefaultOsmProvider(osmFile, true);
@@ -35,7 +35,7 @@ class IslandPruningUtils {
       osmModule.buildGraph();
 
       timetableRepository.index();
-      graph.index(timetableRepository.getSiteRepository());
+      graph.index();
 
       // Prune floating islands and set noThru where necessary
       PruneIslands pruneIslands = new PruneIslands(

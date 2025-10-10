@@ -5,7 +5,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.opentripplanner.ext.flex.FlexRouter;
+import org.opentripplanner.ext.flex.filter.FilterMapper;
 import org.opentripplanner.framework.application.OTPRequestTimeoutException;
+import org.opentripplanner.graph_builder.module.nearbystops.TransitServiceResolver;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.routing.algorithm.raptoradapter.router.AdditionalSearchDays;
 import org.opentripplanner.routing.api.request.RouteRequest;
@@ -21,6 +23,9 @@ public class DirectFlexRouter {
     RouteRequest request,
     AdditionalSearchDays additionalSearchDays
   ) {
+    var accessEgressRouter = new AccessEgressRouter(
+      new TransitServiceResolver(serverContext.transitService())
+    );
     if (!StreetMode.FLEXIBLE.equals(request.journey().direct().mode())) {
       return Collections.emptyList();
     }
@@ -28,6 +33,8 @@ public class DirectFlexRouter {
     try (
       var temporaryVertices = new TemporaryVerticesContainer(
         serverContext.graph(),
+        serverContext.vertexLinker(),
+        serverContext.transitService()::findStopOrChildIds,
         request.from(),
         request.to(),
         request.journey().direct().mode(),
@@ -35,20 +42,20 @@ public class DirectFlexRouter {
       )
     ) {
       // Prepare access/egress transfers
-      Collection<NearbyStop> accessStops = AccessEgressRouter.findAccessEgresses(
+      Collection<NearbyStop> accessStops = accessEgressRouter.findAccessEgresses(
         request,
         temporaryVertices,
         request.journey().direct(),
-        serverContext.dataOverlayContext(request),
+        serverContext.listExtensionRequestContexts(request),
         AccessEgressType.ACCESS,
         serverContext.flexParameters().maxAccessWalkDuration(),
         0
       );
-      Collection<NearbyStop> egressStops = AccessEgressRouter.findAccessEgresses(
+      Collection<NearbyStop> egressStops = accessEgressRouter.findAccessEgresses(
         request,
         temporaryVertices,
         request.journey().direct(),
-        serverContext.dataOverlayContext(request),
+        serverContext.listExtensionRequestContexts(request),
         AccessEgressType.EGRESS,
         serverContext.flexParameters().maxEgressWalkDuration(),
         0
@@ -58,6 +65,7 @@ public class DirectFlexRouter {
         serverContext.graph(),
         serverContext.transitService(),
         serverContext.flexParameters(),
+        FilterMapper.map(request.journey().transit().filters()),
         request.dateTime(),
         request.bookingTime(),
         additionalSearchDays.additionalSearchDaysInPast(),

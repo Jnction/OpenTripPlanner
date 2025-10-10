@@ -43,13 +43,14 @@ public class EstimatedCallType {
     GraphQLOutputType destinationDisplayType,
     GraphQLOutputType ptSituationElementType,
     GraphQLOutputType serviceJourneyType,
+    GraphQLOutputType sjEstimatedCallType,
     GraphQLOutputType datedServiceJourneyType,
     GraphQLScalarType dateTimeScalar
   ) {
     return GraphQLObjectType.newObject()
       .name("EstimatedCall")
       .description(
-        "List of visits to quays as part of vehicle journeys. Updated with real time information where available"
+        "List of calls on quays as part of vehicle journeys. Updated with real time information where available"
       )
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
@@ -201,7 +202,7 @@ public class EstimatedCallType {
         GraphQLFieldDefinition.newFieldDefinition()
           .name("stopPositionInPattern")
           .type(new GraphQLNonNull(Scalars.GraphQLInt))
-          .dataFetcher(environment -> ((TripTimeOnDate) environment.getSource()).getStopIndex())
+          .dataFetcher(environment -> ((TripTimeOnDate) environment.getSource()).getStopPosition())
           .build()
       )
       .field(
@@ -261,6 +262,14 @@ public class EstimatedCallType {
       )
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
+          .name("serviceJourneyEstimatedCalls")
+          .type(new GraphQLNonNull(sjEstimatedCallType))
+          .description("Estimated calls for the ServiceJourney on this date.")
+          .dataFetcher(DataFetchingEnvironment::getSource)
+          .build()
+      )
+      .field(
+        GraphQLFieldDefinition.newFieldDefinition()
           .name("serviceJourney")
           .type(new GraphQLNonNull(serviceJourneyType))
           .dataFetcher(environment -> ((TripTimeOnDate) environment.getSource()).getTrip())
@@ -315,7 +324,8 @@ public class EstimatedCallType {
           .name("bookingArrangements")
           .description("Booking arrangements for this EstimatedCall.")
           .type(bookingArrangementType)
-          .dataFetcher(environment -> environment.<TripTimeOnDate>getSource().getPickupBookingInfo()
+          .dataFetcher(environment ->
+            environment.<TripTimeOnDate>getSource().getPickupBookingInfo()
           )
           .build()
       )

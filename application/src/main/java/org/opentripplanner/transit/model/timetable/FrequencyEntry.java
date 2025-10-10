@@ -15,13 +15,13 @@ public class FrequencyEntry implements Serializable {
   public final int endTime; // sec after midnight
   public final int headway; // sec
   public final boolean exactTimes;
-  public final TripTimes tripTimes;
+  public final ScheduledTripTimes tripTimes;
 
-  public FrequencyEntry(Frequency freq, TripTimes tripTimes) {
-    this.startTime = freq.getStartTime();
-    this.endTime = freq.getEndTime();
-    this.headway = freq.getHeadwaySecs();
-    this.exactTimes = freq.getExactTimes() != 0;
+  public FrequencyEntry(Frequency freq, ScheduledTripTimes tripTimes) {
+    this.startTime = freq.startTime();
+    this.endTime = freq.endTime();
+    this.headway = freq.headwaySecs();
+    this.exactTimes = freq.exactTimes();
     this.tripTimes = tripTimes;
   }
 
@@ -30,7 +30,7 @@ public class FrequencyEntry implements Serializable {
     int endTime,
     int headway,
     boolean exactTimes,
-    TripTimes tripTimes
+    ScheduledTripTimes tripTimes
   ) {
     this.startTime = startTime;
     this.endTime = endTime;
@@ -121,10 +121,18 @@ public class FrequencyEntry implements Serializable {
    * many short-lived clones. This delegation is a sign that maybe FrequencyEntry should implement
    * TripTimes.
    */
-  public TripTimes materialize(int stop, int time, boolean depart) {
-    // TODO: The cast should be changed, the internal type should be scheduledTripTimes and the
-    //       shift method should partially be inlined here
-    return ((RealTimeTripTimes) tripTimes).timeShift(stop, time, depart);
+  public ScheduledTripTimes materialize(int stop, int time, boolean depart) {
+    return tripTimes.timeShift(stop, time, depart);
+  }
+
+  public FrequencyEntry withServiceCode(int serviceCode) {
+    return new FrequencyEntry(
+      startTime,
+      endTime,
+      headway,
+      exactTimes,
+      tripTimes.withServiceCode(serviceCode)
+    );
   }
 
   /** Used in debugging / dumping times. */

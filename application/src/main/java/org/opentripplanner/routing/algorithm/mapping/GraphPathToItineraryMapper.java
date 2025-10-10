@@ -20,14 +20,15 @@ import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.framework.i18n.I18NString;
 import org.opentripplanner.framework.model.Cost;
 import org.opentripplanner.framework.time.ZoneIdFallback;
-import org.opentripplanner.model.plan.ElevationProfile;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.ItineraryBuilder;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.model.plan.Place;
-import org.opentripplanner.model.plan.StreetLeg;
-import org.opentripplanner.model.plan.StreetLegBuilder;
-import org.opentripplanner.model.plan.WalkStep;
+import org.opentripplanner.model.plan.leg.ElevationProfile;
+import org.opentripplanner.model.plan.leg.StreetLeg;
+import org.opentripplanner.model.plan.leg.StreetLegBuilder;
+import org.opentripplanner.model.plan.walkstep.WalkStep;
+import org.opentripplanner.routing.graphfinder.StopResolver;
 import org.opentripplanner.routing.services.notes.StreetNotesService;
 import org.opentripplanner.service.vehiclerental.street.VehicleRentalEdge;
 import org.opentripplanner.service.vehiclerental.street.VehicleRentalPlaceVertex;
@@ -52,15 +53,18 @@ import org.opentripplanner.street.search.state.State;
  */
 public class GraphPathToItineraryMapper {
 
+  private final StopResolver stopResolver;
   private final ZoneId timeZone;
   private final StreetNotesService streetNotesService;
   private final double ellipsoidToGeoidDifference;
 
   public GraphPathToItineraryMapper(
+    StopResolver stopResolver,
     ZoneId timeZone,
     StreetNotesService streetNotesService,
     double ellipsoidToGeoidDifference
   ) {
+    this.stopResolver = stopResolver;
     this.timeZone = ZoneIdFallback.zoneId(timeZone);
     this.streetNotesService = streetNotesService;
     this.ellipsoidToGeoidDifference = ellipsoidToGeoidDifference;
@@ -126,7 +130,7 @@ public class GraphPathToItineraryMapper {
       StreetLeg leg = generateLeg(legStates, previousStep);
       legs.add(leg);
 
-      List<WalkStep> walkSteps = leg.getWalkSteps();
+      List<WalkStep> walkSteps = leg.listWalkSteps();
       if (walkSteps.size() > 0) {
         previousStep = walkSteps.get(walkSteps.size() - 1);
       } else {
@@ -297,7 +301,7 @@ public class GraphPathToItineraryMapper {
    * @param state The {@link State}.
    * @return The resulting {@link Place} object.
    */
-  private static Place makePlace(State state) {
+  private Place makePlace(State state) {
     Vertex vertex = state.getVertex();
     I18NString name = vertex.getName();
 
@@ -308,8 +312,9 @@ public class GraphPathToItineraryMapper {
       name = ((StreetVertex) vertex).getIntersectionName();
     }
 
-    if (vertex instanceof TransitStopVertex) {
-      return Place.forStop(((TransitStopVertex) vertex).getStop());
+    if (vertex instanceof TransitStopVertex tsv) {
+      var stop = Objects.requireNonNull(stopResolver.getStop(tsv.getId()));
+      return Place.forStop(stop);
     } else if (vertex instanceof VehicleRentalPlaceVertex) {
       return Place.forVehicleRentalPlace((VehicleRentalPlaceVertex) vertex);
     } else if (vertex instanceof VehicleParkingEntranceVertex) {

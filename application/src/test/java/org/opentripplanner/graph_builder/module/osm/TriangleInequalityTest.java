@@ -33,7 +33,6 @@ import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.DominanceFunctions;
 import org.opentripplanner.street.search.strategy.EuclideanRemainingWeightHeuristic;
 import org.opentripplanner.test.support.ResourceLoader;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 
 public class TriangleInequalityTest {
 
@@ -47,7 +46,7 @@ public class TriangleInequalityTest {
 
   @BeforeAll
   public static void onlyOnce() {
-    graph = new Graph(new Deduplicator());
+    graph = new Graph();
 
     File file = ResourceLoader.of(TriangleInequalityTest.class).file("NYC_small.osm.pbf");
     DefaultOsmProvider provider = new DefaultOsmProvider(file, true);
@@ -162,12 +161,12 @@ public class TriangleInequalityTest {
     Vertex v
   ) {
     return StreetSearchBuilder.of()
-      .setHeuristic(new EuclideanRemainingWeightHeuristic())
-      .setOriginBackEdge(startBackEdge)
-      .setRequest(options)
-      .setFrom(u)
-      .setTo(v)
-      .setIntersectionTraversalCalculator(calculator)
+      .withHeuristic(new EuclideanRemainingWeightHeuristic())
+      .withOriginBackEdge(startBackEdge)
+      .withRequest(options)
+      .withFrom(u)
+      .withTo(v)
+      .withIntersectionTraversalCalculator(calculator)
       .getShortestPathTree()
       .getPath(v);
   }
@@ -180,32 +179,33 @@ public class TriangleInequalityTest {
     assertNotNull(start);
     assertNotNull(end);
 
-    RouteRequest prototypeOptions = new RouteRequest();
-
-    // All reluctance terms are 1.0 so that duration is monotonically increasing in weight.
-    prototypeOptions.withPreferences(preferences ->
-      preferences
-        .withWalk(walk -> walk.withStairsReluctance(1.0).withSpeed(1.0).withReluctance(1.0))
-        .withStreet(street -> street.withTurnReluctance(1.0))
-        .withCar(car -> car.withReluctance(1.0))
-        .withBike(bike -> bike.withSpeed(1.0).withReluctance(1.0))
-        .withScooter(scooter -> scooter.withSpeed(1.0).withReluctance(1.0))
-    );
-
-    if (modes != null) {
-      prototypeOptions.journey().setModes(modes);
-    }
-    if (!filters.isEmpty()) {
-      prototypeOptions.journey().transit().setFilters(filters);
-    }
+    var request = RouteRequest.of()
+      // All reluctance terms are 1.0 so that duration is monotonically increasing in weight.
+      .withPreferences(preferences ->
+        preferences
+          .withWalk(walk -> walk.withStairsReluctance(1.0).withSpeed(1.0).withReluctance(1.0))
+          .withStreet(street -> street.withTurnReluctance(1.0))
+          .withCar(car -> car.withReluctance(1.0))
+          .withBike(bike -> bike.withSpeed(1.0).withReluctance(1.0))
+          .withScooter(scooter -> scooter.withSpeed(1.0).withReluctance(1.0))
+      )
+      .withJourney(jb -> {
+        if (modes != null) {
+          jb.withModes(modes);
+        }
+        if (!filters.isEmpty()) {
+          jb.withTransit(b -> b.withFilters(filters));
+        }
+      })
+      .buildDefault();
 
     ShortestPathTree<State, Edge, Vertex> tree = StreetSearchBuilder.of()
-      .setHeuristic(new EuclideanRemainingWeightHeuristic())
-      .setDominanceFunction(new DominanceFunctions.EarliestArrival())
-      .setRequest(prototypeOptions)
-      .setFrom(start)
-      .setTo(end)
-      .setIntersectionTraversalCalculator(calculator)
+      .withHeuristic(new EuclideanRemainingWeightHeuristic())
+      .withDominanceFunction(new DominanceFunctions.EarliestArrival())
+      .withRequest(request)
+      .withFrom(start)
+      .withTo(end)
+      .withIntersectionTraversalCalculator(calculator)
       .getShortestPathTree();
 
     GraphPath<State, Edge, Vertex> path = tree.getPath(end);
@@ -224,7 +224,7 @@ public class TriangleInequalityTest {
       }
 
       GraphPath<State, Edge, Vertex> startIntermediatePath = getPath(
-        prototypeOptions,
+        request,
         null,
         start,
         intermediate
@@ -235,7 +235,7 @@ public class TriangleInequalityTest {
 
       Edge back = startIntermediatePath.states.getLast().getBackEdge();
       GraphPath<State, Edge, Vertex> intermediateEndPath = getPath(
-        prototypeOptions,
+        request,
         back,
         intermediate,
         end

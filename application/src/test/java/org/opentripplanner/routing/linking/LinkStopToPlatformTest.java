@@ -3,6 +3,8 @@ package org.opentripplanner.routing.linking;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.opentripplanner.routing.linking.TransitStopVertexBuilderFactory.ofStop;
+import static org.opentripplanner.routing.linking.VisibilityMode.COMPUTE_AREA_VISIBILITY_LINES;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,11 +25,12 @@ import org.opentripplanner.street.model.edge.AreaEdgeBuilder;
 import org.opentripplanner.street.model.edge.AreaGroup;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.LinkingDirection;
+import org.opentripplanner.street.model.edge.StreetEdge;
 import org.opentripplanner.street.model.edge.StreetTransitStopLink;
 import org.opentripplanner.street.model.vertex.IntersectionVertex;
-import org.opentripplanner.street.model.vertex.LabelledIntersectionVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
+import org.opentripplanner.street.model.vertex.VertexFactory;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.street.search.TraverseModeSet;
 import org.opentripplanner.test.support.GeoJsonIo;
@@ -45,15 +48,16 @@ public class LinkStopToPlatformTest {
   private Graph prepareTest(Coordinate[] platform, int[] visible, Coordinate[] stops) {
     var deduplicator = new Deduplicator();
     var siteRepository = new SiteRepository();
-    Graph graph = new Graph(deduplicator);
+    Graph graph = new Graph();
+    var vertexFactory = new VertexFactory(graph);
+
     var timetableRepository = new TimetableRepository(siteRepository, deduplicator);
     ArrayList<IntersectionVertex> vertices = new ArrayList<>();
     Coordinate[] closedGeom = new Coordinate[platform.length + 1];
 
     for (int i = 0; i < platform.length; i++) {
       Coordinate c = platform[i];
-      var vertex = new LabelledIntersectionVertex(String.valueOf(i), c.x, c.y, false, false);
-      graph.addVertex(vertex);
+      var vertex = vertexFactory.intersection(String.valueOf(i), c.x, c.y);
       vertices.add(vertex);
       closedGeom[i] = c;
     }
@@ -71,8 +75,10 @@ public class LinkStopToPlatformTest {
     // AreaGroup must include a valid Area which defines area attributes
     Area area = new Area();
     area.setName(new LocalizedString("test platform"));
+    area.setWalkSafety(0.5f);
+    area.setBicycleSafety(0.5f);
     area.setPermission(StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE);
-    area.setOriginalEdges(polygon);
+    area.setGeometry(polygon);
     areaGroup.addArea(area);
 
     for (int i = 0; i < platform.length; i++) {
@@ -106,11 +112,10 @@ public class LinkStopToPlatformTest {
     }
 
     timetableRepository.index();
-    graph.index(timetableRepository.getSiteRepository());
+    graph.index();
 
     for (RegularStop s : transitStops) {
-      var v = TransitStopVertex.of().withStop(s).build();
-      graph.addVertex(v);
+      vertexFactory.transitStop(ofStop(s));
     }
 
     return graph;
@@ -152,18 +157,19 @@ public class LinkStopToPlatformTest {
    */
   @Test
   void testLinkStopInsideArea() {
-    // test platform is a simple rectangle. It creates a graph of 8 edges.
+    // Test platform is a simple rectangle. It creates a graph of 8 edges.
+    // The stop linking link to edges 100m away (0.000899 degrees), so we make the rectangle smaller
     Coordinate[] platform = {
-      new Coordinate(10, 60.004),
-      new Coordinate(10.008, 60.004),
-      new Coordinate(10.008, 60),
+      new Coordinate(10, 60.0006),
+      new Coordinate(10.0008, 60.0006),
+      new Coordinate(10.0008, 60),
       new Coordinate(10, 60),
     };
     // add entrance to every corner of the platform (this array defines indices)
     int[] visibilityPoints = { 0, 1, 2, 3 };
 
     // place one stop inside the platform, near bottom edge mid point
-    Coordinate[] stops = { new Coordinate(10.004, 60.001) };
+    Coordinate[] stops = { new Coordinate(10.0004, 60.0001) };
 
     Graph graph = prepareTest(platform, visibilityPoints, stops);
     linkStops(graph, 100, true);
@@ -210,6 +216,54 @@ public class LinkStopToPlatformTest {
 
     // stop links to a existing vertex with 2 edges
     assertEquals(10, graph.getEdges().size());
+  }
+
+  /**
+   * Link an interior vertex which is very close to a visibility vertex by
+   * calling directly addPermanentAreaVertex used in boarding location linking
+   * A connecting edge pair is created despite of the small distance
+   */
+  @Test
+  void testAddPermanentAreaVertex() {
+    Coordinate[] platform = {
+      new Coordinate(10, 60.002),
+      new Coordinate(10.004, 60.002),
+      new Coordinate(10.004, 60),
+      new Coordinate(10, 60),
+    };
+    // add one entrance to bottom left corner
+    int[] visibilityPoints = { 3 };
+
+    // No stops
+    Coordinate[] stops = {};
+
+    Graph graph = prepareTest(platform, visibilityPoints, stops);
+
+    // dig up the AreaGroup
+    AreaGroup ag = null;
+    var edge = graph.getEdges().stream().findFirst().get();
+    if (edge instanceof AreaEdge ae) {
+      ag = ae.getArea();
+    }
+    assertNotNull(ag);
+
+    var vertexFactory = new VertexFactory(graph);
+    var v = vertexFactory.intersection("boardingLocation", 10.00000001, 60.00000001);
+    VertexLinkerTestFactory.of(graph).addPermanentAreaVertex(v, ag);
+
+    // vertex links to the single visibility point with 2 edges
+    assertEquals(10, graph.getEdges().size());
+
+    // check that link edges obey area safety factors
+    var out = v.getOutgoing();
+    assertEquals(out.size(), 1);
+    StreetEdge streetEdge = null;
+    if (out.iterator().next() instanceof StreetEdge se) {
+      streetEdge = se;
+      assertEquals(0.5, se.getWalkSafetyFactor());
+      assertEquals(0.5, se.getBicycleSafetyFactor());
+    }
+    assertNotNull(streetEdge);
   }
 
   /**
@@ -374,8 +428,7 @@ public class LinkStopToPlatformTest {
   }
 
   private void linkStops(Graph graph, int maxAreaNodes, boolean permanent) {
-    VertexLinker linker = graph.getLinker();
-    linker.setMaxAreaNodes(maxAreaNodes);
+    var linker = new VertexLinker(graph, COMPUTE_AREA_VISIBILITY_LINES, maxAreaNodes);
     for (TransitStopVertex tStop : graph.getVerticesOfType(TransitStopVertex.class)) {
       if (permanent) {
         linker.linkVertexPermanently(

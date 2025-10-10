@@ -10,6 +10,7 @@ import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.TestOtpModel;
 import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.gtfs.graphbuilder.GtfsBundle;
+import org.opentripplanner.gtfs.graphbuilder.GtfsBundleTestFactory;
 import org.opentripplanner.gtfs.graphbuilder.GtfsModule;
 import org.opentripplanner.model.calendar.ServiceDateInterval;
 import org.opentripplanner.routing.graph.Graph;
@@ -42,10 +43,10 @@ public final class FlexIntegrationTestData {
 
   private static TestOtpModel buildFlexGraph(File file) {
     var deduplicator = new Deduplicator();
-    var graph = new Graph(deduplicator);
+    var graph = new Graph();
     var timetableRepository = new TimetableRepository(new SiteRepository(), deduplicator);
-    GtfsBundle gtfsBundle = new GtfsBundle(file);
-    GtfsModule module = new GtfsModule(
+    GtfsBundle gtfsBundle = GtfsBundleTestFactory.forTest(file);
+    GtfsModule module = GtfsModule.forTest(
       List.of(gtfsBundle),
       timetableRepository,
       graph,
@@ -54,7 +55,7 @@ public final class FlexIntegrationTestData {
     OTPFeature.enableFeatures(Map.of(OTPFeature.FlexRouting, true));
     module.buildGraph();
     timetableRepository.index();
-    graph.index(timetableRepository.getSiteRepository());
+    graph.index();
     OTPFeature.enableFeatures(Map.of(OTPFeature.FlexRouting, false));
     assertTrue(timetableRepository.hasFlexTrips());
     return new TestOtpModel(graph, timetableRepository);

@@ -15,6 +15,7 @@ import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.opentripplanner.ext.ridehailing.RideHailingAccessShifter;
 import org.opentripplanner.framework.application.OTPFeature;
+import org.opentripplanner.graph_builder.module.nearbystops.TransitServiceResolver;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.raptor.RaptorService;
 import org.opentripplanner.raptor.api.path.RaptorPath;
@@ -36,7 +37,6 @@ import org.opentripplanner.routing.algorithm.raptoradapter.transit.request.Route
 import org.opentripplanner.routing.algorithm.transferoptimization.configure.TransferOptimizationServiceConfigurator;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.api.request.preference.AccessEgressPreferences;
 import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.routing.api.response.InputField;
 import org.opentripplanner.routing.api.response.RoutingError;
@@ -63,6 +63,7 @@ public class TransitRouter {
   private final AdditionalSearchDays additionalSearchDays;
   private final TemporaryVerticesContainer temporaryVerticesContainer;
   private final ViaCoordinateTransferFactory viaTransferResolver;
+  private final AccessEgressRouter accessEgressRouter;
 
   private TransitRouter(
     RouteRequest request,
@@ -80,6 +81,9 @@ public class TransitRouter {
     this.debugTimingAggregator = debugTimingAggregator;
     this.temporaryVerticesContainer = createTemporaryVerticesContainer(request, serverContext);
     this.viaTransferResolver = serverContext.viaTransferResolver();
+    this.accessEgressRouter = new AccessEgressRouter(
+      new TransitServiceResolver(serverContext.transitService())
+    );
   }
 
   public static TransitRouterResult route(
@@ -253,30 +257,29 @@ public class TransitRouter {
     StreetMode mode = streetRequest.mode();
 
     // Prepare access/egress lists
-    RouteRequest accessRequest = request.clone();
+    var accessBuilder = request.copyOf();
 
     if (type.isAccess()) {
-      accessRequest.withPreferences(p -> {
+      accessBuilder.withPreferences(p -> {
         p.withBike(b -> b.withRental(r -> r.withAllowArrivingInRentedVehicleAtDestination(false)));
         p.withCar(c -> c.withRental(r -> r.withAllowArrivingInRentedVehicleAtDestination(false)));
-        p.withScooter(s -> s.withRental(r -> r.withAllowArrivingInRentedVehicleAtDestination(false))
+        p.withScooter(s ->
+          s.withRental(r -> r.withAllowArrivingInRentedVehicleAtDestination(false))
         );
       });
     }
 
-    AccessEgressPreferences accessEgressPreferences = accessRequest
-      .preferences()
-      .street()
-      .accessEgress();
+    var accessRequest = accessBuilder.buildRequest();
+    var accessEgressPreferences = accessRequest.preferences().street().accessEgress();
 
     Duration durationLimit = accessEgressPreferences.maxDuration().valueOf(mode);
     int stopCountLimit = accessEgressPreferences.maxStopCountLimit().limitForMode(mode);
 
-    var nearbyStops = AccessEgressRouter.findAccessEgresses(
+    var nearbyStops = accessEgressRouter.findAccessEgresses(
       accessRequest,
       temporaryVerticesContainer,
       streetRequest,
-      serverContext.dataOverlayContext(accessRequest),
+      serverContext.listExtensionRequestContexts(accessRequest),
       type,
       durationLimit,
       stopCountLimit
@@ -290,11 +293,12 @@ public class TransitRouter {
     if (OTPFeature.FlexRouting.isOn() && mode == StreetMode.FLEXIBLE) {
       var flexAccessList = FlexAccessEgressRouter.routeAccessEgress(
         accessRequest,
+        accessEgressRouter,
         temporaryVerticesContainer,
         serverContext,
         additionalSearchDays,
         serverContext.flexParameters(),
-        serverContext.dataOverlayContext(accessRequest),
+        serverContext.listExtensionRequestContexts(accessRequest),
         type
       );
 
@@ -383,6 +387,8 @@ public class TransitRouter {
   ) {
     return new TemporaryVerticesContainer(
       serverContext.graph(),
+      serverContext.vertexLinker(),
+      serverContext.transitService()::findStopOrChildIds,
       request.from(),
       request.to(),
       request.journey().access().mode(),

@@ -12,7 +12,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.framework.geometry.WgsCoordinate;
 import org.opentripplanner.routing.algorithm.GraphRoutingTest;
@@ -30,10 +29,11 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
   private TransitStopVertex stopB;
   private TransitStopVertex stopC;
   private TransitStopVertex stopD;
+  private StopResolver stopResolver;
 
   @BeforeEach
   protected void setUp() throws Exception {
-    modelOf(
+    var model = modelOf(
       new GraphRoutingTest.Builder() {
         @Override
         public void build() {
@@ -61,18 +61,19 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
         }
       }
     );
+    this.stopResolver = new SiteRepositoryResolver(model.timetableRepository().getSiteRepository());
   }
 
   @Test
   void testIsolatedStop() {
     var durationLimit = Duration.ofMinutes(10);
     var maxStopCount = 0;
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount).build();
 
     var nearbyStops = finder.findNearbyStops(
       isolatedStop,
-      new RouteRequest(),
-      new StreetRequest(),
+      RouteRequest.defaultValue(),
+      StreetRequest.DEFAULT,
       false
     );
 
@@ -85,10 +86,10 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
   void testMultipleStops() {
     var durationLimit = Duration.ofMinutes(10);
     var maxStopCount = 0;
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount).build();
 
     var sortedNearbyStops = sort(
-      finder.findNearbyStops(stopA, new RouteRequest(), new StreetRequest(), false)
+      finder.findNearbyStops(stopA, RouteRequest.defaultValue(), StreetRequest.DEFAULT, false)
     );
 
     assertThat(sortedNearbyStops).hasSize(4);
@@ -102,10 +103,10 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
   void testMaxStopCount() {
     var durationLimit = Duration.ofMinutes(10);
     var maxStopCount = 2;
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount).build();
 
     var sortedNearbyStops = sort(
-      finder.findNearbyStops(stopA, new RouteRequest(), new StreetRequest(), false)
+      finder.findNearbyStops(stopA, RouteRequest.defaultValue(), StreetRequest.DEFAULT, false)
     );
 
     assertThat(sortedNearbyStops).hasSize(2);
@@ -119,12 +120,13 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
     // one extra stop.
     var durationLimit = Duration.ofSeconds(101);
     var maxStopCount = 0;
-    var routeRequest = new RouteRequest()
-      .withPreferences(b -> b.withWalk(walkPreferences -> walkPreferences.withSpeed(1.0)));
+    var routeRequest = RouteRequest.of()
+      .withPreferences(b -> b.withWalk(w -> w.withSpeed(1.0)))
+      .buildDefault();
 
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount).build();
     var sortedNearbyStops = sort(
-      finder.findNearbyStops(stopA, routeRequest, new StreetRequest(), false)
+      finder.findNearbyStops(stopA, routeRequest, StreetRequest.DEFAULT, false)
     );
 
     assertThat(sortedNearbyStops).hasSize(2);
@@ -137,10 +139,17 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
     var durationLimit = Duration.ofMinutes(10);
     var maxStopCount = 0;
     Set<Vertex> ignore = Set.of(stopA, stopB);
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null, ignore);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount)
+      .withIgnoreVertices(ignore)
+      .build();
 
     var sortedNearbyStops = sort(
-      finder.findNearbyStops(Set.of(stopA), new RouteRequest(), new StreetRequest(), false)
+      finder.findNearbyStops(
+        Set.of(stopA),
+        RouteRequest.defaultValue(),
+        StreetRequest.DEFAULT,
+        false
+      )
     );
 
     assertThat(sortedNearbyStops).hasSize(2);
@@ -153,10 +162,17 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
     var durationLimit = Duration.ofMinutes(10);
     var maxStopCount = 1;
     Set<Vertex> ignore = Set.of(stopA, stopB);
-    var finder = new StreetNearbyStopFinder(durationLimit, maxStopCount, null, ignore);
+    var finder = StreetNearbyStopFinder.of(stopResolver, durationLimit, maxStopCount)
+      .withIgnoreVertices(ignore)
+      .build();
 
     var sortedNearbyStops = sort(
-      finder.findNearbyStops(Set.of(stopA), new RouteRequest(), new StreetRequest(), false)
+      finder.findNearbyStops(
+        Set.of(stopA),
+        RouteRequest.defaultValue(),
+        StreetRequest.DEFAULT,
+        false
+      )
     );
 
     assertThat(sortedNearbyStops).hasSize(1);
@@ -170,8 +186,8 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
   /**
    * Verify that the nearby stop is zero distance and corresponds to the expected vertex
    */
-  static void assertZeroDistanceStop(TransitStopVertex expected, NearbyStop nearbyStop) {
-    assertEquals(expected.getStop(), nearbyStop.stop);
+  void assertZeroDistanceStop(TransitStopVertex expected, NearbyStop nearbyStop) {
+    assertEquals(stopResolver.getRegularStop(expected.getId()), nearbyStop.stop);
     assertEquals(0, nearbyStop.distance);
     assertEquals(0, nearbyStop.edges.size());
     assertEquals(expected, nearbyStop.state.getVertex());
@@ -181,12 +197,12 @@ class StreetNearbyStopFinderTest extends GraphRoutingTest {
   /**
    * Verify that the nearby stop is at a specific distance and corresponds to the expected vertex
    */
-  static void assertStopAtDistance(
+  void assertStopAtDistance(
     TransitStopVertex expected,
     double expectedDistance,
     NearbyStop nearbyStop
   ) {
-    assertEquals(expected.getStop(), nearbyStop.stop);
+    assertEquals(stopResolver.getRegularStop(expected.getId()), nearbyStop.stop);
     assertEquals(expectedDistance, nearbyStop.distance);
     assertEquals(expected, nearbyStop.state.getVertex());
     assertFalse(nearbyStop.edges.isEmpty());

@@ -32,34 +32,36 @@ public class DirectStreetRouter {
     }
     OTPRequestTimeoutException.checkForTimeout();
 
-    RouteRequest directRequest = request.clone();
     try (
       var temporaryVertices = new TemporaryVerticesContainer(
         serverContext.graph(),
-        directRequest.from(),
-        directRequest.to(),
+        serverContext.vertexLinker(),
+        serverContext.transitService()::findStopOrChildIds,
+        request.from(),
+        request.to(),
         request.journey().direct().mode(),
         request.journey().direct().mode()
       )
     ) {
       var maxCarSpeed = serverContext.streetLimitationParametersService().getMaxCarSpeed();
-      if (!straightLineDistanceIsWithinLimit(directRequest, temporaryVertices, maxCarSpeed)) {
+      if (!straightLineDistanceIsWithinLimit(request, temporaryVertices, maxCarSpeed)) {
         return Collections.emptyList();
       }
 
       // we could also get a persistent router-scoped GraphPathFinder but there's no setup cost here
       GraphPathFinder gpFinder = new GraphPathFinder(
         serverContext.traverseVisitor(),
-        serverContext.dataOverlayContext(request),
+        serverContext.listExtensionRequestContexts(request),
         maxCarSpeed
       );
       List<GraphPath<State, Edge, Vertex>> paths = gpFinder.graphPathFinderEntryPoint(
-        directRequest,
+        request,
         temporaryVertices
       );
 
       // Convert the internal GraphPaths to itineraries
       final GraphPathToItineraryMapper graphPathToItineraryMapper = new GraphPathToItineraryMapper(
+        serverContext.transitService()::getRegularStop,
         serverContext.transitService().getTimeZone(),
         serverContext.graph().streetNotesService,
         serverContext.graph().ellipsoidToGeoidDifference
@@ -67,8 +69,8 @@ public class DirectStreetRouter {
       List<Itinerary> response = graphPathToItineraryMapper.mapItineraries(paths);
       response = ItinerariesHelper.decorateItinerariesWithRequestData(
         response,
-        directRequest.wheelchair(),
-        directRequest.preferences().wheelchair()
+        request.journey().wheelchair(),
+        request.preferences().wheelchair()
       );
       return response;
     } catch (PathNotFoundException e) {

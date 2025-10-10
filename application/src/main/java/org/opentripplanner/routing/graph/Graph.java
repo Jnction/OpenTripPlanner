@@ -3,33 +3,30 @@ package org.opentripplanner.routing.graph;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Inject;
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.opentripplanner.ext.dataoverlay.configuration.DataOverlayParameterBindings;
 import org.opentripplanner.framework.geometry.CompactElevationProfile;
 import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.model.calendar.openinghours.OpeningHoursCalendarService;
-import org.opentripplanner.routing.fares.FareService;
-import org.opentripplanner.routing.graph.index.StreetIndex;
-import org.opentripplanner.routing.linking.VertexLinker;
+import org.opentripplanner.routing.linking.Scope;
 import org.opentripplanner.routing.services.notes.StreetNotesService;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.StreetEdge;
+import org.opentripplanner.street.model.vertex.StationCentroidVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
 import org.opentripplanner.street.model.vertex.VertexLabel;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 import org.opentripplanner.transit.model.framework.FeedScopedId;
-import org.opentripplanner.transit.service.SiteRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,11 +65,6 @@ public class Graph implements Serializable {
   // Ideally we could just get rid of vertex labels, but they're used in tests and graph building.
   private final Map<VertexLabel, Vertex> vertices = new ConcurrentHashMap<>();
 
-  /** Conserve memory by reusing immutable instances of Strings, integer arrays, etc. */
-  public final transient Deduplicator deduplicator;
-
-  public final Instant buildTime = Instant.now();
-
   @Nullable
   private final OpeningHoursCalendarService openingHoursCalendarService;
 
@@ -80,9 +72,6 @@ public class Graph implements Serializable {
 
   /** The convex hull of all the graph vertices. Generated at the time the Graph is built. */
   private Geometry convexHull = null;
-
-  /** The preferences that were used for building this Graph instance. */
-  public Preferences preferences = null;
 
   /** True if OSM data was loaded into this Graph. */
   public boolean hasStreets = false;
@@ -110,8 +99,6 @@ public class Graph implements Serializable {
   //  static variable in CompactElevationProfile in SerializedGraphObject
   private double distanceBetweenElevationSamples;
 
-  private FareService fareService;
-
   /**
    * Hack. I've tried three different ways of generating unique labels. Previously we were just
    * tolerating edge label collisions. For some reason we're repeatedly generating splits on the
@@ -128,21 +115,13 @@ public class Graph implements Serializable {
   public DataOverlayParameterBindings dataOverlayParameterBindings;
 
   @Inject
-  public Graph(
-    Deduplicator deduplicator,
-    @Nullable OpeningHoursCalendarService openingHoursCalendarService
-  ) {
-    this.deduplicator = deduplicator;
+  public Graph(@Nullable OpeningHoursCalendarService openingHoursCalendarService) {
     this.openingHoursCalendarService = openingHoursCalendarService;
-  }
-
-  public Graph(Deduplicator deduplicator) {
-    this(deduplicator, null);
   }
 
   /** Constructor for deserialization. */
   public Graph() {
-    this(new Deduplicator(), null);
+    this(null);
   }
 
   /** Add the given vertex to the graph. */
@@ -161,15 +140,19 @@ public class Graph implements Serializable {
   }
 
   /**
-   * Removes an edge from the graph. This method is not thread-safe.
+   * Removes a permanent edge from the graph. This method is not thread-safe.
    *
    * @param e The edge to be removed
    */
   public void removeEdge(Edge e) {
-    if (e != null) {
-      streetNotesService.removeStaticNotes(e);
+    removeEdge(e, Scope.PERMANENT);
+  }
 
-      e.remove();
+  public void removeEdge(Edge e, Scope scope) {
+    streetNotesService.removeStaticNotes(e);
+    e.remove();
+    if (streetIndex != null) {
+      streetIndex.remove(e, scope);
     }
   }
 
@@ -210,9 +193,31 @@ public class Graph implements Serializable {
       .collect(Collectors.toList());
   }
 
+  /**
+   * Return the vertex corresponding to the stop id, or null.
+   */
   @Nullable
-  public TransitStopVertex getStopVertexForStopId(FeedScopedId id) {
-    return streetIndex.findTransitStopVertices(id);
+  public TransitStopVertex getStopVertex(FeedScopedId id) {
+    requireIndex();
+    return streetIndex.findStopVertex(id).orElse(null);
+  }
+
+  /**
+   * If the {@code id} is a stop id return the corresponding vertex, otherwise return an empty
+   * optional.
+   */
+  public Optional<TransitStopVertex> findStopVertex(FeedScopedId stopId) {
+    requireIndex();
+    return streetIndex.findStopVertex(stopId);
+  }
+
+  /**
+   * If the {@code stopId} is a station id and it is configured to route to its center,
+   * return the corresponding vertex, otherwise return an empty optional.
+   */
+  public Optional<StationCentroidVertex> findStationCentroidVertex(FeedScopedId stopId) {
+    requireIndex();
+    return streetIndex.findStationCentroidVertex(stopId);
   }
 
   /**
@@ -247,6 +252,9 @@ public class Graph implements Serializable {
 
   public void remove(Vertex vertex) {
     vertices.remove(vertex.getLabel());
+    if (streetIndex != null) {
+      streetIndex.remove(vertex);
+    }
   }
 
   public void removeIfUnconnected(Vertex v) {
@@ -276,16 +284,27 @@ public class Graph implements Serializable {
   /**
    * Perform indexing on vertices, edges and create transient data structures. This used to be done
    * in readObject methods upon deserialization, but stand-alone mode now allows passing graphs from
-   * graphbuilder to server in memory, without a round trip through serialization.
+   * graph builder to server in memory, without a round trip through serialization.
    * <p>
    * TODO OTP2 - Indexing the streetIndex is not something that should be delegated outside the
    *           - graph. This allows a module to index the streetIndex BEFORE another module add
    *           - something that should go into the index; Hence, inconsistent data.
    */
-  public void index(SiteRepository siteRepository) {
+  public void index() {
     LOG.info("Index street model...");
-    streetIndex = new StreetIndex(this, siteRepository);
+    streetIndex = new StreetIndex(this);
     LOG.info("Index street model complete.");
+  }
+
+  /**
+   * Index this graph if it hasn't been already. If the index already exists, this is a no-op.
+   * <p>
+   * TODO: The indexing process (and the index itself) should be completely hidden from the callers.
+   */
+  public void requestIndex() {
+    if (streetIndex == null) {
+      index();
+    }
   }
 
   @Nullable
@@ -294,37 +313,35 @@ public class Graph implements Serializable {
   }
 
   /**
-   * Get streetIndex, safe to use while routing, but do not use during graph build.
-   * @see #getStreetIndexSafe(SiteRepository)
+   * Find all vertices inside the bounding box defined by {@code env}.
    */
-  public StreetIndex getStreetIndex() {
-    return this.streetIndex;
+  public Collection<Vertex> findVertices(Envelope env) {
+    requireIndex();
+    return streetIndex.findVertices(env);
   }
 
   /**
-   * Get streetIndex during graph build, both OSM street data and transit data must be loaded
-   * before calling this.
+   * Find all permanent edges inside the bounding box defined by {@code env}.
    */
-  public StreetIndex getStreetIndexSafe(SiteRepository siteRepository) {
-    indexIfNotIndexed(siteRepository);
-    return this.streetIndex;
+  public Collection<Edge> findEdges(Envelope env) {
+    requireIndex();
+    return streetIndex.findEdges(env);
   }
 
   /**
-   * Get VertexLinker, safe to use while routing, but do not use during graph build.
-   * @see #getLinkerSafe(SiteRepository)
+   * Find all edges with the given scope inside the bounding box defined by {@code env}.
    */
-  public VertexLinker getLinker() {
-    return streetIndex.getVertexLinker();
+  public Collection<Edge> findEdges(Envelope env, Scope scope) {
+    requireIndex();
+    return streetIndex.findEdges(env, scope);
   }
 
   /**
-   * Get VertexLinker during graph build, both OSM street data and transit data must be loaded
-   * before calling this.
+   * Insert edge into the index with the give scope.
    */
-  public VertexLinker getLinkerSafe(SiteRepository siteRepository) {
-    indexIfNotIndexed(siteRepository);
-    return streetIndex.getVertexLinker();
+  public void insert(StreetEdge edge, Scope scope) {
+    requireIndex();
+    streetIndex.insert(edge, scope);
   }
 
   /**
@@ -360,17 +377,9 @@ public class Graph implements Serializable {
     CompactElevationProfile.setDistanceBetweenSamplesM(distanceBetweenElevationSamples);
   }
 
-  public FareService getFareService() {
-    return fareService;
-  }
-
-  public void setFareService(FareService fareService) {
-    this.fareService = fareService;
-  }
-
-  private void indexIfNotIndexed(SiteRepository siteRepository) {
+  private void requireIndex() {
     if (streetIndex == null) {
-      index(siteRepository);
+      throw new IllegalStateException("Graph must be indexed before querying.");
     }
   }
 }

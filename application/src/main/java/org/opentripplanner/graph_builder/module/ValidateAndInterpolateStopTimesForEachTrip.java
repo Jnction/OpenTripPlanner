@@ -1,9 +1,6 @@
 package org.opentripplanner.graph_builder.module;
 
-import gnu.trove.list.TIntList;
-import gnu.trove.list.array.TIntArrayList;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import org.opentripplanner.ext.flex.trip.FlexTrip;
 import org.opentripplanner.framework.application.OTPFeature;
@@ -16,7 +13,6 @@ import org.opentripplanner.graph_builder.issues.HopZeroDistance;
 import org.opentripplanner.graph_builder.issues.HopZeroTime;
 import org.opentripplanner.graph_builder.issues.NegativeDwellTime;
 import org.opentripplanner.graph_builder.issues.NegativeHopTime;
-import org.opentripplanner.graph_builder.issues.RepeatedStops;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.model.TripStopTimes;
 import org.opentripplanner.transit.model.basic.TransitMode;
@@ -41,18 +37,15 @@ public class ValidateAndInterpolateStopTimesForEachTrip {
 
   private final TripStopTimes stopTimesByTrip;
   private final boolean interpolate;
-  private final boolean removeRepeatedStops;
   private final DataImportIssueStore issueStore;
 
   public ValidateAndInterpolateStopTimesForEachTrip(
     TripStopTimes stopTimesByTrip,
     boolean interpolate,
-    boolean removeRepeatedStops,
     DataImportIssueStore issueStore
   ) {
     this.stopTimesByTrip = stopTimesByTrip;
     this.interpolate = interpolate;
-    this.removeRepeatedStops = removeRepeatedStops;
     this.issueStore = issueStore;
   }
 
@@ -70,12 +63,7 @@ public class ValidateAndInterpolateStopTimesForEachTrip {
       if (OTPFeature.FlexRouting.isOff()) {
         stopTimes.removeIf(st -> !(st.getStop() instanceof RegularStop));
       }
-
-      // Stop times frequently contain duplicate, missing, or incorrect entries. Repair them.
-      TIntList removedStopSequences = removeRepeatedStops(stopTimes);
-      if (!removedStopSequences.isEmpty()) {
-        issueStore.add(new RepeatedStops(trip, removedStopSequences));
-      }
+      // Stop times frequently contain missing, or incorrect entries. Repair them.
       if (!filterStopTimes(stopTimes)) {
         stopTimesByTrip.replace(trip, List.of());
       } else if (interpolate) {
@@ -91,47 +79,6 @@ public class ValidateAndInterpolateStopTimesForEachTrip {
     }
 
     LOG.info(progress.completeMessage());
-  }
-
-  /**
-   * Filter out any series of stop times that refer to the same stop. This is very inefficient in an
-   * array-backed list, but we are assuming that this is a rare occurrence. The alternative is to
-   * copy every list of stop times during filtering.
-   * <p>
-   *
-   * @return whether any repeated stops were filtered out.
-   */
-  private TIntList removeRepeatedStops(List<StopTime> stopTimes) {
-    StopTime prev = null;
-    Iterator<StopTime> it = stopTimes.iterator();
-    TIntList stopSequencesRemoved = new TIntArrayList();
-    while (it.hasNext()) {
-      StopTime st = it.next();
-      if (prev != null) {
-        if (prev.getStop().equals(st.getStop())) {
-          if (removeRepeatedStops) {
-            // Merge the two stop times, making sure we're not throwing out a stop time with times in
-            // favor of an interpolated stop time. Keep the arrival time of the previous stop, unless
-            // it didn't have an arrival time, in which case replace it with the arrival time of this
-            // stop time. This is particularly important at the last stop in a route (see issue #2220)
-            if (prev.getArrivalTime() == StopTime.MISSING_VALUE) {
-              prev.setArrivalTime(st.getArrivalTime());
-            }
-
-            // prefer to replace with the departure time of this stop time, unless this stop time has
-            // no departure time
-            if (st.getDepartureTime() != StopTime.MISSING_VALUE) {
-              prev.setDepartureTime(st.getDepartureTime());
-            }
-
-            it.remove();
-          }
-          stopSequencesRemoved.add(st.getStopSequence());
-        }
-      }
-      prev = st;
-    }
-    return stopSequencesRemoved;
   }
 
   /**
@@ -251,16 +198,21 @@ public class ValidateAndInterpolateStopTimesForEachTrip {
   }
 
   private double getMaxSpeedForMode(TransitMode mode) {
-    return switch (mode) {
-      // 1000 km/h
-      case AIRPLANE -> 280;
-      // 250 km/h
-      case RAIL -> 70;
-      // max in the world is 9 m/s for gondolas, 6 m/s for funiculars
-      case GONDOLA, FUNICULAR -> 10;
-      // 108km/h
-      default -> 30;
-    };
+    // The following numbers (except airplane) are copied from the GTFS validator
+    // https://github.com/MobilityData/gtfs-validator/blob/master/main/src/main/java/org/mobilitydata/gtfsvalidator/validator/StopTimeTravelSpeedValidator.java#L310
+    return (
+      switch (mode) {
+        case AIRPLANE -> 1000;
+        case TRAM -> 100;
+        case RAIL -> 500;
+        case SUBWAY, MONORAIL, BUS, TROLLEYBUS, COACH -> 150;
+        case FERRY -> 80;
+        case CABLE_CAR -> 30;
+        case GONDOLA, FUNICULAR -> 50;
+        default -> 200;
+      } /
+      3.6
+    );
   }
 
   /**
