@@ -17,7 +17,29 @@ These are identical for all mappers and not separately listed on this page.
 Way properties set a way's permission and optionally influences its walk and bicycle safety factors.
 
 These factors determine how desirable an OSM way is when routing for cyclists and pedestrians.
-Lower safety values make an OSM way more desirable and higher values less desirable.
+Lower safety values make an OSM way more desirable and higher values less desirable. They are
+applied as a multiplier to the traversal cost when safety is enabled. As the router minimizes the
+total cost of traversal, this results in choosing a path with lower safety values, however if the
+only paths available are of high safety values, it acts as a further reluctance for walking and
+cycling compared to taking transit when safety is enabled.
+
+How the safety values work was changed between versions 2.8 and 2.9. Before the change, a safety
+normalizer would multiply the values set by the mapper such that the most desirable way had a safety
+factor of 1.0, so that the use of safety would only further increase, but not decrease. the reluctance. 
+This was found to be problematic because of two reasons:
+
+- Cycling was seen to be more undesirable than expected, even on a quiet residential way, because
+there are certain combinations of tags in the map which produced exceptionally low safety values.
+For more details, see [#6775](https://github.com/opentripplanner/OpenTripPlanner/issues/6775).
+- The effect of the values set in the tag mappers were unpredictable, as it depended on one single
+way which could be anywhere in the map. Increasing or decreasing the map coverage could change the
+effect on the same way.
+
+The normalizer has been removed in version 2.9, so the safety values are applied directly without
+change. As a result, some of the values in the tag mappers have also changed to compensate for the 
+effect that they will not be multiplied further.
+
+For details, see [#6782](https://github.com/opentripplanner/OpenTripPlanner/pull/6782).
 
 <!-- props BEGIN -->
 <!-- NOTE! This section is auto-generated. Do not change, change doc in code instead. -->
@@ -92,7 +114,7 @@ way properties. Multiple mixins can apply to the same way and their effects comp
 | `cycleway=opposite; not(highway=cycleway)`                                                                                                                                                                                                                                                | backward: BICYCLE |                        | no direction: 1.0 <br> forward: 1.0 <br> back: 1.4  |             |
 | `foot=designated; not(highway=footway); not(highway=pedestrian); not(highway=path)`                                                                                                                                                                                                       |                   |                        |                                                     | 0.9         |
 | `footway=sidewalk`                                                                                                                                                                                                                                                                        |                   |                        | 2.5                                                 |             |
-| `footway=crossing`                                                                                                                                                                                                                                                                        |                   |                        | 2.5                                                 |             |
+| `footway=crossing`                                                                                                                                                                                                                                                                        |                   |                        | 1.5                                                 |             |
 | `bicycle=designated; cycleway not one of [no, none] or absent; not(highway=cycleway); not(lcn=yes); not(rcn=yes); not(ncn=yes); not(bicycle_road=yes); not(cyclestreet=yes)`                                                                                                              |                   |                        | 0.8                                                 |             |
 | `lcn=yes¦rcn=yes¦ncn=yes¦bicycle_road=yes¦cyclestreet=yes`                                                                                                                                                                                                                                |                   |                        | 0.7                                                 |             |
 | `sidewalk=yes; not(highway one of [footway, pedestrian, path, trunk])¦sidewalk=left; not(highway one of [footway, pedestrian, path, trunk])¦sidewalk=right; not(highway one of [footway, pedestrian, path, trunk])¦sidewalk=both; not(highway one of [footway, pedestrian, path, trunk])` |                   |                        |                                                     | 0.9         |

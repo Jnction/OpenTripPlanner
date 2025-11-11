@@ -55,6 +55,7 @@ Sections follow that describe particular settings in more depth.
 |    [elevationUnitMultiplier](#demDefaults_elevationUnitMultiplier)                          |       `double`       | Specify a multiplier to convert elevation units from source to meters.                                                                                         | *Optional* | `1.0`                             |  2.3  |
 | [elevationBucket](#elevationBucket)                                                         |       `object`       | Used to download NED elevation tiles from the given AWS S3 bucket.                                                                                             | *Optional* |                                   |   na  |
 | [emission](sandbox/Emission.md)                                                             |       `object`       | Emissions configuration.                                                                                                                                       | *Optional* |                                   |  2.5  |
+| empiricalDelay                                                                              |       `object`       | Empirical delay configuration.                                                                                                                                 | *Optional* |                                   |  2.9  |
 | [fares](sandbox/Fares.md)                                                                   |       `object`       | Fare configuration.                                                                                                                                            | *Optional* |                                   |  2.0  |
 | gsConfig                                                                                    |       `object`       | Configuration for Google Cloud Storage                                                                                                                         | *Optional* |                                   |  2.8  |
 | gtfsDefaults                                                                                |       `object`       | The gtfsDefaults section allows you to specify default properties for GTFS files.                                                                              | *Optional* |                                   |  2.3  |
@@ -523,7 +524,7 @@ data, and to `false` to read the stream from the source each time.
 
 **Since version:** `1.5` ∙ **Type:** `enum` ∙ **Cardinality:** `Optional` ∙ **Default value:** `"default"`   
 **Path:** /   
-**Enum values:** `default` | `portland` | `sidewalks`
+**Enum values:** `default` | `portland` | `sidewalks` | `sidewalks-crosswalks`
 
 A custom OSM namer to use.
 
