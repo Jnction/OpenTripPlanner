@@ -304,7 +304,7 @@ public class OsmEntityTest {
 
   @Test
   void platformEdge() {
-    var w = new OsmEntityForTest().addTag("railway", "platform_edge");
+    var w = new OsmWay().addTag("railway", "platform_edge");
     assertTrue(w.isRoutable());
     assertTrue(w.isBoardingLocation());
     assertTrue(w.isPlatform());
