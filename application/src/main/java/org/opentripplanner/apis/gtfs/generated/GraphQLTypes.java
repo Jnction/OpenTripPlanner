@@ -624,11 +624,13 @@ public class GraphQLTypes {
 
     private List<String> allowedNetworks;
     private List<String> bannedNetworks;
+    private java.time.Duration rentalDuration;
 
     public GraphQLCarRentalPreferencesInput(Map<String, Object> args) {
       if (args != null) {
         this.allowedNetworks = (List<String>) args.get("allowedNetworks");
         this.bannedNetworks = (List<String>) args.get("bannedNetworks");
+        this.rentalDuration = (java.time.Duration) args.get("rentalDuration");
       }
     }
 
@@ -640,12 +642,20 @@ public class GraphQLTypes {
       return this.bannedNetworks;
     }
 
+    public java.time.Duration getGraphQLRentalDuration() {
+      return this.rentalDuration;
+    }
+
     public void setGraphQLAllowedNetworks(List<String> allowedNetworks) {
       this.allowedNetworks = allowedNetworks;
     }
 
     public void setGraphQLBannedNetworks(List<String> bannedNetworks) {
       this.bannedNetworks = bannedNetworks;
+    }
+
+    public void setGraphQLRentalDuration(java.time.Duration rentalDuration) {
+      this.rentalDuration = rentalDuration;
     }
   }
 
@@ -752,6 +762,43 @@ public class GraphQLTypes {
     public void setGraphQLTimeRange(Integer timeRange) {
       this.timeRange = timeRange;
     }
+  }
+
+  public static class GraphQLDependentFareProductDependenciesArgs {
+
+    private GraphQLDependentFareProductFilter filter;
+
+    public GraphQLDependentFareProductDependenciesArgs(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("filter") instanceof GraphQLDependentFareProductFilter) {
+          this.filter = (GraphQLDependentFareProductFilter) args.get("filter");
+        } else if (args.get("filter") != null) {
+          this.filter = GraphQLDependentFareProductFilter.valueOf((String) args.get("filter"));
+        }
+      }
+    }
+
+    public GraphQLDependentFareProductFilter getGraphQLFilter() {
+      return this.filter;
+    }
+
+    public void setGraphQLFilter(GraphQLDependentFareProductFilter filter) {
+      this.filter = filter;
+    }
+  }
+
+  /**
+   * Dependent fare products can lead to many combinations of fares, however it is often not useful
+   * information to the passenger.
+   *
+   * This enum allows filtering of the dependencies.
+   *
+   * Since it is recognised that this is not covered well in the specification, it is discussed here:
+   * https://github.com/google/transit/pull/423
+   */
+  public enum GraphQLDependentFareProductFilter {
+    ALL,
+    MATCH_CATEGORY_AND_MEDIUM,
   }
 
   public static class GraphQLDestinationBicyclePolicyInput {
@@ -979,6 +1026,7 @@ public class GraphQLTypes {
     DATE_TIME,
     FROM,
     TO,
+    VIA,
   }
 
   public static class GraphQLInputFiltersInput {
@@ -1337,6 +1385,32 @@ public class GraphQLTypes {
     LIMIT_TO_SEARCH_WINDOW,
     LIST_ALL,
     OFF,
+  }
+
+  public static class GraphQLLegIntermediateStopsArgs {
+
+    private List<GraphQLStopType> include;
+
+    public GraphQLLegIntermediateStopsArgs(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("include") != null) {
+          this.include = ((List<Object>) args.get("include")).stream()
+            .map(item ->
+              item instanceof GraphQLStopType ? item : GraphQLStopType.valueOf((String) item)
+            )
+            .map(GraphQLStopType.class::cast)
+            .collect(Collectors.toList());
+        }
+      }
+    }
+
+    public List<GraphQLStopType> getGraphQLInclude() {
+      return this.include;
+    }
+
+    public void setGraphQLInclude(List<GraphQLStopType> include) {
+      this.include = include;
+    }
   }
 
   public static class GraphQLLegNextLegsArgs {
@@ -5003,6 +5077,12 @@ public class GraphQLTypes {
     TRIPS,
   }
 
+  public enum GraphQLStopType {
+    LOCATION,
+    LOCATION_GROUP,
+    STOP,
+  }
+
   public static class GraphQLStoptimeHeadsignArgs {
 
     private String language;
@@ -5192,6 +5272,7 @@ public class GraphQLTypes {
     GONDOLA,
     MONORAIL,
     RAIL,
+    SNOW_AND_ICE,
     SUBWAY,
     TAXI,
     TRAM,
@@ -5621,6 +5702,19 @@ public class GraphQLTypes {
     NORMAL,
     PARKANDRIDE,
     TRANSIT,
+  }
+
+  /** The vertical direction e.g. for a set of stairs. */
+  public enum GraphQLVerticalDirection {
+    DOWN,
+    UNKNOWN,
+    UP,
+  }
+
+  /** Categorization for via locations. */
+  public enum GraphQLViaLocationType {
+    PASS_THROUGH,
+    VISIT,
   }
 
   public static class GraphQLWalkPreferencesInput {

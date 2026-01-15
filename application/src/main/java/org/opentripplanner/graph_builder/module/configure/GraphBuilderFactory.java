@@ -7,17 +7,21 @@ import java.time.ZoneId;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.opentripplanner.ext.dataoverlay.EdgeUpdaterModule;
+import org.opentripplanner.ext.edgenaming.configure.EdgeNamerModule;
 import org.opentripplanner.ext.emission.EmissionRepository;
 import org.opentripplanner.ext.emission.configure.EmissionGraphBuilderModule;
 import org.opentripplanner.ext.emission.internal.graphbuilder.EmissionGraphBuilder;
+import org.opentripplanner.ext.empiricaldelay.EmpiricalDelayRepository;
+import org.opentripplanner.ext.empiricaldelay.configure.EmpiricalDelayGraphBuilderModule;
+import org.opentripplanner.ext.empiricaldelay.internal.graphbuilder.EmpiricalDelayGraphBuilder;
 import org.opentripplanner.ext.flex.AreaStopsToVerticesMapper;
 import org.opentripplanner.ext.stopconsolidation.StopConsolidationModule;
 import org.opentripplanner.ext.stopconsolidation.StopConsolidationRepository;
 import org.opentripplanner.ext.transferanalyzer.DirectTransferAnalyzer;
 import org.opentripplanner.graph_builder.GraphBuilder;
 import org.opentripplanner.graph_builder.GraphBuilderDataSources;
+import org.opentripplanner.graph_builder.configure.GraphBuilderModule;
 import org.opentripplanner.graph_builder.issue.report.DataImportIssueReporter;
-import org.opentripplanner.graph_builder.module.DirectTransferGenerator;
 import org.opentripplanner.graph_builder.module.GraphCoherencyCheckerModule;
 import org.opentripplanner.graph_builder.module.OsmBoardingLocationsModule;
 import org.opentripplanner.graph_builder.module.RouteToCentroidStationIdsValidator;
@@ -29,24 +33,33 @@ import org.opentripplanner.graph_builder.module.geometry.CalculateWorldEnvelopeM
 import org.opentripplanner.graph_builder.module.islandpruning.PruneIslands;
 import org.opentripplanner.graph_builder.module.ned.ElevationModule;
 import org.opentripplanner.graph_builder.module.osm.OsmModule;
+import org.opentripplanner.graph_builder.module.transfer.DirectTransferGenerator;
 import org.opentripplanner.gtfs.graphbuilder.GtfsModule;
 import org.opentripplanner.netex.NetexModule;
 import org.opentripplanner.routing.fares.FareServiceFactory;
 import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.linking.VertexLinker;
+import org.opentripplanner.routing.linking.configure.VertexLinkerGraphBuildingModule;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildRepository;
 import org.opentripplanner.service.osminfo.configure.OsmInfoGraphBuildServiceModule;
+import org.opentripplanner.service.streetdetails.StreetDetailsRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.service.worldenvelope.WorldEnvelopeRepository;
 import org.opentripplanner.standalone.config.BuildConfig;
-import org.opentripplanner.street.model.StreetLimitationParameters;
+import org.opentripplanner.street.StreetRepository;
+import org.opentripplanner.transfer.TransferRepository;
 import org.opentripplanner.transit.service.TimetableRepository;
 
 @Singleton
 @Component(
   modules = {
+    EdgeNamerModule.class,
+    EmissionGraphBuilderModule.class,
+    EmpiricalDelayGraphBuilderModule.class,
+    GraphBuilderModule.class,
     GraphBuilderModules.class,
     OsmInfoGraphBuildServiceModule.class,
-    EmissionGraphBuilderModule.class,
+    VertexLinkerGraphBuildingModule.class,
   }
 )
 public interface GraphBuilderFactory {
@@ -76,12 +89,17 @@ public interface GraphBuilderFactory {
   EmissionGraphBuilder emissionGraphBuilder();
 
   @Nullable
+  EmpiricalDelayGraphBuilder empiricalDelayGraphBuilder();
+
+  @Nullable
   RouteToCentroidStationIdsValidator routeToCentroidStationIdValidator();
 
   @Nullable
   StopConsolidationModule stopConsolidationModule();
 
   FareServiceFactory fareServiceFactory();
+
+  VertexLinker vertexLinker();
 
   @Component.Builder
   interface Builder {
@@ -95,7 +113,13 @@ public interface GraphBuilderFactory {
     Builder timetableRepository(TimetableRepository timetableRepository);
 
     @BindsInstance
+    Builder transferRepository(TransferRepository transferRepository);
+
+    @BindsInstance
     Builder osmInfoGraphBuildRepository(OsmInfoGraphBuildRepository osmInfoGraphBuildRepository);
+
+    @BindsInstance
+    Builder streetDetailsRepository(StreetDetailsRepository streetDetailsRepository);
 
     @BindsInstance
     Builder worldEnvelopeRepository(WorldEnvelopeRepository worldEnvelopeRepository);
@@ -112,7 +136,7 @@ public interface GraphBuilderFactory {
     Builder fareServiceFactory(FareServiceFactory fareServiceFactory);
 
     @BindsInstance
-    Builder streetLimitationParameters(StreetLimitationParameters streetLimitationParameters);
+    Builder streetRepository(StreetRepository streetRepository);
 
     @BindsInstance
     Builder dataSources(GraphBuilderDataSources graphBuilderDataSources);
@@ -124,5 +148,8 @@ public interface GraphBuilderFactory {
 
     @BindsInstance
     Builder emissionRepository(@Nullable EmissionRepository emissionRepository);
+
+    @BindsInstance
+    Builder empiricalDelayRepository(@Nullable EmpiricalDelayRepository empiricalDelayRepository);
   }
 }

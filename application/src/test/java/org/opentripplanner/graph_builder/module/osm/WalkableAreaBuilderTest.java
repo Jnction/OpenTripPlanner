@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.common.collect.ImmutableMultimap;
 import java.io.File;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -18,14 +19,14 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
-import org.opentripplanner.graph_builder.module.osm.naming.DefaultNamer;
+import org.opentripplanner.graph_builder.services.osm.DefaultNamer;
 import org.opentripplanner.osm.DefaultOsmProvider;
 import org.opentripplanner.osm.model.OsmLevel;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildRepository;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.street.model.vertex.VertexLabel;
-import org.opentripplanner.street.model.vertex.VertexLabel.OsmNodeOnLevelLabel;
+import org.opentripplanner.street.model.vertex.VertexLabel.VertexWithEntityLabel;
 import org.opentripplanner.test.support.ResourceLoader;
 
 public class WalkableAreaBuilderTest {
@@ -53,7 +54,7 @@ public class WalkableAreaBuilderTest {
       graph,
       osmdb,
       osmInfoRepository,
-      new VertexGenerator(osmdb, graph, Set.of(), false),
+      new VertexGenerator(osmdb, graph, Set.of(), false, DataImportIssueStore.NOOP),
       new DefaultNamer(),
       new SafetyValueNormalizer(graph, DataImportIssueStore.NOOP),
       DataImportIssueStore.NOOP,
@@ -62,11 +63,14 @@ public class WalkableAreaBuilderTest {
       boardingAreaRefTags
     );
 
-    final Map<OsmArea, OsmLevel> areasLevels = osmdb
+    final Map<OsmArea, Set<OsmLevel>> areasLevels = osmdb
       .getWalkableAreas()
       .stream()
-      .collect(toMap(a -> a, a -> osmdb.getLevelForWay(a.parent)));
-    final List<OsmAreaGroup> areaGroups = OsmAreaGroup.groupAreas(areasLevels);
+      .collect(toMap(a -> a, a -> osmdb.getLevelSetForEntity(a.parent)));
+    final List<OsmAreaGroup> areaGroups = OsmAreaGroup.groupAreas(
+      areasLevels,
+      ImmutableMultimap.of()
+    );
 
     final Consumer<OsmAreaGroup> build = visibility
       ? walkableAreaBuilder::buildWithVisibility
@@ -144,7 +148,7 @@ public class WalkableAreaBuilderTest {
     var entranceAtSameLevel = graph
       .getEdgesOfType(AreaEdge.class)
       .stream()
-      .filter(a -> hasNodeId(a, 143832))
+      .filter(a -> elevatorVertexConnectedToAreaEdgeHasNodeId(a, 143832))
       .map(AreaEdge::getArea)
       .distinct()
       .toList();
@@ -167,7 +171,7 @@ public class WalkableAreaBuilderTest {
     var connectionEdges = graph
       .getEdgesOfType(AreaEdge.class)
       .stream()
-      .filter(a -> hasNodeId(a, 143845))
+      .filter(a -> elevatorVertexConnectedToAreaEdgeHasNodeId(a, 143845))
       .toList();
     // entrance is connected top 2 opposite corners of a single platform
     // with two bidirectional edge pairs, and with the other entrance point
@@ -178,7 +182,7 @@ public class WalkableAreaBuilderTest {
     var elevatorConnection = graph
       .getEdgesOfType(AreaEdge.class)
       .stream()
-      .filter(a -> hasNodeId(a, 143861))
+      .filter(a -> elevatorVertexConnectedToAreaEdgeHasNodeId(a, 143861))
       .map(AreaEdge::getArea)
       .distinct()
       .toList();
@@ -219,9 +223,9 @@ public class WalkableAreaBuilderTest {
     assertFalse(areas.get(0).getAreas().isEmpty());
   }
 
-  private static boolean hasNodeId(AreaEdge a, long nodeId) {
+  private static boolean elevatorVertexConnectedToAreaEdgeHasNodeId(AreaEdge a, long nodeId) {
     return (
-      a.getToVertex().getLabel() instanceof OsmNodeOnLevelLabel label && label.nodeId() == nodeId
+      a.getToVertex().getLabel() instanceof VertexWithEntityLabel label && label.nodeId() == nodeId
     );
   }
 

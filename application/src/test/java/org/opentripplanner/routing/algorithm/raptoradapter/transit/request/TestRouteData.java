@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.raptor.spi.RaptorTimeTable;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripPatternForDate;
@@ -193,7 +193,6 @@ public class TestRouteData {
     s.setDepartureTime(time);
     s.setStopSequence(seq);
     s.setStopHeadsign(new NonLocalizedString("NA"));
-    s.setRouteShortName("NA");
     return s;
   }
 
@@ -241,7 +240,7 @@ public class TestRouteData {
       if (times == null) {
         var buf = new StringBuilder();
         int t = TimeUtils.time("10:00");
-        for (var ignore : stops()) {
+        for (int i = 0; i < stops.size(); i++) {
           t += 600;
           buf.append(" ").append(TimeUtils.timeToStrLong(t));
         }

@@ -24,7 +24,10 @@ import org.opentripplanner.apis.gtfs.datafetchers.CoordinatesImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.CurrencyImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.DefaultFareProductImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.DepartureRowImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.DependentFareProductImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.ElevatorUseImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.EntranceImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.EscalatorUseImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.EstimatedTimeImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.FareProductTypeResolver;
 import org.opentripplanner.apis.gtfs.datafetchers.FareProductUseImpl;
@@ -33,6 +36,8 @@ import org.opentripplanner.apis.gtfs.datafetchers.GeometryImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.ItineraryImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.LegImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.LegTimeImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.LocationGroupImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.LocationImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.MoneyImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.NodeTypeResolver;
 import org.opentripplanner.apis.gtfs.datafetchers.OpeningHoursImpl;
@@ -48,9 +53,11 @@ import org.opentripplanner.apis.gtfs.datafetchers.RentalVehicleFuelImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RentalVehicleImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RentalVehicleTypeImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RideHailingEstimateImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.RiderCategoryImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RouteImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RouteTypeImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.RoutingErrorImpl;
+import org.opentripplanner.apis.gtfs.datafetchers.StairsUseImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.StepFeatureTypeResolver;
 import org.opentripplanner.apis.gtfs.datafetchers.StopCallImpl;
 import org.opentripplanner.apis.gtfs.datafetchers.StopGeometriesImpl;
@@ -166,6 +173,8 @@ public class SchemaFactory {
         .type(typeWiring.build(serviceTimeRangeImpl.class))
         .type(typeWiring.build(stepImpl.class))
         .type(typeWiring.build(StopImpl.class))
+        .type(typeWiring.build(LocationImpl.class))
+        .type(typeWiring.build(LocationGroupImpl.class))
         .type(typeWiring.build(stopAtDistanceImpl.class))
         .type(typeWiring.build(StoptimeImpl.class))
         .type(typeWiring.build(StoptimesInPatternImpl.class))
@@ -194,6 +203,7 @@ public class SchemaFactory {
         .type(typeWiring.build(CurrencyImpl.class))
         .type(typeWiring.build(FareProductUseImpl.class))
         .type(typeWiring.build(DefaultFareProductImpl.class))
+        .type(typeWiring.build(DependentFareProductImpl.class))
         .type(typeWiring.build(TripOnServiceDateImpl.class))
         .type(typeWiring.build(StopCallImpl.class))
         .type(typeWiring.build(TripOccupancyImpl.class))
@@ -202,6 +212,10 @@ public class SchemaFactory {
         .type(typeWiring.build(EstimatedTimeImpl.class))
         .type(typeWiring.build(EntranceImpl.class))
         .type(typeWiring.build(RentalVehicleFuelImpl.class))
+        .type(typeWiring.build(EscalatorUseImpl.class))
+        .type(typeWiring.build(StairsUseImpl.class))
+        .type(typeWiring.build(ElevatorUseImpl.class))
+        .type(typeWiring.build(RiderCategoryImpl.class))
         .build();
 
       SchemaGenerator schemaGenerator = new SchemaGenerator();

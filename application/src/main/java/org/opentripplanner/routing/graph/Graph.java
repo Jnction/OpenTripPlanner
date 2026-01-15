@@ -7,26 +7,26 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.dataoverlay.configuration.DataOverlayParameterBindings;
 import org.opentripplanner.framework.geometry.CompactElevationProfile;
 import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.model.calendar.openinghours.OpeningHoursCalendarService;
 import org.opentripplanner.routing.linking.Scope;
-import org.opentripplanner.routing.linking.VertexLinker;
 import org.opentripplanner.routing.services.notes.StreetNotesService;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.StreetEdge;
+import org.opentripplanner.street.model.vertex.StationCentroidVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
 import org.opentripplanner.street.model.vertex.VertexLabel;
-import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,13 +65,8 @@ public class Graph implements Serializable {
   // Ideally we could just get rid of vertex labels, but they're used in tests and graph building.
   private final Map<VertexLabel, Vertex> vertices = new ConcurrentHashMap<>();
 
-  /** Conserve memory by reusing immutable instances of Strings, integer arrays, etc. */
-  public final transient Deduplicator deduplicator;
-
   @Nullable
   private final OpeningHoursCalendarService openingHoursCalendarService;
-
-  private final transient VertexLinker linker;
 
   private transient StreetIndex streetIndex;
 
@@ -120,22 +115,13 @@ public class Graph implements Serializable {
   public DataOverlayParameterBindings dataOverlayParameterBindings;
 
   @Inject
-  public Graph(
-    Deduplicator deduplicator,
-    @Nullable OpeningHoursCalendarService openingHoursCalendarService
-  ) {
-    this.deduplicator = deduplicator;
+  public Graph(@Nullable OpeningHoursCalendarService openingHoursCalendarService) {
     this.openingHoursCalendarService = openingHoursCalendarService;
-    this.linker = new VertexLinker(this);
-  }
-
-  public Graph(Deduplicator deduplicator) {
-    this(deduplicator, null);
   }
 
   /** Constructor for deserialization. */
   public Graph() {
-    this(new Deduplicator(), null);
+    this(null);
   }
 
   /** Add the given vertex to the graph. */
@@ -211,18 +197,27 @@ public class Graph implements Serializable {
    * Return the vertex corresponding to the stop id, or null.
    */
   @Nullable
-  public TransitStopVertex getStopVertexForStopId(FeedScopedId id) {
-    return streetIndex.findTransitStopVertex(id);
+  public TransitStopVertex getStopVertex(FeedScopedId id) {
+    requireIndex();
+    return streetIndex.findStopVertex(id).orElse(null);
   }
 
   /**
-   * If the {@code id} is a stop id return a set with a single element.
-   * If it is a station id return a set containing all child stop vertices, or an empty
-   * set otherwise.
+   * If the {@code id} is a stop id return the corresponding vertex, otherwise return an empty
+   * optional.
    */
-  public Set<TransitStopVertex> findStopOrChildStopsVertices(FeedScopedId stopId) {
+  public Optional<TransitStopVertex> findStopVertex(FeedScopedId stopId) {
     requireIndex();
-    return streetIndex.getStopOrChildStopsVertices(stopId);
+    return streetIndex.findStopVertex(stopId);
+  }
+
+  /**
+   * If the {@code stopId} is a station id and it is configured to route to its center,
+   * return the corresponding vertex, otherwise return an empty optional.
+   */
+  public Optional<StationCentroidVertex> findStationCentroidVertex(FeedScopedId stopId) {
+    requireIndex();
+    return streetIndex.findStationCentroidVertex(stopId);
   }
 
   /**
@@ -257,6 +252,9 @@ public class Graph implements Serializable {
 
   public void remove(Vertex vertex) {
     vertices.remove(vertex.getLabel());
+    if (streetIndex != null) {
+      streetIndex.remove(vertex);
+    }
   }
 
   public void removeIfUnconnected(Vertex v) {
@@ -286,7 +284,7 @@ public class Graph implements Serializable {
   /**
    * Perform indexing on vertices, edges and create transient data structures. This used to be done
    * in readObject methods upon deserialization, but stand-alone mode now allows passing graphs from
-   * graphbuilder to server in memory, without a round trip through serialization.
+   * graph builder to server in memory, without a round trip through serialization.
    * <p>
    * TODO OTP2 - Indexing the streetIndex is not something that should be delegated outside the
    *           - graph. This allows a module to index the streetIndex BEFORE another module add
@@ -296,6 +294,17 @@ public class Graph implements Serializable {
     LOG.info("Index street model...");
     streetIndex = new StreetIndex(this);
     LOG.info("Index street model complete.");
+  }
+
+  /**
+   * Index this graph if it hasn't been already. If the index already exists, this is a no-op.
+   * <p>
+   * TODO: The indexing process (and the index itself) should be completely hidden from the callers.
+   */
+  public void requestIndex() {
+    if (streetIndex == null) {
+      index();
+    }
   }
 
   @Nullable
@@ -308,17 +317,7 @@ public class Graph implements Serializable {
    */
   public Collection<Vertex> findVertices(Envelope env) {
     requireIndex();
-    return streetIndex.getVerticesForEnvelope(env);
-  }
-
-  /**
-   * Get the street vertices for an id. If the id corresponds to a regular stop we will return the
-   * coordinate for the stop.
-   * If the id corresponds to a station we will either return the coordinates of the child stops or
-   * the station centroid if the station is configured to route to centroid.
-   */
-  public Set<Vertex> findStopVertices(FeedScopedId stopId) {
-    return streetIndex.findStopVertices(stopId);
+    return streetIndex.findVertices(env);
   }
 
   /**
@@ -326,14 +325,15 @@ public class Graph implements Serializable {
    */
   public Collection<Edge> findEdges(Envelope env) {
     requireIndex();
-    return streetIndex.getEdgesForEnvelope(env);
+    return streetIndex.findEdges(env);
   }
 
   /**
    * Find all edges with the given scope inside the bounding box defined by {@code env}.
    */
   public Collection<Edge> findEdges(Envelope env, Scope scope) {
-    return streetIndex.getEdgesForEnvelope(env, scope);
+    requireIndex();
+    return streetIndex.findEdges(env, scope);
   }
 
   /**
@@ -342,24 +342,6 @@ public class Graph implements Serializable {
   public void insert(StreetEdge edge, Scope scope) {
     requireIndex();
     streetIndex.insert(edge, scope);
-  }
-
-  /**
-   * Get VertexLinker, safe to use while routing, but do not use during graph build.
-   * @see #getLinkerSafe()
-   */
-  public VertexLinker getLinker() {
-    requireIndex();
-    return linker;
-  }
-
-  /**
-   * Get VertexLinker during graph build, both OSM street data and transit data must be loaded
-   * before calling this.
-   */
-  public VertexLinker getLinkerSafe() {
-    indexIfNotIndexed();
-    return linker;
   }
 
   /**
@@ -393,12 +375,6 @@ public class Graph implements Serializable {
   public void setDistanceBetweenElevationSamples(double distanceBetweenElevationSamples) {
     this.distanceBetweenElevationSamples = distanceBetweenElevationSamples;
     CompactElevationProfile.setDistanceBetweenSamplesM(distanceBetweenElevationSamples);
-  }
-
-  private void indexIfNotIndexed() {
-    if (streetIndex == null) {
-      index();
-    }
   }
 
   private void requireIndex() {

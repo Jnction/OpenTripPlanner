@@ -1,7 +1,7 @@
 # README - OTP Custom/Fork Release Scripts
 
-**Note! This describes how you can set up and release OTP in your own GitHub fork, not how OTP in the
-main repo is released.**
+**Note! This describes how you can set up and release OTP in your own GitHub fork, not how OTP in
+the main repo is released.**
 
 
 ## Introduction
@@ -24,22 +24,23 @@ The release is made in the `release branch` in the forked git repository. The re
 based on the `base revision` - a branch, tag or commit, for example `otp/dev-2.x`. 
 
 1. The release script will start by _resetting_ the `release branch` to the given `base revision`.
-  **Nothing is kept from previous releases.**
+   **Nothing is kept from previous releases.**
 2. Then all pending PRs tagged with your `TEST` label is meged in. The name of the label is 
-  configured in the `custom-release-env.json` file.
+   configured in the `custom-release-env.json` file.
 3. Then all your extension branches are meged in. These are normally branchech with your deployment
-  config and GitHub workflow files. The name of these branches is configured in the 
-  `custom-release-env.json` file.
+   config and GitHub workflow files. The name of these branches is configured in the 
+   `custom-release-env.json` file.
 4. The `custom-release-extension` script is run, if it exist. For example you may delete 
-  workflow scripts comming from the upstream `base revision`. 
+   workflow scripts comming from the upstream `base revision`. 
 5. The old release is then merged with an _empty merge_, this is done to create a continuous line
-  of releases in the release branch for easy viewing and navigation of the git history. Nothing
-  from the previous release is copied into the new release. We call this an _empty merge_.
-6. Then the script update the _otp-serialization-version-id_ and OTP _version_. Each release is 
-  given a unique version number specific to your fork, like `v2.7.0-MY_ORG-1`. The release script
-  uses both the git history and the GitHub GraphQL API (PRs labeled `bump serialization id`) to 
-  resolve the versions numbers. 
-7. The script finally push the release.
+   of releases in the release branch for easy viewing and navigation of the git history. Nothing
+   from the previous release is copied into the new release. We call this an _empty merge_.
+6. Then the script update the _otp-serialization-version-id_ and the OTP _version_ in the pom.xml 
+   file. Each release is given a unique version number specific to your fork, like 
+   `v2.7.0-MY_ORG-1`. The release script uses both the git history and the GitHub GraphQL API 
+   (PRs labeled `+Bump Serialization Id`) to resolve the serialization version number. 
+7. Finally the release is tagged and pushed to the remote Git repository. The repository is 
+   configured in the `custom-release-env.json` file.
 
 Do not worry about deleting more recent versions, the release script will preserve the history so
 nothing is lost.
@@ -122,7 +123,8 @@ Add the `script/custom-release-env.json` file to your branch. The content of the
   "release_branch": "<release branch>",
   "ser_ver_id_prefix": "<organization abbrivation, max 2 characters>",
   "include_prs_label": "<organization name> Test",
-  "ext_branches" : [ "<release config branch>"]
+  "ext_branches" : [ "<release config branch>"],
+  "otp_production_url" : "<URL to OTP server endpoint>"
 }
 ```
 If you organization is _Curium_, then the file would look like this:
@@ -133,12 +135,16 @@ If you organization is _Curium_, then the file would look like this:
   "release_branch": "main",
   "ser_ver_id_prefix": "CU",
   "include_prs_label": "Curium Test",
-  "ext_branches" : [ "main_config"]
+  "ext_branches" : [ "main_config"],
+  "otp_production_url" : "https://otp.curium.org/otp"
 }
 ```
 
 The `<organization name>` must match the GitHub organization name (repository owner) in your local
 Git clone. Use `git remote -v` to list all remote repos. 
+
+The `otp_production_url` is optional. If provided, the release script will include a changelog diff 
+in the release summary between the production and built version.
 
 ```
 # git remote -v 

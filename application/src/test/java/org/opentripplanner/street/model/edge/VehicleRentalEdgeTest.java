@@ -4,10 +4,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.opentripplanner.routing.api.request.StreetMode.BIKE_RENTAL;
+import static org.opentripplanner.routing.api.request.StreetMode.CAR_RENTAL;
+import static org.opentripplanner.routing.api.request.StreetMode.SCOOTER_RENTAL;
+import static org.opentripplanner.service.vehiclerental.model.RentalVehicleType.PropulsionType.ELECTRIC;
+import static org.opentripplanner.service.vehiclerental.model.RentalVehicleType.PropulsionType.HUMAN;
+import static org.opentripplanner.street.model.RentalFormFactor.BICYCLE;
+import static org.opentripplanner.street.model.RentalFormFactor.CAR;
+import static org.opentripplanner.street.model.RentalFormFactor.MOPED;
+import static org.opentripplanner.street.model.RentalFormFactor.SCOOTER;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.service.vehiclerental.model.GeofencingZone;
 import org.opentripplanner.service.vehiclerental.model.RentalVehicleType;
@@ -18,10 +32,11 @@ import org.opentripplanner.service.vehiclerental.street.VehicleRentalEdge;
 import org.opentripplanner.service.vehiclerental.street.VehicleRentalPlaceVertex;
 import org.opentripplanner.street.model.RentalFormFactor;
 import org.opentripplanner.street.model._data.StreetModelForTest;
+import org.opentripplanner.street.search.request.RentalPeriod;
 import org.opentripplanner.street.search.request.StreetSearchRequest;
+import org.opentripplanner.street.search.request.StreetSearchRequestBuilder;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.state.VehicleRentalState;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 class VehicleRentalEdgeTest {
 
@@ -30,8 +45,26 @@ class VehicleRentalEdgeTest {
   VehicleRentalPlaceVertex vertex;
 
   @Test
+  void testBicycleMopedRental() {
+    initEdgeAndRequest(BIKE_RENTAL, MOPED, ELECTRIC, 3, 3, false, true, true, false);
+
+    var s1 = rent();
+
+    assertFalse(State.isEmpty(s1));
+  }
+
+  @Test
+  void testScooterBicycleRental() {
+    initEdgeAndRequest(SCOOTER_RENTAL, BICYCLE, HUMAN, 3, 3, false, true, true, false);
+
+    var s1 = rent();
+
+    assertTrue(State.isEmpty(s1));
+  }
+
+  @Test
   void testRentingWithAvailableBikes() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3);
+    initBicycleEdgeAndRequest(3, 3);
 
     var s1 = rent();
 
@@ -40,7 +73,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingWithNoAvailableVehicles() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 0, 3);
+    initBicycleEdgeAndRequest(0, 3);
 
     var s1 = rent();
 
@@ -49,7 +82,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingWithNoAvailableVehiclesAndNoRealtimeUsage() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 0, 3, false, true, false, false);
+    initEdgeAndRequest(BIKE_RENTAL, BICYCLE, HUMAN, 0, 3, false, true, false, false);
 
     var s1 = rent();
 
@@ -58,7 +91,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningWithAvailableSpaces() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3);
+    initBicycleEdgeAndRequest(3, 3);
 
     var s1 = rentAndDropOff();
 
@@ -67,7 +100,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningWithNoAvailableSpaces() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 0);
+    initBicycleEdgeAndRequest(3, 0);
 
     var s1 = rentAndDropOff();
 
@@ -76,7 +109,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningWithNoAvailableSpacesAndOverloading() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 0, true, true, true, false);
+    initBicycleEdgeAndRequest(3, 0, true, true, true, false);
 
     var s1 = rentAndDropOff();
 
@@ -85,7 +118,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningWithNoAvailableSpacesAndNoRealtimeUsage() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 0, false, true, false, false);
+    initBicycleEdgeAndRequest(3, 0, false, true, false, false);
 
     var s1 = rentAndDropOff();
 
@@ -94,7 +127,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingFromClosedStation() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 0, true, false, true, false);
+    initBicycleEdgeAndRequest(3, 0, true, false, true, false);
 
     var s1 = rent();
 
@@ -103,13 +136,13 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningToClosedStation() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3, true, true, true, false);
+    initBicycleEdgeAndRequest(3, 3, true, true, true, false);
 
     var s1 = rent();
 
     assertFalse(State.isEmpty(s1));
 
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3, true, false, true, false);
+    initBicycleEdgeAndRequest(3, 3, true, false, true, false);
 
     var s2 = dropOff(s1[0]);
 
@@ -118,7 +151,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testReturningAndReturningToClosedStationWithNoRealtimeUsage() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3, false, true, false, false);
+    initBicycleEdgeAndRequest(3, 3, false, true, false, false);
 
     var s1 = rentAndDropOff();
 
@@ -127,7 +160,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingWithFreeFloatingBicycle() {
-    initFreeFloatingEdgeAndRequest(StreetMode.BIKE_RENTAL, RentalFormFactor.BICYCLE, false);
+    initFreeFloatingEdgeAndRequest(BIKE_RENTAL, BICYCLE, false);
 
     var s1 = rent();
 
@@ -136,7 +169,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingWithFreeFloatingScooter() {
-    initFreeFloatingEdgeAndRequest(StreetMode.SCOOTER_RENTAL, RentalFormFactor.SCOOTER, false);
+    initFreeFloatingEdgeAndRequest(SCOOTER_RENTAL, SCOOTER, false);
 
     var s1 = rent();
 
@@ -145,7 +178,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testRentingWithFreeFloatingCar() {
-    initFreeFloatingEdgeAndRequest(StreetMode.CAR_RENTAL, RentalFormFactor.CAR, false);
+    initFreeFloatingEdgeAndRequest(CAR_RENTAL, CAR, false);
 
     var s1 = rent();
 
@@ -154,7 +187,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testBannedBicycleNetworkStation() {
-    initEdgeAndRequest(StreetMode.BIKE_RENTAL, 3, 3, false, true, true, true);
+    initEdgeAndRequest(BIKE_RENTAL, BICYCLE, HUMAN, 3, 3, false, true, true, true);
 
     var s1 = rent();
 
@@ -163,7 +196,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testBannedBicycleNetworkFreeFloating() {
-    initFreeFloatingEdgeAndRequest(StreetMode.BIKE_RENTAL, RentalFormFactor.BICYCLE, true);
+    initFreeFloatingEdgeAndRequest(BIKE_RENTAL, BICYCLE, true);
 
     var s1 = rent();
 
@@ -172,7 +205,7 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testBannedScooterNetworkFreeFloating() {
-    initFreeFloatingEdgeAndRequest(StreetMode.SCOOTER_RENTAL, RentalFormFactor.SCOOTER, true);
+    initFreeFloatingEdgeAndRequest(SCOOTER_RENTAL, SCOOTER, true);
 
     var s1 = rent();
 
@@ -181,15 +214,70 @@ class VehicleRentalEdgeTest {
 
   @Test
   void testBannedCarNetworkFreeFloating() {
-    initFreeFloatingEdgeAndRequest(StreetMode.CAR_RENTAL, RentalFormFactor.CAR, true);
+    initFreeFloatingEdgeAndRequest(CAR_RENTAL, CAR, true);
 
     var s1 = rent();
 
     assertTrue(State.isEmpty(s1));
   }
 
-  private void initEdgeAndRequest(StreetMode mode, int vehicles, int spaces) {
-    initEdgeAndRequest(mode, vehicles, spaces, false, true, true, false);
+  @Test
+  void propulsionTypeIsStoredInStateAfterRentingFromStation() {
+    initEdgeAndRequest(BIKE_RENTAL, BICYCLE, ELECTRIC, 3, 3, false, true, true, false);
+
+    var s1 = rent();
+
+    assertFalse(State.isEmpty(s1));
+    assertEquals(ELECTRIC, s1[0].rentalVehiclePropulsionType());
+    assertTrue(s1[0].isRentingVehicle());
+  }
+
+  @Test
+  void propulsionTypeIsStoredInStateAfterRentingFloatingVehicle() {
+    initFreeFloatingEdgeAndRequest(SCOOTER_RENTAL, SCOOTER, false);
+
+    var s1 = rent();
+
+    assertFalse(State.isEmpty(s1));
+    // Free floating vehicles from TestFreeFloatingRentalVehicleBuilder use ELECTRIC propulsion
+    assertEquals(ELECTRIC, s1[0].rentalVehiclePropulsionType());
+    assertTrue(s1[0].isRentingVehicle());
+  }
+
+  @Test
+  void testWithFreeFloatingVehicleWithoutRequiredAvailability() {
+    var tenMinutesLater = Instant.now().plus(10, ChronoUnit.MINUTES);
+    initFreeFloatingEdgeAndRequestForAvailability(tenMinutesLater, Duration.ofMinutes(15), false);
+    var s1 = rent();
+
+    assertTrue(State.isEmpty(s1));
+  }
+
+  @Test
+  void testWithFreeFloatingVehicleAndArrivalWithoutRequiredAvailability() {
+    var tenMinutesLater = Instant.now().minus(10, ChronoUnit.MINUTES);
+    initFreeFloatingEdgeAndRequestForAvailability(tenMinutesLater, Duration.ofMinutes(1), true);
+    var s1 = rent();
+
+    assertTrue(State.isEmpty(s1));
+  }
+
+  @Test
+  void testWithFreeFloatingVehicleWithRequiredAvailabilityInformation() {
+    var tenMinutesLater = Instant.now().plus(10, ChronoUnit.MINUTES);
+    initFreeFloatingEdgeAndRequestForAvailability(tenMinutesLater, Duration.ofMinutes(5), false);
+    var s1 = rent();
+
+    assertFalse(State.isEmpty(s1));
+  }
+
+  @Test
+  void testWithFreeFloatingVehicleAndArrivalWithRequiredAvailabilityInformation() {
+    var tenMinutesLater = Instant.now().plus(1, ChronoUnit.MINUTES);
+    initFreeFloatingEdgeAndRequestForAvailability(tenMinutesLater, Duration.ofMinutes(1), true);
+    var s1 = rent();
+
+    assertFalse(State.isEmpty(s1));
   }
 
   @Nested
@@ -197,32 +285,29 @@ class VehicleRentalEdgeTest {
 
     private static final String NETWORK = "tier";
     private static final StreetSearchRequest SEARCH_REQUEST = StreetSearchRequest.of()
-      .withMode(StreetMode.SCOOTER_RENTAL)
+      .withMode(SCOOTER_RENTAL)
       .withArriveBy(true)
       .build();
 
-    private static final VehicleRentalVehicle RENTAL_PLACE = new VehicleRentalVehicle();
-
-    static {
-      RENTAL_PLACE.latitude = 1;
-      RENTAL_PLACE.longitude = 1;
-      RENTAL_PLACE.id = new FeedScopedId(NETWORK, "123");
-      RENTAL_PLACE.vehicleType = new RentalVehicleType(
-        new FeedScopedId(NETWORK, "scooter"),
-        "scooter",
-        RentalFormFactor.SCOOTER,
-        RentalVehicleType.PropulsionType.ELECTRIC,
-        100000d
-      );
-    }
+    private static final VehicleRentalVehicle RENTAL_PLACE = VehicleRentalVehicle.of()
+      .withLatitude(1)
+      .withLongitude(1)
+      .withId(new FeedScopedId(NETWORK, "123"))
+      .withVehicleType(
+        RentalVehicleType.of()
+          .withId(new FeedScopedId(NETWORK, "scooter"))
+          .withName(I18NString.of("scooter"))
+          .withFormFactor(RentalFormFactor.SCOOTER)
+          .withPropulsionType(RentalVehicleType.PropulsionType.ELECTRIC)
+          .withMaxRangeMeters(100000d)
+          .build()
+      )
+      .build();
 
     @Test
     void startedInNoDropOffZone() {
       var rentalVertex = new VehicleRentalPlaceVertex(RENTAL_PLACE);
-      var rentalEdge = VehicleRentalEdge.createVehicleRentalEdge(
-        rentalVertex,
-        RentalFormFactor.SCOOTER
-      );
+      var rentalEdge = VehicleRentalEdge.createVehicleRentalEdge(rentalVertex, SCOOTER);
 
       rentalVertex.addRentalRestriction(noDropOffZone());
 
@@ -236,10 +321,7 @@ class VehicleRentalEdgeTest {
     @Test
     void startedOutsideNoDropOffZone() {
       var rentalVertex = new VehicleRentalPlaceVertex(RENTAL_PLACE);
-      var rentalEdge = VehicleRentalEdge.createVehicleRentalEdge(
-        rentalVertex,
-        RentalFormFactor.SCOOTER
-      );
+      var rentalEdge = VehicleRentalEdge.createVehicleRentalEdge(rentalVertex, SCOOTER);
       var state = new State(rentalVertex, SEARCH_REQUEST);
 
       assertEquals(Set.of(), state.stateData.noRentalDropOffZonesAtStartOfReverseSearch);
@@ -253,13 +335,40 @@ class VehicleRentalEdgeTest {
 
     private GeofencingZoneExtension noDropOffZone() {
       return new GeofencingZoneExtension(
-        new GeofencingZone(new FeedScopedId(NETWORK, "zone"), null, true, false)
+        new GeofencingZone(new FeedScopedId(NETWORK, "zone"), null, null, true, false)
       );
     }
   }
 
+  private void initBicycleEdgeAndRequest(int vehicles, int spaces) {
+    initEdgeAndRequest(BIKE_RENTAL, BICYCLE, HUMAN, vehicles, spaces, false, true, true, false);
+  }
+
+  private void initBicycleEdgeAndRequest(
+    int vehicles,
+    int spaces,
+    boolean overloadingAllowed,
+    boolean stationOn,
+    boolean useRealtime,
+    boolean banNetwork
+  ) {
+    initEdgeAndRequest(
+      BIKE_RENTAL,
+      BICYCLE,
+      HUMAN,
+      vehicles,
+      spaces,
+      overloadingAllowed,
+      stationOn,
+      useRealtime,
+      banNetwork
+    );
+  }
+
   private void initEdgeAndRequest(
     StreetMode mode,
+    RentalFormFactor formFactor,
+    RentalVehicleType.PropulsionType propulsionType,
     int vehicles,
     int spaces,
     boolean overloadingAllowed,
@@ -268,28 +377,23 @@ class VehicleRentalEdgeTest {
     boolean banNetwork
   ) {
     var station = TestVehicleRentalStationBuilder.of()
-      .withVehicles(vehicles)
-      .withSpaces(spaces)
+      .withVehicleType(formFactor, propulsionType, vehicles, spaces)
       .withOverloadingAllowed(overloadingAllowed)
       .withStationOn(stationOn)
       .build();
 
     this.vertex = new VehicleRentalPlaceVertex(station);
 
-    vehicleRentalEdge = VehicleRentalEdge.createVehicleRentalEdge(vertex, RentalFormFactor.BICYCLE);
+    vehicleRentalEdge = VehicleRentalEdge.createVehicleRentalEdge(vertex, formFactor);
 
-    Set<String> bannedNetworks = banNetwork ? Set.of(station.getNetwork()) : Set.of();
+    Set<String> bannedNetworks = banNetwork ? Set.of(station.network()) : Set.of();
 
     this.request = StreetSearchRequest.of()
       .withMode(mode)
-      .withPreferences(preferences ->
-        preferences
-          .withBike(bike ->
-            bike.withRental(rental ->
-              rental.withUseAvailabilityInformation(useRealtime).withBannedNetworks(bannedNetworks)
-            )
-          )
-          .build()
+      .withBike(bike ->
+        bike.withRental(rental ->
+          rental.withUseAvailabilityInformation(useRealtime).withBannedNetworks(bannedNetworks)
+        )
       )
       .build();
   }
@@ -303,22 +407,37 @@ class VehicleRentalEdgeTest {
 
     vehicleRentalEdge = VehicleRentalEdge.createVehicleRentalEdge(vertex, formFactor);
 
-    Set<String> bannedNetworks = banNetwork
-      ? Set.of(this.vertex.getStation().getNetwork())
-      : Set.of();
+    Set<String> bannedNetworks = banNetwork ? Set.of(this.vertex.getStation().network()) : Set.of();
 
     this.request = StreetSearchRequest.of()
       .withMode(mode)
-      .withPreferences(preferences ->
-        preferences
-          .withCar(car -> car.withRental(rental -> rental.withBannedNetworks(bannedNetworks)))
-          .withBike(bike -> bike.withRental(rental -> rental.withBannedNetworks(bannedNetworks)))
-          .withScooter(scooter ->
-            scooter.withRental(rental -> rental.withBannedNetworks(bannedNetworks))
-          )
-          .build()
+      .withCar(car -> car.withRental(rental -> rental.withBannedNetworks(bannedNetworks)))
+      .withBike(bike -> bike.withRental(rental -> rental.withBannedNetworks(bannedNetworks)))
+      .withScooter(scooter ->
+        scooter.withRental(rental -> rental.withBannedNetworks(bannedNetworks))
       )
       .build();
+  }
+
+  private void initFreeFloatingEdgeAndRequestForAvailability(
+    Instant vehicleAvailableUntil,
+    Duration rentalDuration,
+    boolean arriveBy
+  ) {
+    RentalFormFactor formFactor = RentalFormFactor.CAR;
+    this.vertex = StreetModelForTest.rentalVertex(formFactor, vehicleAvailableUntil);
+    this.vehicleRentalEdge = VehicleRentalEdge.createVehicleRentalEdge(vertex, formFactor);
+    StreetSearchRequestBuilder streetSearchRequestBuilder = StreetSearchRequest.of()
+      .withMode(CAR_RENTAL)
+      .withArriveBy(arriveBy);
+    if (rentalDuration != null) {
+      var now = Instant.now();
+      var rentalPeriod = arriveBy
+        ? RentalPeriod.createFromLatestArrivalTime(now, rentalDuration)
+        : RentalPeriod.createFromEarliestDepartureTime(now, rentalDuration);
+      streetSearchRequestBuilder.withRentalPeriod(rentalPeriod);
+    }
+    this.request = streetSearchRequestBuilder.build();
   }
 
   private State[] rent() {

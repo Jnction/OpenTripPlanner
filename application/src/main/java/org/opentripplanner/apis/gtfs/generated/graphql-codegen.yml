@@ -74,6 +74,7 @@ config:
     Itinerary: org.opentripplanner.model.plan.Itinerary#Itinerary
     Leg: org.opentripplanner.model.plan.Leg#Leg
     LegTime: org.opentripplanner.model.plan.leg.LegCallTime#LegCallTime
+    Level: org.opentripplanner.service.streetdetails.model.Level#Level
     Mode: String
     OccupancyStatus: org.opentripplanner.apis.gtfs.generated.GraphQLTypes.GraphQLOccupancyStatus#GraphQLOccupancyStatus
     TransitMode: org.opentripplanner.apis.gtfs.generated.GraphQLTypes.GraphQLTransitMode#GraphQLTransitMode
@@ -112,6 +113,7 @@ config:
     VehicleParkingSpaces: org.opentripplanner.service.vehicleparking.model.VehicleParkingSpaces#VehicleParkingSpaces
     VehicleParkingState: org.opentripplanner.service.vehicleparking.model.VehicleParkingState#VehicleParkingState
     VertexType: String
+    VerticalDirection: org.opentripplanner.apis.gtfs.generated.GraphQLTypes.GraphQLVerticalDirection#GraphQLVerticalDirection
     SystemNotice: org.opentripplanner.model.SystemNotice#SystemNotice
     VehiclePosition: org.opentripplanner.service.realtimevehicles.model.RealtimeVehicle#RealtimeVehicle
     StopRelationship: org.opentripplanner.service.realtimevehicles.model.RealtimeVehicle.StopRelationship#StopRelationship
@@ -124,8 +126,8 @@ config:
     RideHailingProvider: org.opentripplanner.apis.gtfs.model.RideHailingProvider#RideHailingProvider
     Currency: java.util.Currency#Currency
     Money: org.opentripplanner.transit.model.basic.Money#Money
-    FareProductUse: org.opentripplanner.model.fare.FareProductUse#FareProductUse
-    FareProduct: org.opentripplanner.model.fare.FareProduct#FareProduct
+    FareProductUse: org.opentripplanner.model.fare.FareOffer#FareOffer
+    FareProduct: org.opentripplanner.model.fare.FareOffer#FareOffer
     FareMedium: org.opentripplanner.model.fare.FareMedium#FareMedium
     RiderCategory: org.opentripplanner.model.fare.RiderCategory#RiderCategory
     StopPosition: org.opentripplanner.apis.gtfs.model.StopPosition#StopPosition
@@ -134,5 +136,6 @@ config:
     CallRealTime: org.opentripplanner.apis.gtfs.model.CallRealTime#CallRealTime
     RentalPlace: org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace#VehicleRentalPlace
     CallSchedule: org.opentripplanner.apis.gtfs.model.CallSchedule#CallSchedule
+    CallScheduledTime: org.opentripplanner.apis.gtfs.model.CallScheduledTime#CallScheduledTime
     RentalVehicleFuel: org.opentripplanner.service.vehiclerental.model.RentalVehicleFuel#RentalVehicleFuel
-
+    ViaLocationType: org.opentripplanner.model.plan.leg.ViaLocationType#ViaLocationType

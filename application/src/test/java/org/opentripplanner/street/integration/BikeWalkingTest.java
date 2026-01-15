@@ -2,6 +2,7 @@ package org.opentripplanner.street.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,10 +27,21 @@ import org.opentripplanner.street.search.strategy.EuclideanRemainingWeightHeuris
  */
 public class BikeWalkingTest extends GraphRoutingTest {
 
-  private TransitStopVertex S1, S2;
+  private TransitStopVertex S1;
+  private TransitStopVertex S2;
   private TransitEntranceVertex E1;
-  private StreetVertex A, B, C, D, E, F, Q;
-  private StreetEdge AB, BC, CD, DE, EF;
+  private StreetVertex A;
+  private StreetVertex B;
+  private StreetVertex C;
+  private StreetVertex D;
+  private StreetVertex E;
+  private StreetVertex F;
+  private StreetVertex Q;
+  private StreetEdge AB;
+  private StreetEdge BC;
+  private StreetEdge CD;
+  private StreetEdge DE;
+  private StreetEdge EF;
 
   @Test
   public void testWalkOnly() {
@@ -242,11 +254,9 @@ public class BikeWalkingTest extends GraphRoutingTest {
       Q,
       "null - 0 / 0.0 - null",
       "WALK - 10 / 20.0 - CD street",
-      "null - 0 / 1.0 - null",
-      "WALK - 90 / 90.0 - Elevator",
-      "WALK - 20 / 20.0 - null",
-      "WALK - 0 / 1.0 - L-Q",
-      "null - 0 / 1.0 - null"
+      "WALK - 90 / 195.0 - ElevatorBoardEdge",
+      "WALK - 20 / 40.0 - null",
+      "WALK - 0 / 1.0 - elevator"
     );
   }
 
@@ -260,11 +270,9 @@ public class BikeWalkingTest extends GraphRoutingTest {
       Q,
       "null - 0 / 0.0 - null",
       "🚲WALK - 20 / 100.0 - CD street",
-      "null - 0 / 1.0 - null",
-      "🚲WALK - 90 / 90.0 - Elevator",
-      "🚲WALK - 20 / 20.0 - null",
-      "🚲WALK - 0 / 1.0 - L-Q",
-      "null - 0 / 1.0 - null"
+      "🚲WALK - 90 / 195.0 - ElevatorBoardEdge",
+      "🚲WALK - 20 / 40.0 - null",
+      "🚲WALK - 0 / 1.0 - elevator"
     );
   }
 
@@ -277,20 +285,16 @@ public class BikeWalkingTest extends GraphRoutingTest {
       List.of(
         "null - 0 / 0.0 - null",
         "BICYCLE - 5 / 10.0 - CD street",
-        "null - 0 / 1.0 - null",
-        "🚲WALK - 190 / 1090.0 - Elevator",
-        "🚲WALK - 20 / 20.0 - null",
-        "🚲WALK - 0 / 1.0 - L-Q",
-        "null - 0 / 1.0 - null"
+        "🚲WALK - 190 / 1195.0 - ElevatorBoardEdge",
+        "🚲WALK - 20 / 40.0 - null",
+        "🚲WALK - 0 / 1.0 - elevator"
       ),
       List.of(
         "null - 0 / 0.0 - null",
         "BICYCLE - 105 / 1010.0 - CD street",
-        "null - 0 / 1.0 - null",
-        "🚲WALK - 90 / 90.0 - Elevator",
-        "🚲WALK - 20 / 20.0 - null",
-        "🚲WALK - 0 / 1.0 - L-Q",
-        "null - 0 / 1.0 - null"
+        "🚲WALK - 90 / 195.0 - ElevatorBoardEdge",
+        "🚲WALK - 20 / 40.0 - null",
+        "🚲WALK - 0 / 1.0 - elevator"
       )
     );
   }
@@ -319,11 +323,11 @@ public class BikeWalkingTest extends GraphRoutingTest {
           elevator(StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE, D, Q);
 
           biLink(A, S1);
-          AB = street(A, B, 100, StreetTraversalPermission.PEDESTRIAN);
-          BC = street(B, C, 100, StreetTraversalPermission.PEDESTRIAN);
-          CD = street(C, D, 100, StreetTraversalPermission.ALL);
-          DE = street(D, E, 100, StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE);
-          EF = street(E, F, 100, StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE);
+          AB = street(A, B, 100, StreetTraversalPermission.PEDESTRIAN, 40);
+          BC = street(B, C, 100, StreetTraversalPermission.PEDESTRIAN, 40);
+          CD = street(C, D, 100, StreetTraversalPermission.ALL, 40);
+          DE = street(D, E, 100, StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE, 40);
+          EF = street(E, F, 100, StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE, 40);
           biLink(F, E1);
           pathway(E1, S2, 60, 100);
         }
@@ -377,7 +381,10 @@ public class BikeWalkingTest extends GraphRoutingTest {
             it
               .withSpeed(20d)
               .withWalking(w ->
-                w.withSpeed(5d).withMountDismountTime(100).withMountDismountCost(1000)
+                w
+                  .withSpeed(5d)
+                  .withMountDismountTime(Duration.ofSeconds(100))
+                  .withMountDismountCost(1000)
               )
           )
       )
@@ -385,11 +392,11 @@ public class BikeWalkingTest extends GraphRoutingTest {
       .buildDefault();
 
     var tree = StreetSearchBuilder.of()
-      .setHeuristic(new EuclideanRemainingWeightHeuristic())
-      .setRequest(request)
-      .setStreetRequest(new StreetRequest(streetMode))
-      .setFrom(fromVertex)
-      .setTo(toVertex)
+      .withHeuristic(new EuclideanRemainingWeightHeuristic())
+      .withRequest(request)
+      .withStreetRequest(new StreetRequest(streetMode))
+      .withFrom(fromVertex)
+      .withTo(toVertex)
       .getShortestPathTree();
 
     var path = tree.getPath(arriveBy ? fromVertex : toVertex);

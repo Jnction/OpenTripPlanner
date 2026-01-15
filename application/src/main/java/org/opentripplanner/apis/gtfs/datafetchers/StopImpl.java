@@ -21,6 +21,7 @@ import org.opentripplanner.apis.gtfs.generated.GraphQLTypes;
 import org.opentripplanner.apis.gtfs.service.ApiTransitService;
 import org.opentripplanner.apis.gtfs.support.filter.PatternByDateFilterUtil;
 import org.opentripplanner.apis.gtfs.support.time.LocalDateRangeUtil;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.StopTimesInPattern;
 import org.opentripplanner.model.TripTimeOnDate;
 import org.opentripplanner.routing.alertpatch.EntitySelector;
@@ -28,8 +29,8 @@ import org.opentripplanner.routing.alertpatch.EntitySelector.StopAndRoute;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
 import org.opentripplanner.routing.graphfinder.NearbyStop;
 import org.opentripplanner.routing.services.TransitAlertService;
+import org.opentripplanner.transfer.TransferService;
 import org.opentripplanner.transit.model.framework.AbstractTransitEntity;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.RegularStop;
@@ -126,6 +127,7 @@ public class StopImpl implements GraphQLDataFetchers.GraphQLStop {
   }
 
   @Override
+  @Deprecated
   public DataFetcher<Object> cluster() {
     return environment -> null;
   }
@@ -436,8 +438,8 @@ public class StopImpl implements GraphQLDataFetchers.GraphQLStop {
             environment.getArguments()
           ).getGraphQLMaxDistance();
 
-          return getTransitService(environment)
-            .findPathTransfers(stop)
+          return getTransferService(environment)
+            .findTransfersByStop(stop)
             .stream()
             .filter(transfer -> maxDistance == null || transfer.getDistanceMeters() < maxDistance)
             .filter(transfer -> transfer.to instanceof RegularStop)
@@ -448,6 +450,10 @@ public class StopImpl implements GraphQLDataFetchers.GraphQLStop {
         },
         station -> null
       );
+  }
+
+  private TransferService getTransferService(DataFetchingEnvironment environment) {
+    return environment.<GraphQLRequestContext>getContext().transferService();
   }
 
   @Override
@@ -483,7 +489,8 @@ public class StopImpl implements GraphQLDataFetchers.GraphQLStop {
   @Override
   public DataFetcher<GraphQLTypes.GraphQLWheelchairBoarding> wheelchairBoarding() {
     return environment -> {
-      var boarding = getValue(environment, StopLocation::getWheelchairAccessibility, station -> null
+      var boarding = getValue(environment, StopLocation::getWheelchairAccessibility, station ->
+        null
       );
       return GraphQLUtils.toGraphQL(boarding);
     };

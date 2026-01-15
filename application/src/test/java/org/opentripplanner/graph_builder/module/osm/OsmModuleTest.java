@@ -17,8 +17,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.astar.model.GraphPath;
-import org.opentripplanner.framework.i18n.LocalizedString;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.i18n.LocalizedString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
 import org.opentripplanner.osm.DefaultOsmProvider;
 import org.opentripplanner.osm.OsmProvider;
 import org.opentripplanner.osm.model.OsmEntity;
@@ -27,13 +27,13 @@ import org.opentripplanner.osm.wayproperty.CreativeNamer;
 import org.opentripplanner.osm.wayproperty.MixinPropertiesBuilder;
 import org.opentripplanner.osm.wayproperty.WayProperties;
 import org.opentripplanner.osm.wayproperty.WayPropertiesBuilder;
+import org.opentripplanner.osm.wayproperty.WayPropertiesPair;
 import org.opentripplanner.osm.wayproperty.WayPropertySet;
 import org.opentripplanner.osm.wayproperty.specifier.BestMatchSpecifier;
 import org.opentripplanner.osm.wayproperty.specifier.OsmSpecifier;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.impl.GraphPathFinder;
-import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingService;
@@ -46,7 +46,6 @@ import org.opentripplanner.street.model.vertex.Vertex;
 import org.opentripplanner.street.model.vertex.VertexLabel;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.test.support.ResourceLoader;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 
 public class OsmModuleTest {
 
@@ -54,19 +53,15 @@ public class OsmModuleTest {
 
   @Test
   public void testGraphBuilder() {
-    var deduplicator = new Deduplicator();
-    var graph = new Graph(deduplicator);
+    var graph = new Graph();
 
     File file = RESOURCE_LOADER.file("map.osm.pbf");
 
     DefaultOsmProvider provider = new DefaultOsmProvider(file, true);
 
-    OsmModule osmModule = OsmModule.of(
-      provider,
-      graph,
-      new DefaultOsmInfoGraphBuildRepository(),
-      new DefaultVehicleParkingRepository()
-    )
+    OsmModule osmModule = OsmModuleTestFactory.of(provider)
+      .withGraph(graph)
+      .builder()
       .withAreaVisibility(true)
       .build();
 
@@ -89,7 +84,9 @@ public class OsmModuleTest {
     assertNotNull(v3);
     assertNotNull(v4);
 
-    Edge e1 = null, e2 = null, e3 = null;
+    Edge e1 = null;
+    Edge e2 = null;
+    Edge e3 = null;
     for (Edge e : v2.getOutgoing()) {
       if (e.getToVertex() == v1) {
         e1 = e;
@@ -119,14 +116,14 @@ public class OsmModuleTest {
    */
   @Test
   public void testBuildGraphDetailed() {
-    var deduplicator = new Deduplicator();
-    var gg = new Graph(deduplicator);
+    var gg = new Graph();
 
     File file = RESOURCE_LOADER.file("NYC_small.osm.pbf");
     var provider = new DefaultOsmProvider(file, true);
-    var osmInfoRepository = new DefaultOsmInfoGraphBuildRepository();
-    var vehicleParkingRepository = new DefaultVehicleParkingRepository();
-    var osmModule = OsmModule.of(provider, gg, osmInfoRepository, vehicleParkingRepository)
+
+    var osmModule = OsmModuleTestFactory.of(provider)
+      .withGraph(gg)
+      .builder()
       .withAreaVisibility(true)
       .build();
 
@@ -175,7 +172,7 @@ public class OsmModuleTest {
 
   @Test
   public void testWayDataSet() {
-    OsmEntity way = new OsmWay();
+    OsmWay way = new OsmWay();
     way.addTag("highway", "footway");
     way.addTag("cycleway", "lane");
     way.addTag("surface", "gravel");
@@ -183,12 +180,12 @@ public class OsmModuleTest {
     WayPropertySet wayPropertySet = new WayPropertySet();
 
     // where there are no way specifiers, the default is used
-    WayProperties wayData = wayPropertySet.getDataForWay(way);
-    assertEquals(wayData.getPermission(), ALL);
-    assertEquals(wayData.walkSafety().forward(), 1.0);
-    assertEquals(wayData.walkSafety().back(), 1.0);
-    assertEquals(wayData.bicycleSafety().forward(), 1.0);
-    assertEquals(wayData.bicycleSafety().back(), 1.0);
+    var wayData = wayPropertySet.getDataForWay(way);
+    assertEquals(ALL, wayData.forward().getPermission());
+    assertEquals(1.0, wayData.forward().walkSafety());
+    assertEquals(1.0, wayData.backward().walkSafety());
+    assertEquals(1.0, wayData.forward().bicycleSafety());
+    assertEquals(1.0, wayData.backward().bicycleSafety());
 
     // add two equal matches: lane only...
     OsmSpecifier lane_only = new BestMatchSpecifier("cycleway=lane");
@@ -204,9 +201,10 @@ public class OsmModuleTest {
 
     wayPropertySet.addProperties(footway_only, footways_allow_peds);
 
-    WayProperties dataForWay = wayPropertySet.getDataForWay(way);
+    var dataForWay = wayPropertySet.getDataForWay(way);
     // the first one is found
-    assertEquals(dataForWay, lane_is_safer);
+    assertEquals(lane_is_safer, dataForWay.forward());
+    assertEquals(lane_is_safer, dataForWay.backward());
 
     // add a better match
     OsmSpecifier lane_and_footway = new BestMatchSpecifier("cycleway=lane;highway=footway");
@@ -218,7 +216,7 @@ public class OsmModuleTest {
 
     wayPropertySet.addProperties(lane_and_footway, safer_and_peds);
     dataForWay = wayPropertySet.getDataForWay(way);
-    assertEquals(dataForWay, safer_and_peds);
+    assertEquals(new WayPropertiesPair(safer_and_peds, safer_and_peds), dataForWay);
 
     // add a mixin
     BestMatchSpecifier gravel = new BestMatchSpecifier("surface=gravel");
@@ -226,7 +224,7 @@ public class OsmModuleTest {
     wayPropertySet.setMixinProperties(gravel, gravel_is_dangerous);
 
     dataForWay = wayPropertySet.getDataForWay(way);
-    assertEquals(dataForWay.bicycleSafety().forward(), 1.5);
+    assertEquals(1.5, dataForWay.forward().bicycleSafety());
 
     // test a left-right distinction
     way = new OsmWay();
@@ -243,9 +241,9 @@ public class OsmModuleTest {
     wayPropertySet.addProperties(track_only, track_is_safest);
     dataForWay = wayPropertySet.getDataForWay(way);
     // right (with traffic) comes from track
-    assertEquals(0.25, dataForWay.bicycleSafety().forward());
+    assertEquals(0.25, dataForWay.forward().bicycleSafety());
     // left comes from lane
-    assertEquals(0.75, dataForWay.bicycleSafety().back());
+    assertEquals(0.75, dataForWay.backward().bicycleSafety());
 
     way = new OsmWay();
     way.addTag("highway", "footway");
@@ -259,7 +257,7 @@ public class OsmModuleTest {
     );
     namer = new CreativeNamer("sidewalk");
     propset.addCreativeNamer(new BestMatchSpecifier("highway=footway;footway=sidewalk"), namer);
-    assertEquals("sidewalk", propset.getCreativeNameForWay(way).toString());
+    assertEquals("sidewalk", propset.getCreativeName(way).toString());
   }
 
   @Test
@@ -317,18 +315,11 @@ public class OsmModuleTest {
    */
   @Test
   void testBarrierAtEnd() {
-    var deduplicator = new Deduplicator();
-    var graph = new Graph(deduplicator);
+    var graph = new Graph();
+    var file = RESOURCE_LOADER.file("accessno-at-end.pbf");
+    var provider = new DefaultOsmProvider(file, false);
 
-    File file = RESOURCE_LOADER.file("accessno-at-end.pbf");
-    DefaultOsmProvider provider = new DefaultOsmProvider(file, false);
-    OsmModule loader = OsmModule.of(
-      provider,
-      graph,
-      new DefaultOsmInfoGraphBuildRepository(),
-      new DefaultVehicleParkingRepository()
-    ).build();
-    loader.buildGraph();
+    OsmModuleTestFactory.of(provider).withGraph(graph).builder().build().buildGraph();
 
     Vertex start = graph.getVertex(VertexLabel.osm(1));
     Vertex end = graph.getVertex(VertexLabel.osm(3));
@@ -344,17 +335,24 @@ public class OsmModuleTest {
 
   private BuildResult buildParkingLots() {
     var graph = new Graph();
-    var service = new DefaultVehicleParkingRepository();
+    var parkingRepository = new DefaultVehicleParkingRepository();
+
     List<OsmProvider> providers = Stream.of("B+R.osm.pbf", "P+R.osm.pbf")
       .map(RESOURCE_LOADER::file)
       .map(f -> (OsmProvider) new DefaultOsmProvider(f, false))
       .toList();
-    var module = OsmModule.of(providers, graph, new DefaultOsmInfoGraphBuildRepository(), service)
+
+    var osmModule = OsmModuleTestFactory.of(providers)
+      .withGraph(graph)
+      .withVehicleParkingRepository(parkingRepository)
+      .builder()
       .withStaticParkAndRide(true)
       .withStaticBikeParkAndRide(true)
       .build();
-    module.buildGraph();
-    return new BuildResult(graph, service);
+
+    osmModule.buildGraph();
+
+    return new BuildResult(graph, parkingRepository);
   }
 
   private record BuildResult(Graph graph, VehicleParkingRepository repository) {}
@@ -369,19 +367,18 @@ public class OsmModuleTest {
    * @param skipVisibility if true visibility calculations are skipped
    */
   private void testBuildingAreas(boolean skipVisibility) {
-    var deduplicator = new Deduplicator();
-    var graph = new Graph(deduplicator);
+    var graph = new Graph();
 
     File file = RESOURCE_LOADER.file("usf_area.osm.pbf");
     var provider = new DefaultOsmProvider(file, false);
-    var osmInfoRepository = new DefaultOsmInfoGraphBuildRepository();
-    var vehicleParkingRepository = new DefaultVehicleParkingRepository();
 
-    var loader = OsmModule.of(provider, graph, osmInfoRepository, vehicleParkingRepository)
+    var osmModule = OsmModuleTestFactory.of(provider)
+      .withGraph(graph)
+      .builder()
       .withAreaVisibility(!skipVisibility)
       .build();
 
-    loader.buildGraph();
+    osmModule.buildGraph();
 
     RouteRequest request = RouteRequest.defaultValue();
 

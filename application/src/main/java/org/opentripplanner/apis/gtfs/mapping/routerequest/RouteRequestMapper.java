@@ -14,13 +14,13 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.opentripplanner.apis.gtfs.GraphQLRequestContext;
 import org.opentripplanner.apis.gtfs.generated.GraphQLTypes;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.framework.graphql.GraphQLUtils;
 import org.opentripplanner.model.GenericLocation;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.RouteRequestBuilder;
 import org.opentripplanner.routing.api.request.preference.ItineraryFilterPreferences;
 import org.opentripplanner.routing.api.request.preference.RoutingPreferencesBuilder;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.utils.time.DurationUtils;
 
 public class RouteRequestMapper {
@@ -70,7 +70,8 @@ public class RouteRequestMapper {
       setPreferences(preferences, request, isTripPlannedForNow, args, environment)
     );
 
-    request.withJourney(journeyRequestBuilder -> setModes(journeyRequestBuilder, args, environment)
+    request.withJourney(journeyRequestBuilder ->
+      setModes(journeyRequestBuilder, args, environment)
     );
 
     // sadly we need to use the raw collection because it is cast to the wrong type

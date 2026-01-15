@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -13,11 +12,10 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.locationtech.jts.geom.Envelope;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.flex.FlexIndex;
 import org.opentripplanner.model.FeedInfo;
-import org.opentripplanner.model.PathTransfer;
 import org.opentripplanner.model.StopTimesInPattern;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.model.TripTimeOnDate;
 import org.opentripplanner.model.calendar.CalendarService;
 import org.opentripplanner.model.transfer.TransferService;
@@ -33,19 +31,20 @@ import org.opentripplanner.transit.model.basic.Notice;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.framework.AbstractTransitEntity;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.GroupOfRoutes;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.organization.Agency;
 import org.opentripplanner.transit.model.organization.Operator;
 import org.opentripplanner.transit.model.site.AreaStop;
+import org.opentripplanner.transit.model.site.Entrance;
 import org.opentripplanner.transit.model.site.GroupStop;
 import org.opentripplanner.transit.model.site.MultiModalStation;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
 import org.opentripplanner.transit.model.site.StopLocationsGroup;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripIdAndServiceDate;
 import org.opentripplanner.transit.model.timetable.TripOnServiceDate;
@@ -76,7 +75,7 @@ public interface TransitService {
   /**
    * @return empty if the trip doesn't run on the date specified
    */
-  Optional<List<TripTimeOnDate>> getTripTimeOnDates(Trip trip, LocalDate serviceDate);
+  Optional<List<TripTimeOnDate>> findTripTimesOnDate(Trip trip, LocalDate serviceDate);
 
   Collection<String> listFeedIds();
 
@@ -146,6 +145,17 @@ public interface TransitService {
   @Nullable
   RegularStop getRegularStop(FeedScopedId id);
 
+  /**
+   * @return the transit entrance
+   * @throws Exception if not found
+   */
+  Entrance getEntrance(FeedScopedId id);
+
+  /**
+   * Gets the area stop with the given id and throws an exception if it was not found.
+   */
+  AreaStop getAreaStop(FeedScopedId id);
+
   Collection<StopLocation> listStopLocations();
 
   Collection<GroupStop> listGroupStops();
@@ -156,9 +166,20 @@ public interface TransitService {
    * Return all stops associated with the given id. If a Station, a MultiModalStation, or a
    * GroupOfStations matches the id, then all child stops are returned. If the id matches a regular
    * stop, area stop or stop group, then a list with one item is returned.
-   * An empty list is if nothing is found.
+   * An empty collection is returned if nothing is found.
    */
   Collection<StopLocation> findStopOrChildStops(FeedScopedId id);
+
+  /**
+   * Return all stop ids associated with the given id.
+   * <p>
+   * If a Station, a MultiModalStation, or a GroupOfStations matches the id, then all child stops
+   * are returned. If the id matches a regular stop, area stop or stop group, then a list with one
+   * item is returned.
+   */
+  default List<FeedScopedId> findStopOrChildIds(FeedScopedId id) {
+    return findStopOrChildStops(id).stream().map(StopLocation::getId).distinct().toList();
+  }
 
   Collection<StopLocationsGroup> listStopLocationGroups();
 
@@ -317,10 +338,6 @@ public interface TransitService {
 
   Collection<TripOnServiceDate> listTripsOnServiceDate();
 
-  Set<TransitMode> listTransitModes();
-
-  Collection<PathTransfer> findPathTransfers(StopLocation stop);
-
   RaptorTransitData getRaptorTransitData();
 
   RaptorTransitData getRealtimeRaptorTransitData();
@@ -333,9 +350,9 @@ public interface TransitService {
 
   FlexIndex getFlexIndex();
 
-  ZonedDateTime getTransitServiceEnds();
+  Instant getTransitServiceEnds();
 
-  ZonedDateTime getTransitServiceStarts();
+  Instant getTransitServiceStarts();
 
   TransferService getTransferService();
 
@@ -418,4 +435,10 @@ public interface TransitService {
    * Returns a list of {@link StopLocation}s that match the filtering defined in the request.
    */
   Collection<StopLocation> findStopLocations(FindStopLocationsRequest request);
+
+  /**
+   * Returns boolean indicating if there are scheduled services on or after the given date.
+   * This does not include real-time updates, so it only checks the scheduled service dates.
+   */
+  boolean hasScheduledServicesAfter(LocalDate date, StopLocation stop);
 }

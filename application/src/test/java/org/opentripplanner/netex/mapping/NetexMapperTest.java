@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssue;
 import org.opentripplanner.graph_builder.issue.service.DefaultDataImportIssueStore;
-import org.opentripplanner.model.impl.OtpTransitServiceBuilder;
+import org.opentripplanner.model.impl.TransitDataImportBuilder;
 import org.opentripplanner.netex.index.NetexEntityIndex;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.service.SiteRepository;
 import org.rutebanken.netex.model.Quay;
@@ -20,14 +20,15 @@ class NetexMapperTest {
   private static final String QUAY_ID = "quay-1";
   private static final String SSP_ID = "ssp-1";
   private static final String FEED_ID = "sta";
-  private static final RegularStop STOP = RegularStop.of(new FeedScopedId(FEED_ID, QUAY_ID), () -> 1
+  private static final RegularStop STOP = RegularStop.of(new FeedScopedId(FEED_ID, QUAY_ID), () ->
+    1
   ).build();
   private static final Deduplicator DEDUPLICATOR = new Deduplicator();
 
   @Test
   void sspWithAssignment() {
     var issueStore = new DefaultDataImportIssueStore();
-    var transitBuilder = new OtpTransitServiceBuilder(SiteRepository.of().build(), issueStore);
+    var transitBuilder = new TransitDataImportBuilder(SiteRepository.of().build(), issueStore);
     transitBuilder.siteRepository().withRegularStop(STOP);
 
     var netexMapper = new NetexMapper(
@@ -57,7 +58,7 @@ class NetexMapperTest {
     var issueStore = new DefaultDataImportIssueStore();
 
     var netexMapper = new NetexMapper(
-      new OtpTransitServiceBuilder(SiteRepository.of().build(), issueStore),
+      new TransitDataImportBuilder(SiteRepository.of().build(), issueStore),
       FEED_ID,
       DEDUPLICATOR,
       issueStore,

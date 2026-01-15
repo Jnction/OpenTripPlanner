@@ -21,7 +21,6 @@ import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.framework.geometry.SphericalDistanceLibrary;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.street.model.StreetConstants;
 import org.opentripplanner.street.model.edge.Area;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.street.model.edge.AreaEdgeBuilder;
@@ -68,6 +67,12 @@ public class VertexLinker {
     SphericalDistanceLibrary.metersToDegrees(0.001);
 
   /**
+   * Edge - area intersection often tests edges which start/end at area edge.
+   * Shrink egde slightly to avoid accuracy errors
+   */
+  private static final double AREA_INTERSECTION_SHRINKING = 0.0001;
+
+  /**
    * Minimal distance for considering two nodes the same
    */
   private static final double DUPLICATE_NODE_EPSILON_DEGREES_SQUARED =
@@ -90,16 +95,18 @@ public class VertexLinker {
 
   private final VertexFactory vertexFactory;
 
-  private boolean areaVisibility = true;
-  private int maxAreaNodes = StreetConstants.DEFAULT_MAX_AREA_NODES;
+  private final VisibilityMode visibilityMode;
+  private final int maxAreaNodes;
 
   /**
    * Construct a new VertexLinker. NOTE: Only one VertexLinker should be active on a graph at any
    * given time.
    */
-  public VertexLinker(Graph graph) {
-    this.graph = graph;
+  public VertexLinker(Graph graph, VisibilityMode visibilityMode, int maxAreaNodes) {
+    this.graph = Objects.requireNonNull(graph);
     this.vertexFactory = new VertexFactory(graph);
+    this.visibilityMode = Objects.requireNonNull(visibilityMode);
+    this.maxAreaNodes = maxAreaNodes;
   }
 
   public void linkVertexPermanently(
@@ -134,14 +141,6 @@ public class VertexLinker {
     if (edge.getGeometry() != null) {
       graph.removeEdge(edge, scope);
     }
-  }
-
-  public void setAreaVisibility(boolean areaVisibility) {
-    this.areaVisibility = areaVisibility;
-  }
-
-  public void setMaxAreaNodes(int maxAreaNodes) {
-    this.maxAreaNodes = maxAreaNodes;
   }
 
   /** projected distance from stop to edge, in latitude degrees */
@@ -205,7 +204,7 @@ public class VertexLinker {
         INITIAL_SEARCH_RADIUS_DEGREES,
         tempEdges
       );
-      if (streetVertices.isEmpty()) {
+      if (streetVertices.isEmpty() && scope == Scope.REQUEST) {
         streetVertices = linkToStreetEdges(
           vertex,
           traverseModes,
@@ -277,8 +276,8 @@ public class VertexLinker {
     // street edges traversable by at least one of the given modes and are still present in the
     // graph. Calculate a distance to each of those edges, and keep only the ones within the search
     // radius.
-    List<DistanceTo<StreetEdge>> candidateEdges = graph
-      .findEdges(env, scope)
+    var candidateEdges = graph.findEdges(env, scope);
+    List<DistanceTo<StreetEdge>> candidateDistanceToEdges = candidateEdges
       .stream()
       .filter(StreetEdge.class::isInstance)
       .map(StreetEdge.class::cast)
@@ -293,7 +292,7 @@ public class VertexLinker {
       direction,
       scope,
       tempEdges,
-      candidateEdges,
+      candidateDistanceToEdges,
       xscale
     );
   }
@@ -393,7 +392,10 @@ public class VertexLinker {
     IntersectionVertex split = findSplitVertex(vertex, edge, xScale, scope, direction, tempEdges);
 
     // check if vertex is inside an area
-    if (this.areaVisibility && edge instanceof AreaEdge aEdge) {
+    if (
+      this.visibilityMode == VisibilityMode.COMPUTE_AREA_VISIBILITY_LINES &&
+      edge instanceof AreaEdge aEdge
+    ) {
       AreaGroup ag = aEdge.getArea();
       // is area already linked ?
       start = linkedAreas.get(ag);
@@ -628,7 +630,8 @@ public class VertexLinker {
       if (appliedCount < totalCount) {
         visibilityVertices = visibilityVertices
           .stream()
-          .sorted((v1, v2) -> Double.compare(distSquared(v1, newVertex), distSquared(v2, newVertex))
+          .sorted((v1, v2) ->
+            Double.compare(distSquared(v1, newVertex), distSquared(v2, newVertex))
           )
           .limit(appliedCount)
           .collect(Collectors.toSet());
@@ -648,7 +651,8 @@ public class VertexLinker {
           .visibilityVertices()
           .stream()
           .filter(v -> distSquared(v, newVertex) >= DUPLICATE_NODE_EPSILON_DEGREES_SQUARED)
-          .sorted((v1, v2) -> Double.compare(distSquared(v1, newVertex), distSquared(v2, newVertex))
+          .sorted((v1, v2) ->
+            Double.compare(distSquared(v1, newVertex), distSquared(v2, newVertex))
           )
           .findFirst();
         if (!nearest.isPresent()) {
@@ -669,7 +673,7 @@ public class VertexLinker {
     return true;
   }
 
-  private static Set<TraverseMode> getNoThruModes(Collection<Edge> edges) {
+  public static Set<TraverseMode> getNoThruModes(Collection<Edge> edges) {
     var modes = new HashSet<>(NO_THRU_MODES);
     for (Edge e : edges) {
       if (e instanceof StreetEdge se) {
@@ -681,6 +685,20 @@ public class VertexLinker {
       }
     }
     return modes;
+  }
+
+  /**
+   * Create a slightly shortened line between two coordinates.
+   * This is used when testing if a polygon contains a line between two
+   * of its boundary points. Floating point math cannot represent boundaries
+   * precisely, so we need to shrink the line to ensure robust testing.
+   */
+  private LineString createShrunkLine(Coordinate from, Coordinate to) {
+    var dx = AREA_INTERSECTION_SHRINKING * (to.x - from.x);
+    var dy = AREA_INTERSECTION_SHRINKING * (to.y - from.y);
+    var c1 = new Coordinate(from.x + dx, from.y + dy);
+    var c2 = new Coordinate(to.x - dx, to.y - dy);
+    return GEOMETRY_FACTORY.createLineString(new Coordinate[] { c1, c2 });
   }
 
   /* Check if an edge candiate does not cross the area boundary and add it if it does not */
@@ -700,13 +718,13 @@ public class VertexLinker {
     if (!force && distSquared(from, to) < DUPLICATE_NODE_EPSILON_DEGREES_SQUARED) {
       return false;
     }
-    LineString line = GEOMETRY_FACTORY.createLineString(
-      new Coordinate[] { from.getCoordinate(), to.getCoordinate() }
-    );
+    var c1 = from.getCoordinate();
+    var c2 = to.getCoordinate();
     // ensure that new edge does not leave the bounds of the area or hit any holes
-    if (!force && !ag.getGeometry().contains(line)) {
+    if (!force && !ag.getGeometry().contains(createShrunkLine(c1, c2))) {
       return false;
     }
+    LineString line = GEOMETRY_FACTORY.createLineString(new Coordinate[] { c1, c2 });
     // add connecting edges
     createEdges(line, from, to, ag, scope, tempEdges);
 
@@ -745,8 +763,9 @@ public class VertexLinker {
     double length = SphericalDistanceLibrary.distance(to.getCoordinate(), from.getCoordinate());
     // apply consistent NoThru restrictions
     // if all joining edges are nothru, then the new edge should be as well
+    // 'from' is the new vertex to be connected, so check the 'to' vertex connections
     var incomingNoThruModes = getNoThruModes(to.getIncoming());
-    var outgoingNoThruModes = getNoThruModes(to.getIncoming());
+    var outgoingNoThruModes = getNoThruModes(to.getOutgoing());
     AreaEdgeBuilder areaEdgeBuilder = new AreaEdgeBuilder()
       .withFromVertex(from)
       .withToVertex(to)
@@ -754,6 +773,8 @@ public class VertexLinker {
       .withName(hit.getName())
       .withMeterLength(length)
       .withPermission(hit.getPermission())
+      .withBicycleSafetyFactor(hit.getBicycleSafety())
+      .withWalkSafetyFactor(hit.getWalkSafety())
       .withBack(false)
       .withArea(ag);
     for (TraverseMode tm : outgoingNoThruModes) {
@@ -771,6 +792,8 @@ public class VertexLinker {
       .withName(hit.getName())
       .withMeterLength(length)
       .withPermission(hit.getPermission())
+      .withBicycleSafetyFactor(hit.getBicycleSafety())
+      .withWalkSafetyFactor(hit.getWalkSafety())
       .withBack(true)
       .withArea(ag);
     for (TraverseMode tm : incomingNoThruModes) {

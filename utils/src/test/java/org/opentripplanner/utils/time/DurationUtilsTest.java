@@ -30,6 +30,7 @@ public class DurationUtilsTest {
   private final Duration D5m = Duration.ofMinutes(5);
   private final Duration D9s = Duration.ofSeconds(9);
   private final Duration D3d5m9s = D3d.plus(D5m).plus(D9s);
+  private final Duration D2h123ms = D2h.plusMillis(123);
   private final int I9h31m = durationSec(9, 31, 0);
   private final int I9h36m55s = durationSec(9, 36, 55);
   private final int I13h33m57s = durationSec(13, 33, 57);
@@ -53,6 +54,15 @@ public class DurationUtilsTest {
 
     int notSet = 999_999;
     assertEquals("", DurationUtils.durationToStr(notSet, notSet));
+  }
+
+  @Test
+  public void durationToStrMillisescond() {
+    assertEquals("0s", DurationUtils.durationToStrMillisescond(0));
+    assertEquals("1ms", DurationUtils.durationToStrMillisescond(1));
+    assertEquals("1s1ms", DurationUtils.durationToStrMillisescond(1001));
+    assertEquals("-1ms", DurationUtils.durationToStrMillisescond(-1));
+    assertEquals("-1s123ms", DurationUtils.durationToStrMillisescond(-1123));
   }
 
   @Test
@@ -129,6 +139,21 @@ public class DurationUtilsTest {
   }
 
   @Test
+  public void testRequireNonNegativeWithSubject() {
+    // positive value is legal
+    assertEquals(Duration.ofSeconds(1), requireNonNegative(Duration.ofSeconds(1), "test"));
+
+    // null is not supported
+    assertThrows(NullPointerException.class, () -> requireNonNegative(null, "test"));
+
+    // negative value is not supported
+    var ex = assertThrows(IllegalArgumentException.class, () ->
+      requireNonNegative(Duration.ofSeconds(-1), "test")
+    );
+    assertEquals("Duration test can't be negative: PT-1S", ex.getMessage());
+  }
+
+  @Test
   public void testRequireNonNegativeAndMaxLimit() {
     // Firs make sure legal values are accepted
     requireNonNegative(Duration.ZERO, D2h, "test");
@@ -138,12 +163,14 @@ public class DurationUtilsTest {
     assertThrows(NullPointerException.class, () -> requireNonNegative(null, D2h, "test"));
 
     // Test max limit
-    var ex = assertThrows(IllegalArgumentException.class, () -> requireNonNegative(D2h, D2h, "test")
+    var ex = assertThrows(IllegalArgumentException.class, () ->
+      requireNonNegative(D2h, D2h, "test")
     );
     assertEquals("Duration test can't be longer or equals too 2h: PT2H", ex.getMessage());
 
     // Test non-negative
-    ex = assertThrows(IllegalArgumentException.class, () -> requireNonNegative(NEG_1s, D2h, "test")
+    ex = assertThrows(IllegalArgumentException.class, () ->
+      requireNonNegative(NEG_1s, D2h, "test")
     );
     assertEquals("Duration test can't be negative: PT-1S", ex.getMessage());
   }

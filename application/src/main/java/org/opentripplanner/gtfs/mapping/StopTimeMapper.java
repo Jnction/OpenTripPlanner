@@ -7,7 +7,7 @@ import java.util.Objects;
 import org.onebusaway.gtfs.model.Location;
 import org.onebusaway.gtfs.model.LocationGroup;
 import org.onebusaway.gtfs.model.Stop;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.utils.collection.MapUtils;
 
@@ -88,7 +88,6 @@ class StopTimeMapper {
     lhs.setTimepoint(rhs.getTimepoint());
     lhs.setStopSequence(rhs.getStopSequence());
     lhs.setStopHeadsign(stopHeadsign);
-    lhs.setRouteShortName(rhs.getRouteShortName());
     lhs.setPickupType(PickDropMapper.map(rhs.getPickupType()));
     lhs.setDropOffType(PickDropMapper.map(rhs.getDropOffType()));
     lhs.setShapeDistTraveled(rhs.getShapeDistTraveled());

@@ -12,6 +12,7 @@ import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLScalarType;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.TransmodelGraphQLPlanner;
 import org.opentripplanner.apis.transmodel.model.DefaultRouteRequestType;
 import org.opentripplanner.apis.transmodel.model.EnumTypes;
@@ -36,7 +37,13 @@ public class TripQuery {
     visited in the order they are listed.
     """;
 
-  public static GraphQLFieldDefinition create(
+  private final TransmodelGraphQLPlanner graphQLPlanner;
+
+  public TripQuery(FeedScopedIdMapper idMapper) {
+    this.graphQLPlanner = new TransmodelGraphQLPlanner(idMapper);
+  }
+
+  public GraphQLFieldDefinition create(
     DefaultRouteRequestType routing,
     TransitTuningParameters transitTuningParameters,
     GraphQLOutputType tripType,
@@ -371,7 +378,7 @@ public class TripQuery {
           .name("bikeSpeed")
           .description("The maximum bike speed along streets, in meters per second")
           .type(Scalars.GraphQLFloat)
-          .defaultValue(preferences.bike().speed())
+          .deprecate("Use bikePreferences.speed instead")
           .build()
       )
       .argument(
@@ -386,7 +393,7 @@ public class TripQuery {
             )
           )
           .type(EnumTypes.BICYCLE_OPTIMISATION_METHOD)
-          .defaultValue(preferences.bike().optimizeType())
+          .deprecate("Use bikePreferences.optimisationMethod instead")
           .build()
       )
       .argument(
@@ -403,6 +410,30 @@ public class TripQuery {
             "', use these values to tell the routing engine how important each of the factors is compared to the others. All values should add up to 1."
           )
           .type(TriangleFactorsInputType.INPUT_TYPE)
+          .deprecate(
+            "Use bikePreferences.triangleFactors or scooterPreferences.triangleFactors instead"
+          )
+          .build()
+      )
+      .argument(
+        GraphQLArgument.newArgument()
+          .name("bikePreferences")
+          .description(
+            "Bicycle routing preferences. If not provided, default values from the server " +
+            "configuration will be used. Deprecated top-level bike fields (bikeSpeed, " +
+            "bicycleOptimisationMethod, triangleFactors) take precedence if explicitly provided."
+          )
+          .type(BikePreferencesInputType.create(preferences.bike()))
+          .build()
+      )
+      .argument(
+        GraphQLArgument.newArgument()
+          .name("scooterPreferences")
+          .description(
+            "Scooter routing preferences. If not provided, default values from the server " +
+            "configuration will be used."
+          )
+          .type(ScooterPreferencesInputType.create(preferences.scooter()))
           .build()
       )
       .argument(
@@ -584,7 +615,7 @@ public class TripQuery {
           )
           .build()
       )
-      .dataFetcher(environment -> new TransmodelGraphQLPlanner().plan(environment))
+      .dataFetcher(graphQLPlanner::plan)
       .build();
   }
 

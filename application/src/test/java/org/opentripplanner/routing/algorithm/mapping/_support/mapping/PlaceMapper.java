@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.opentripplanner.framework.i18n.I18NStringMapper;
+import org.opentripplanner.core.model.i18n.I18NStringMapper;
 import org.opentripplanner.model.plan.Place;
 import org.opentripplanner.model.plan.VehicleParkingWithEntrance;
 import org.opentripplanner.model.plan.leg.StopArrival;
@@ -84,9 +84,9 @@ class PlaceMapper {
     api.stopSequence = gtfsStopSequence;
     api.vertexType = VertexTypeMapper.mapVertexType(domain.vertexType);
     if (domain.vehicleRentalPlace != null) {
-      api.bikeShareId = domain.vehicleRentalPlace.getStationId();
+      api.bikeShareId = domain.vehicleRentalPlace.stationId();
       // for backwards-compatibility with the IBI frontend this always returns a list of a single item
-      api.networks = List.of(domain.vehicleRentalPlace.getNetwork());
+      api.networks = List.of(domain.vehicleRentalPlace.network());
     }
     if (domain.vehicleParkingWithEntrance != null) {
       api.vehicleParking = mapVehicleParking(domain.vehicleParkingWithEntrance);

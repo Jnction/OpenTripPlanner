@@ -4,20 +4,24 @@ import static java.time.Duration.ZERO;
 import static java.time.Duration.ofMinutes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.opentripplanner.model.plan.TestItineraryBuilder.newItinerary;
 import static org.opentripplanner.model.plan.TestItineraryBuilder.newTime;
 
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.framework.model.Cost;
 import org.opentripplanner.framework.model.TimeAndCost;
 import org.opentripplanner.model.SystemNotice;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
 import org.opentripplanner.transit.model.basic.TransitMode;
+import org.opentripplanner.transit.model.timetable.ScheduledTripTimes;
 
 public class ItineraryTest implements PlanTestConstants {
 
@@ -189,30 +193,61 @@ public class ItineraryTest implements PlanTestConstants {
   }
 
   @Test
-  void legIndex() {
-    var itinerary = newItinerary(A, T11_00)
-      .walk(D2m, B)
-      .bus(55, T11_04, T11_14, C)
-      .bus(21, T11_16, T11_20, D)
-      .walk(D3m, E)
-      .rail(20, T11_30, T11_50, F)
-      .walk(D1m, G)
-      .build();
-
-    var leg = itinerary.legs().get(0);
-    var oneHourLater = leg.withTimeShift(Duration.ofHours(1));
-
-    assertNotSame(leg, oneHourLater);
-
-    assertEquals(0, itinerary.findLegIndex(leg));
-    assertEquals(0, itinerary.findLegIndex(oneHourLater));
-  }
-
-  @Test
   void hasSystemTag() {
     var subject = newItinerary(A).bus(1, T11_04, T11_14, B).build();
     subject.flagForDeletion(new SystemNotice("MY-TAG", "Text"));
     assertTrue(subject.hasSystemNoticeTag("MY-TAG"));
+  }
+
+  @Test
+  void normalization() {
+    var zoneId = ZoneId.of("Europe/Oslo");
+    var model = TimetableRepositoryForTest.of();
+    var stopA = model.stop("A").build();
+    var stopB = model.stop("B").build();
+    var stopPattern = TimetableRepositoryForTest.stopPattern(stopA, stopB);
+    var trip = TimetableRepositoryForTest.trip("trip1").build();
+    var tripPattern = TimetableRepositoryForTest.tripPattern("p", trip.getRoute())
+      .withStopPattern(stopPattern)
+      .build();
+
+    var tripTimes = ScheduledTripTimes.of().withArrivalTimes("13:00 14:00").withTrip(trip).build();
+    var startTime = ZonedDateTime.of(2025, 10, 20, 13, 0, 0, 499_000_000, zoneId);
+    var endTime = ZonedDateTime.of(2025, 10, 20, 13, 59, 59, 500_000_000, zoneId);
+    var c = Cost.costOfCentiSeconds(120074);
+
+    var subject = Itinerary.ofDirect(
+      List.of(
+        ScheduledTransitLeg.of()
+          .withStartTime(startTime)
+          .withEndTime(endTime)
+          .withTripTimes(tripTimes)
+          .withTripPattern(tripPattern)
+          .withBoardStopIndexInPattern(0)
+          .withAlightStopIndexInPattern(1)
+          .withDistanceMeters(17.5)
+          .withServiceDate(startTime.toLocalDate())
+          .withZoneId(zoneId)
+          .build()
+      )
+    )
+      .withGeneralizedCost(c)
+      .withAccessPenalty(new TimeAndCost(Duration.ofMillis(1_345), Cost.costOfCentiSeconds(1000)))
+      .build();
+
+    // Round 12_074 to
+    assertEquals(120_100, subject.generalizedCostIncludingPenalty().toCentiSeconds());
+
+    // Normaized with 10s access-penalty
+    assertEquals(1191, subject.generalizedCost());
+
+    // Normaized start-time
+    assertEquals("2025-10-20T13:00+02:00[Europe/Oslo]", subject.startTime().toString());
+    assertEquals("2025-10-20T11:00:00Z", subject.startTimeAsInstant().toString());
+
+    // Normaized end-time
+    assertEquals("2025-10-20T14:00+02:00[Europe/Oslo]", subject.endTime().toString());
+    assertEquals("2025-10-20T12:00:00Z", subject.endTimeAsInstant().toString());
   }
 
   @Nested

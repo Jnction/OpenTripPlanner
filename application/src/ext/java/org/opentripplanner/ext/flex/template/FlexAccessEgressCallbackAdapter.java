@@ -1,10 +1,10 @@
 package org.opentripplanner.ext.flex.template;
 
 import java.util.Collection;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.flex.trip.FlexTrip;
 import org.opentripplanner.model.PathTransfer;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.site.StopLocation;
 
 /**
@@ -18,7 +18,7 @@ import org.opentripplanner.transit.model.site.StopLocation;
  */
 public interface FlexAccessEgressCallbackAdapter {
   /** Adapter, look at implementing service for documentation.  */
-  TransitStopVertex getStopVertexForStopId(FeedScopedId id);
+  TransitStopVertex getStopVertex(FeedScopedId id);
 
   /** Adapter, look at implementing service for documentation.  */
   Collection<PathTransfer> getTransfersFromStop(StopLocation stop);

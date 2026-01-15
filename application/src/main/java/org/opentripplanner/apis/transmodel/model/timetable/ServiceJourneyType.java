@@ -15,12 +15,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.locationtech.jts.geom.LineString;
+import org.opentripplanner.api.model.geometry.EncodedPolyline;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.model.EnumTypes;
 import org.opentripplanner.apis.transmodel.model.TransmodelTransportSubmode;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelDirectives;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelScalars;
 import org.opentripplanner.apis.transmodel.support.GqlUtil;
-import org.opentripplanner.framework.geometry.EncodedPolyline;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.StopLocation;
 import org.opentripplanner.transit.model.timetable.Trip;
@@ -31,7 +32,13 @@ public class ServiceJourneyType {
   private static final String NAME = "ServiceJourney";
   public static final GraphQLTypeReference REF = new GraphQLTypeReference(NAME);
 
-  public static GraphQLObjectType create(
+  private final FeedScopedIdMapper idMapper;
+
+  public ServiceJourneyType(FeedScopedIdMapper idMapper) {
+    this.idMapper = idMapper;
+  }
+
+  public GraphQLObjectType create(
     GraphQLOutputType bookingArrangementType,
     GraphQLOutputType linkGeometryType,
     GraphQLOutputType operatorType,
@@ -46,7 +53,7 @@ public class ServiceJourneyType {
     return GraphQLObjectType.newObject()
       .name(NAME)
       .description("A planned vehicle journey with passengers.")
-      .field(GqlUtil.newTransitIdField())
+      .field(GqlUtil.newTransitIdField(idMapper))
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
           .name("line")
@@ -240,7 +247,7 @@ public class ServiceJourneyType {
               .map(LocalDate.class::cast)
               .orElse(LocalDate.now(GqlUtil.getTransitService(environment).getTimeZone()));
             return GqlUtil.getTransitService(environment)
-              .getTripTimeOnDates(trip(environment), serviceDate)
+              .findTripTimesOnDate(trip(environment), serviceDate)
               .orElse(List.of());
           })
           .build()
@@ -265,7 +272,7 @@ public class ServiceJourneyType {
               return null;
             }
 
-            return EncodedPolyline.encode(geometry);
+            return EncodedPolyline.of(geometry);
           })
           .build()
       )

@@ -1,16 +1,18 @@
 package org.opentripplanner.service.vehiclerental.model;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import javax.annotation.Nullable;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.street.model.RentalFormFactor;
 import org.opentripplanner.transit.model.basic.Distance;
 import org.opentripplanner.transit.model.basic.Ratio;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 public class TestFreeFloatingRentalVehicleBuilder {
 
@@ -19,6 +21,10 @@ public class TestFreeFloatingRentalVehicleBuilder {
   public static final double DEFAULT_LONGITUDE = 19.01;
   public static final double DEFAULT_CURRENT_FUEL_PERCENT = 0.5;
   public static final double DEFAULT_CURRENT_RANGE_METERS = 5500.7;
+  private static final Instant DEFAULT_AVAILABLE_UNTIL = OffsetDateTime.of(
+    LocalDateTime.of(LocalDate.of(2025, 5, 14), LocalTime.MIN),
+    ZoneOffset.UTC
+  ).toInstant();
 
   private double latitude = DEFAULT_LATITUDE;
   private double longitude = DEFAULT_LONGITUDE;
@@ -26,10 +32,7 @@ public class TestFreeFloatingRentalVehicleBuilder {
   private Double currentRangeMeters = DEFAULT_CURRENT_RANGE_METERS;
   private VehicleRentalSystem system = null;
   private String network = NETWORK_1;
-  private static final OffsetDateTime DEFAULT_AVAILABLE_UNTIL = OffsetDateTime.of(
-    LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.MIN),
-    ZoneOffset.UTC
-  );
+  private Instant availableUntil = DEFAULT_AVAILABLE_UNTIL;
 
   private RentalVehicleType vehicleType = RentalVehicleType.getDefaultType(NETWORK_1);
 
@@ -69,23 +72,12 @@ public class TestFreeFloatingRentalVehicleBuilder {
   }
 
   public TestFreeFloatingRentalVehicleBuilder withSystem(String id, String url) {
-    this.system = new VehicleRentalSystem(
-      id,
-      null,
-      null,
-      null,
-      null,
-      url,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    );
+    this.system = new VehicleRentalSystem(id, null, null, null, url);
+    return this;
+  }
+
+  public TestFreeFloatingRentalVehicleBuilder withAvailableUntil(Instant availableUntil) {
+    this.availableUntil = availableUntil;
     return this;
   }
 
@@ -102,30 +94,34 @@ public class TestFreeFloatingRentalVehicleBuilder {
   }
 
   public VehicleRentalVehicle build() {
-    var vehicle = new VehicleRentalVehicle();
-    var stationName = "free-floating-" + vehicleType.formFactor.name().toLowerCase();
-    vehicle.id = new FeedScopedId(this.network, stationName);
-    vehicle.name = new NonLocalizedString(stationName);
-    vehicle.latitude = latitude;
-    vehicle.longitude = longitude;
-    vehicle.vehicleType = vehicleType;
-    vehicle.system = system;
-    vehicle.fuel = new RentalVehicleFuel(
-      currentFuelPercent,
-      Distance.ofMetersBoxed(currentRangeMeters, ignore -> {}).orElse(null)
-    );
-    vehicle.availableUntil = DEFAULT_AVAILABLE_UNTIL;
-    return vehicle;
+    var stationName = "free-floating-" + vehicleType.formFactor().name().toLowerCase();
+    return VehicleRentalVehicle.of()
+      .withId(new FeedScopedId(this.network, stationName))
+      .withName(new NonLocalizedString(stationName))
+      .withLatitude(latitude)
+      .withLongitude(longitude)
+      .withVehicleType(vehicleType)
+      .withSystem(system)
+      .withFuel(
+        RentalVehicleFuel.of()
+          .withPercent(currentFuelPercent)
+          .withRange(Distance.ofMetersBoxed(currentRangeMeters, ignore -> {}).orElse(null))
+          .build()
+      )
+      .withAvailableUntil(availableUntil)
+      .build();
   }
 
   private TestFreeFloatingRentalVehicleBuilder buildVehicleType(RentalFormFactor rentalFormFactor) {
-    this.vehicleType = new RentalVehicleType(
-      new FeedScopedId(TestFreeFloatingRentalVehicleBuilder.NETWORK_1, rentalFormFactor.name()),
-      rentalFormFactor.name(),
-      rentalFormFactor,
-      RentalVehicleType.PropulsionType.ELECTRIC,
-      100000d
-    );
+    this.vehicleType = RentalVehicleType.of()
+      .withId(
+        new FeedScopedId(TestFreeFloatingRentalVehicleBuilder.NETWORK_1, rentalFormFactor.name())
+      )
+      .withName(I18NString.of(rentalFormFactor.name()))
+      .withFormFactor(rentalFormFactor)
+      .withPropulsionType(RentalVehicleType.PropulsionType.ELECTRIC)
+      .withMaxRangeMeters(100000d)
+      .build();
     return this;
   }
 }

@@ -3,7 +3,7 @@ package org.opentripplanner.ext.flex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.opentripplanner.ext.fares.impl.FareModelForTest.FARE_PRODUCT_USE;
+import static org.opentripplanner.ext.fares.model.FareModelForTest.ANY_FARE_OFFER;
 import static org.opentripplanner.transit.model._data.TimetableRepositoryForTest.id;
 
 import java.time.Duration;
@@ -12,10 +12,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.ext.flex.edgetype.FlexTripEdge;
 import org.opentripplanner.ext.flex.flexpathcalculator.FlexPath;
 import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.i18n.I18NString;
 import org.opentripplanner.model.plan.Emission;
 import org.opentripplanner.model.plan.PlanTestConstants;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
@@ -49,7 +49,7 @@ class FlexibleTransitLegTest implements PlanTestConstants {
       .withEndTime(END_TIME)
       .withFlexTripEdge(EDGE)
       .build();
-    assertNotNull(leg.fareProducts());
+    assertNotNull(leg.fareOffers());
     assertNotNull(leg.listTransitAlerts());
   }
 
@@ -58,10 +58,12 @@ class FlexibleTransitLegTest implements PlanTestConstants {
     var expectedType = RuntimeException.class;
     assertThrows(expectedType, () -> new FlexibleTransitLegBuilder().withStartTime(null).build());
     assertThrows(expectedType, () -> new FlexibleTransitLegBuilder().withEndTime(null).build());
-    assertThrows(expectedType, () -> new FlexibleTransitLegBuilder().withFlexTripEdge(null).build()
+    assertThrows(expectedType, () ->
+      new FlexibleTransitLegBuilder().withFlexTripEdge(null).build()
     );
     assertThrows(expectedType, () -> new FlexibleTransitLegBuilder().withAlerts(null).build());
-    assertThrows(expectedType, () -> new FlexibleTransitLegBuilder().withFareProducts(null).build()
+    assertThrows(expectedType, () ->
+      new FlexibleTransitLegBuilder().withFareProducts(null).build()
     );
   }
 
@@ -71,7 +73,7 @@ class FlexibleTransitLegTest implements PlanTestConstants {
       .withStartTime(START_TIME)
       .withEndTime(END_TIME)
       .withFlexTripEdge(EDGE)
-      .withFareProducts(List.of(FARE_PRODUCT_USE))
+      .withFareProducts(List.of(ANY_FARE_OFFER))
       .withAlerts(Set.of(ALERT))
       .withEmissionPerPerson(EMISSION)
       .build();
@@ -82,7 +84,7 @@ class FlexibleTransitLegTest implements PlanTestConstants {
     assertEquals(START_TIME, copy.startTime());
     assertEquals(END_TIME, copy.endTime());
     assertEquals(Set.of(ALERT), copy.listTransitAlerts());
-    assertEquals(List.of(FARE_PRODUCT_USE), copy.fareProducts());
+    assertEquals(List.of(ANY_FARE_OFFER), copy.fareOffers());
     assertEquals(EMISSION, copy.emissionPerPerson());
   }
 
@@ -92,7 +94,7 @@ class FlexibleTransitLegTest implements PlanTestConstants {
       .withStartTime(START_TIME)
       .withEndTime(END_TIME)
       .withFlexTripEdge(EDGE)
-      .withFareProducts(List.of(FARE_PRODUCT_USE))
+      .withFareProducts(List.of(ANY_FARE_OFFER))
       .withAlerts(Set.of(ALERT))
       .build();
 
@@ -100,7 +102,7 @@ class FlexibleTransitLegTest implements PlanTestConstants {
 
     assertEquals(START_TIME.plus(TIME_SHIFT), shifted.startTime());
     assertEquals(END_TIME.plus(TIME_SHIFT), shifted.endTime());
-    assertEquals(List.of(FARE_PRODUCT_USE), shifted.fareProducts());
+    assertEquals(List.of(ANY_FARE_OFFER), shifted.fareOffers());
     assertEquals(Set.of(ALERT), shifted.listTransitAlerts());
   }
 }

@@ -3,7 +3,6 @@ package org.opentripplanner.street.model.edge;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.opentripplanner.street.model.StreetTraversalPermission.ALL;
@@ -11,21 +10,23 @@ import static org.opentripplanner.street.model._data.StreetModelForTest.intersec
 import static org.opentripplanner.street.model._data.StreetModelForTest.streetEdge;
 import static org.opentripplanner.street.model._data.StreetModelForTest.streetEdgeBuilder;
 
-import java.time.Instant;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.framework.model.Cost;
 import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.core.VehicleRoutingOptimizeType;
 import org.opentripplanner.routing.util.ElevationUtils;
 import org.opentripplanner.routing.util.SlopeCosts;
 import org.opentripplanner.street.model.StreetTraversalPermission;
-import org.opentripplanner.street.model.TurnRestriction;
 import org.opentripplanner.street.model._data.StreetModelForTest;
 import org.opentripplanner.street.model.vertex.IntersectionVertex;
 import org.opentripplanner.street.model.vertex.LabelledIntersectionVertex;
@@ -35,30 +36,28 @@ import org.opentripplanner.street.search.TraverseModeSet;
 import org.opentripplanner.street.search.request.StreetSearchRequest;
 import org.opentripplanner.street.search.request.StreetSearchRequestBuilder;
 import org.opentripplanner.street.search.state.State;
-import org.opentripplanner.street.search.state.StateData;
 
 public class StreetEdgeTest {
 
   private static final double DELTA = 0.00001;
   private static final double SPEED = 6.0;
 
-  private IntersectionVertex v0, v1, v2;
+  private IntersectionVertex v0;
+  private IntersectionVertex v1;
+  private IntersectionVertex v2;
   private StreetSearchRequest proto;
 
   @BeforeEach
   void before() {
-    v0 = intersectionVertex("maple_0th", 0.0, 0.0); // label, X, Y
+    v0 = intersectionVertex("maple_0th", 0.0, 0.0);
     v1 = intersectionVertex("maple_1st", 2.0, 2.0);
     v2 = intersectionVertex("maple_2nd", 2.0, 1.0);
 
     this.proto = StreetSearchRequest.of()
-      .withPreferences(references ->
-        references
-          .withStreet(s -> s.withTurnReluctance(1.0))
-          .withWalk(it -> it.withSpeed(1.0).withReluctance(1.0).withStairsReluctance(1.0))
-          .withBike(it -> it.withSpeed(5.0f).withReluctance(1.0).withWalking(w -> w.withSpeed(0.8)))
-          .withCar(c -> c.withReluctance(1.0))
-      )
+      .withTurnReluctance(1.0)
+      .withWalk(it -> it.withSpeed(1.0).withReluctance(1.0).withStairsReluctance(1.0))
+      .withBike(it -> it.withSpeed(5.0f).withReluctance(1.0).withWalking(w -> w.withSpeed(0.8)))
+      .withCar(c -> c.withReluctance(1.0))
       .build();
   }
 
@@ -68,15 +67,15 @@ public class StreetEdgeTest {
     StreetEdge e1 = streetEdge(v1, v2, 1.0, ALL);
 
     // Edge has same first and last angle.
-    assertEquals(90, e1.getInAngle());
-    assertEquals(90, e1.getOutAngle());
+    assertEquals(-90, e1.getInAngle());
+    assertEquals(-90, e1.getOutAngle());
 
     // 2 new ones
     StreetVertex u = intersectionVertex("test1", 1.0, 2.0);
     StreetVertex v = intersectionVertex("test2", 2.0, 2.0);
 
-    // Second edge, heading straight North
-    StreetEdge e2 = streetEdge(u, v, 1.0, ALL);
+    // Second edge, heading straight South
+    StreetEdge e2 = streetEdge(v, u, 1.0, ALL);
 
     // 180 degrees could be expressed as 180 or -180. Our implementation happens to use -180.
     assertEquals(180, Math.abs(e2.getInAngle()));
@@ -95,7 +94,7 @@ public class StreetEdgeTest {
     State s1 = e1.traverse(s0)[0];
 
     // Should use the speed on the edge.
-    double expectedWeight = e1.getDistanceMeters() / options.preferences().walk().speed();
+    double expectedWeight = e1.getDistanceMeters() / options.walk().speed();
     long expectedDuration = (long) Math.ceil(expectedWeight);
     assertEquals(expectedDuration, s1.getElapsedTimeSeconds(), 0.0);
     assertEquals(expectedWeight, s1.getWeight(), 0.0);
@@ -151,7 +150,7 @@ public class StreetEdgeTest {
     );
 
     StreetSearchRequestBuilder forward = StreetSearchRequest.copyOf(proto);
-    forward.withPreferences(p -> p.withBike(it -> it.withSpeed(3.0f)));
+    forward.withBike(it -> it.withSpeed(3.0f));
 
     State s0 = new State(v0, forward.withMode(StreetMode.BIKE).build());
     State s1 = e0.traverse(s0)[0];
@@ -159,7 +158,7 @@ public class StreetEdgeTest {
 
     StreetSearchRequestBuilder reverse = StreetSearchRequest.copyOf(proto);
     reverse.withArriveBy(true);
-    reverse.withPreferences(p -> p.withBike(it -> it.withSpeed(3.0f)));
+    reverse.withBike(it -> it.withSpeed(3.0f));
 
     State s3 = new State(v2, reverse.withMode(StreetMode.BIKE).build());
     State s4 = e1.traverse(s3)[0];
@@ -205,6 +204,25 @@ public class StreetEdgeTest {
   }
 
   /**
+   * Test that a turn will not add walk distance.
+   */
+  @Test
+  void testTraverseWalkDistance() {
+    var vWithTrafficLight = new LabelledIntersectionVertex("maple_1st", 2.0, 2.0, false, true);
+    StreetEdge e0 = streetEdge(v0, vWithTrafficLight, 50.0, StreetTraversalPermission.PEDESTRIAN);
+    StreetEdge e1 = streetEdge(vWithTrafficLight, v2, 50.0, StreetTraversalPermission.PEDESTRIAN);
+
+    StreetSearchRequestBuilder forward = StreetSearchRequest.copyOf(proto);
+    forward.withBike(it -> it.withSpeed(3.0f));
+
+    State s0 = new State(v0, forward.withMode(StreetMode.WALK).build());
+    State s1 = e0.traverse(s0)[0];
+    State s2 = e1.traverse(s1)[0];
+
+    assertEquals(100.00, s2.getWalkDistance());
+  }
+
+  /**
    * Test the bike switching penalty feature, both its cost penalty and its separate time penalty.
    */
   @Test
@@ -214,8 +232,10 @@ public class StreetEdgeTest {
     StreetEdge e2 = streetEdge(v2, v0, 0.0, StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE);
 
     StreetSearchRequestBuilder noPenalty = StreetSearchRequest.copyOf(proto);
-    noPenalty.withPreferences(p ->
-      p.withBike(it -> it.withWalking(w -> w.withMountDismountTime(0).withMountDismountCost(0)))
+    noPenalty.withBike(it ->
+      it.withWalking(w -> {
+        w.withMountDismountTime(Duration.ofSeconds(0)).withMountDismountTime(Duration.ofSeconds(0));
+      })
     );
 
     State s0 = new State(v0, noPenalty.withMode(StreetMode.BIKE).build());
@@ -224,8 +244,12 @@ public class StreetEdgeTest {
     State s3 = e2.traverse(s2)[0];
 
     StreetSearchRequestBuilder withPenalty = StreetSearchRequest.copyOf(proto);
-    withPenalty.withPreferences(p ->
-      p.withBike(it -> it.withWalking(w -> w.withMountDismountTime(42).withMountDismountCost(23)))
+    withPenalty.withBike(it ->
+      it.withWalking(w ->
+        w
+          .withMountDismountTime(Duration.ofSeconds(42))
+          .withMountDismountCost(Cost.costOfSeconds(23))
+      )
     );
 
     State s4 = new State(v0, withPenalty.withMode(StreetMode.BIKE).build());
@@ -312,9 +336,11 @@ public class StreetEdgeTest {
       .buildAndConnect();
 
     Coordinate[] profile = new Coordinate[] {
-      new Coordinate(0, 0), // slope = 0.1
+      // slope = 0.1
+      new Coordinate(0, 0),
       new Coordinate(length / 2, length / 20.0),
-      new Coordinate(length, 0), // slope = -0.1
+      // slope = -0.1
+      new Coordinate(length, 0),
     };
     PackedCoordinateSequence elev = new PackedCoordinateSequence.Double(profile);
     StreetElevationExtensionBuilder.of(testStreet)
@@ -330,18 +356,16 @@ public class StreetEdgeTest {
 
     var request = StreetSearchRequest.of().withMode(StreetMode.BIKE);
 
-    request.withPreferences(pref ->
-      pref
-        .withBike(bike ->
-          bike
-            .withSpeed(SPEED)
-            .withOptimizeType(VehicleRoutingOptimizeType.TRIANGLE)
-            .withOptimizeTriangle(it -> it.withTime(1))
-            .withReluctance(1)
-        )
-        .withWalk(walk -> walk.withReluctance(1))
-        .withCar(car -> car.withReluctance(1))
-    );
+    request
+      .withBike(bike ->
+        bike
+          .withSpeed(SPEED)
+          .withOptimizeType(VehicleRoutingOptimizeType.TRIANGLE)
+          .withOptimizeTriangle(it -> it.withTime(1))
+          .withReluctance(1)
+      )
+      .withWalk(walk -> walk.withReluctance(1))
+      .withCar(car -> car.withReluctance(1));
 
     State startState = new State(v1, request.build());
     State result = testStreet.traverse(startState)[0];
@@ -349,9 +373,7 @@ public class StreetEdgeTest {
     double expectedTimeWeight = slopeSpeedLength / SPEED;
     assertEquals(expectedTimeWeight, result.getWeight(), DELTA);
 
-    request.withPreferences(p ->
-      p.withBike(bike -> bike.withOptimizeTriangle(it -> it.withSlope(1)))
-    );
+    request.withBike(bike -> bike.withOptimizeTriangle(it -> it.withSlope(1)));
     startState = new State(v1, request.build());
     result = testStreet.traverse(startState)[0];
     double slopeWeight = result.getWeight();
@@ -360,9 +382,7 @@ public class StreetEdgeTest {
     assertTrue((length * 1.5) / SPEED < slopeWeight);
     assertTrue((length * 1.5 * 10) / SPEED > slopeWeight);
 
-    request.withPreferences(p ->
-      p.withBike(bike -> bike.withOptimizeTriangle(it -> it.withSafety(1)))
-    );
+    request.withBike(bike -> bike.withOptimizeTriangle(it -> it.withSafety(1)));
     startState = new State(v1, request.build());
     result = testStreet.traverse(startState)[0];
     double slopeSafety = costs.slopeSafetyCost;
@@ -370,13 +390,53 @@ public class StreetEdgeTest {
     double expectedSafetyWeight = (trueLength * 0.74 + slopeSafety) / SPEED;
     assertEquals(expectedSafetyWeight, safetyWeight, DELTA);
 
-    request.withPreferences(p ->
-      p.withBike(bike -> bike.withOptimizeTriangle(it -> it.withTime(1).withSlope(1).withSafety(1)))
+    request.withBike(bike ->
+      bike.withOptimizeTriangle(it -> it.withTime(1).withSlope(1).withSafety(1))
     );
     startState = new State(v1, request.build());
     result = testStreet.traverse(startState)[0];
     double expectedWeight = timeWeight * 0.33 + slopeWeight * 0.33 + safetyWeight * 0.34;
     assertEquals(expectedWeight, result.getWeight(), DELTA);
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = TraverseMode.class, names = { "BICYCLE", "SCOOTER" })
+  void testBikeSpeed(TraverseMode mode) {
+    StreetEdge e1 = streetEdgeBuilder(v1, v2, 100.0, ALL).withCarSpeed(8.0f).buildAndConnect();
+    assertEquals(5.0, e1.calculateSpeed(getRequestForBikeAndScooterSpeed(5.0f), mode, false));
+    assertEquals(8.0, e1.calculateSpeed(getRequestForBikeAndScooterSpeed(10.0f), mode, false));
+  }
+
+  private static StreetSearchRequest getRequestForBikeAndScooterSpeed(float speed) {
+    return StreetSearchRequest.of()
+      .withBike(bike -> bike.withSpeed(speed))
+      .withScooter(scooter -> scooter.withSpeed(speed))
+      .build();
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = TraverseMode.class, names = { "BICYCLE", "SCOOTER" })
+  void testBikeSpeedWithElevation(TraverseMode mode) {
+    StreetEdge e1 = streetEdgeBuilder(v1, v2, 100.0, ALL)
+      .withCarSpeed(8.0f)
+      .withElevationExtension(
+        new StreetElevationExtension(
+          100,
+          false,
+          new PackedCoordinateSequence.Float(0, 2, 0),
+          1.0f,
+          1.2,
+          1.5,
+          1.1,
+          1.3,
+          1.0,
+          0.1f,
+          false
+        )
+      )
+      .buildAndConnect();
+    assertEquals(9.0, e1.calculateSpeed(getRequestForBikeAndScooterSpeed(9.0f), mode, false));
+    assertEquals(9.6, e1.calculateSpeed(getRequestForBikeAndScooterSpeed(10.0f), mode, false));
   }
 
   @Test

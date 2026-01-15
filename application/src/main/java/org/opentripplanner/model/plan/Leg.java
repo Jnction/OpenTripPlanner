@@ -9,9 +9,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.locationtech.jts.geom.LineString;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.model.PickDrop;
-import org.opentripplanner.model.fare.FareProductUse;
+import org.opentripplanner.model.fare.FareOffer;
 import org.opentripplanner.model.plan.leg.ElevationProfile;
 import org.opentripplanner.model.plan.leg.LegCallTime;
 import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
@@ -156,7 +156,7 @@ public interface Leg {
    */
   default boolean overlapInTime(Leg other) {
     return (
-      // We convert to epoch seconds to ignore nanos (save CPU),
+      // We convert to epoch seconds to ignore nanos (the times are normalized),
       // in favor of using the methods isAfter(...) and isBefore(...)
       startTime().toEpochSecond() < other.endTime().toEpochSecond() &&
       other.startTime().toEpochSecond() < endTime().toEpochSecond()
@@ -222,13 +222,13 @@ public interface Leg {
   LegCallTime end();
 
   /**
-   * The date and time this leg begins.
+   * The date and time this leg begins. The time is normalized(rounded to closest second).
    * TODO Does the start-time incorporate slack and/or wait-time? - This should be documented!
    */
   ZonedDateTime startTime();
 
   /**
-   * The date and time this leg ends.
+   * The date and time this leg ends. The time is normalized(rounded to closest second).
    * TODO Does the end-time incorporate slack and/or wait-time? - This should be documented!
    */
   ZonedDateTime endTime();
@@ -515,10 +515,10 @@ public interface Leg {
   }
 
   /**
-   * Get the {@link FareProductUse} for this leg.
+   * Get the {@link FareOffer}s for this leg.
    */
   @Sandbox
-  List<FareProductUse> fareProducts();
+  List<FareOffer> fareOffers();
 
   private static Stream<FareZone> fareZones(Place place) {
     if (place.stop == null) {

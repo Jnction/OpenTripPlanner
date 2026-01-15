@@ -8,8 +8,10 @@ import static org.opentripplanner.street.search.state.VehicleRentalState.RENTING
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.opentripplanner.routing.algorithm.mapping.StreetModeToFormFactorMapper;
 import org.opentripplanner.routing.algorithm.mapping.StreetModeToRentalTraverseModeMapper;
 import org.opentripplanner.routing.api.request.StreetMode;
+import org.opentripplanner.service.vehiclerental.model.RentalVehicleType.PropulsionType;
 import org.opentripplanner.street.model.RentalFormFactor;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.street.search.request.StreetSearchRequest;
@@ -47,6 +49,8 @@ public class StateData implements Cloneable {
 
   public RentalFormFactor rentalVehicleFormFactor;
 
+  public PropulsionType rentalVehiclePropulsionType;
+
   /** This boolean is set to true upon transition from a normal street to a no-through-traffic street. */
   protected boolean enteredNoThroughTrafficArea;
 
@@ -61,7 +65,7 @@ public class StateData implements Cloneable {
       // when cycling all the way or to a stop, you start on your own bike
       case BIKE, BIKE_TO_PARK -> TraverseMode.BICYCLE;
       // when driving (not car rental) you start in your own car or your driver's car
-      case CAR, CAR_TO_PARK, CAR_PICKUP, CAR_HAILING -> TraverseMode.CAR;
+      case CAR, CAR_TO_PARK, CAR_PICKUP, CAR_HAILING, CARPOOL -> TraverseMode.CAR;
     };
   }
 
@@ -69,13 +73,10 @@ public class StateData implements Cloneable {
    * Returns a set of initial StateDatas based on the options from the RouteRequest
    */
   public static List<StateData> getInitialStateDatas(StreetSearchRequest request) {
-    var rentalPreferences = request.preferences().rental(request.mode());
     return getInitialStateDatas(
       request.mode(),
       request.arriveBy(),
-      rentalPreferences != null
-        ? rentalPreferences.allowArrivingInRentedVehicleAtDestination()
-        : false
+      request.allowsArrivingInRentalAtDestination()
     );
   }
 
@@ -85,19 +86,16 @@ public class StateData implements Cloneable {
    * the given {@code request}.
    */
   public static StateData getBaseCaseStateData(StreetSearchRequest request) {
-    var rentalPreferences = request.preferences().rental(request.mode());
     var stateDatas = getInitialStateDatas(
       request.mode(),
       request.arriveBy(),
-      rentalPreferences != null
-        ? rentalPreferences.allowArrivingInRentedVehicleAtDestination()
-        : false
+      request.allowsArrivingInRentalAtDestination()
     );
 
     var baseCaseDatas =
       switch (request.mode()) {
         case WALK, BIKE, BIKE_TO_PARK, CAR, CAR_TO_PARK, FLEXIBLE, NOT_SET -> stateDatas;
-        case CAR_PICKUP, CAR_HAILING -> stateDatas
+        case CAR_PICKUP, CAR_HAILING, CARPOOL -> stateDatas
           .stream()
           .filter(d -> d.carPickupState == CarPickupState.IN_CAR)
           .toList();
@@ -159,6 +157,7 @@ public class StateData implements Cloneable {
     else if (requestMode.includesRenting()) {
       if (arriveBy) {
         var vehicleMode = StreetModeToRentalTraverseModeMapper.map(requestMode);
+        var formFactor = StreetModeToFormFactorMapper.map(requestMode);
         if (allowArrivingInRentedVehicleAtDestination) {
           var keptVehicleStateData = proto.clone();
           keptVehicleStateData.vehicleRentalState = RENTING_FROM_STATION;
@@ -168,7 +167,7 @@ public class StateData implements Cloneable {
         }
         var floatingRentalStateData = proto.clone();
         floatingRentalStateData.vehicleRentalState = RENTING_FLOATING;
-        floatingRentalStateData.rentalVehicleFormFactor = toFormFactor(requestMode);
+        floatingRentalStateData.rentalVehicleFormFactor = formFactor;
         floatingRentalStateData.currentMode = vehicleMode;
         res.add(floatingRentalStateData);
         var stationReturnedStateData = proto.clone();
@@ -196,26 +195,6 @@ public class StateData implements Cloneable {
     }
 
     return res;
-  }
-
-  private static RentalFormFactor toFormFactor(StreetMode streetMode) {
-    return switch (streetMode) {
-      case BIKE_RENTAL -> RentalFormFactor.BICYCLE;
-      case SCOOTER_RENTAL -> RentalFormFactor.SCOOTER;
-      case CAR_RENTAL -> RentalFormFactor.CAR;
-      // there is no default here, so you get a compiler error when you add a new value to the enum
-      case NOT_SET,
-        WALK,
-        BIKE,
-        BIKE_TO_PARK,
-        CAR,
-        CAR_TO_PARK,
-        CAR_PICKUP,
-        CAR_HAILING,
-        FLEXIBLE -> throw new IllegalStateException(
-        "Cannot convert street mode %s to a form factor".formatted(streetMode)
-      );
-    };
   }
 
   protected StateData clone() {

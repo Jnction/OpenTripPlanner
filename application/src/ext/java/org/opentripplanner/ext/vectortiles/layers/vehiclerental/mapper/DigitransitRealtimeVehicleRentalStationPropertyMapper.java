@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import org.opentripplanner.apis.support.mapping.PropertyMapper;
-import org.opentripplanner.framework.i18n.I18NStringMapper;
+import org.opentripplanner.core.model.i18n.I18NStringMapper;
 import org.opentripplanner.inspector.vector.KeyValue;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalStation;
 
@@ -28,8 +28,8 @@ public class DigitransitRealtimeVehicleRentalStationPropertyMapper
     items.addAll(getNameAndFormFactors(station, i18NStringMapper));
     items.addAll(
       List.of(
-        new KeyValue("vehiclesAvailable", station.getVehiclesAvailable()),
-        new KeyValue("spacesAvailable", station.getSpacesAvailable()),
+        new KeyValue("vehiclesAvailable", station.vehiclesAvailable()),
+        new KeyValue("spacesAvailable", station.spacesAvailable()),
         new KeyValue("operative", station.isAllowPickup() && station.isAllowDropoff())
       )
     );

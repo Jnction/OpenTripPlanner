@@ -11,20 +11,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.framework.geometry.CompactLineStringUtils;
 import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.i18n.I18NString;
 import org.opentripplanner.model.PickDrop;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.transit.model.basic.Accessibility;
 import org.opentripplanner.transit.model.basic.SubMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.framework.AbstractTransitEntity;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.framework.LogInfo;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
 import org.opentripplanner.transit.model.timetable.Direction;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 
@@ -141,7 +141,9 @@ public final class TripPattern
     this.originalTripPattern = builder.getOriginalTripPattern();
 
     this.hopGeometries = builder.hopGeometries();
-    this.routingTripPattern = new RoutingTripPattern(this, builder);
+    this.routingTripPattern = new RoutingTripPattern(this);
+
+    getId().requireSameFeedId(route.getId());
   }
 
   public static TripPatternBuilder of(FeedScopedId id) {
@@ -286,47 +288,69 @@ public final class TripPattern
     return stopPattern.findAlightPosition(stop);
   }
 
-  /** Returns whether passengers can alight at a given stop */
-  public boolean canAlight(int stopIndex) {
-    return stopPattern.canAlight(stopIndex);
+  /** Returns whether passengers can alight at a given stop position in the pattern */
+  public boolean canAlight(int stopPos) {
+    return stopPattern.canAlight(stopPos);
   }
 
-  /** Returns whether passengers can board at a given stop */
-  public boolean canBoard(int stopIndex) {
-    return stopPattern.canBoard(stopIndex);
-  }
-
-  /**
-   * Returns whether passengers can board at a given stop. This is an inefficient method iterating
-   * over the stops, do not use it in routing.
-   */
-  public boolean canBoard(StopLocation stop) {
-    return stopPattern.canBoard(stop);
+  /** Returns whether passengers can board at a given stop position in the pattern */
+  public boolean canBoard(int stopPos) {
+    return stopPattern.canBoard(stopPos);
   }
 
   /**
-   * Returns whether passengers can alight at a given stop. This is an inefficient method iterating
-   * over the stops, do not use it in routing.
+   * Use {@link #canBoard(int)} if you want to check if a stop can be boarded at a given
+   * stop position, ONLY use this method if you would like to search the stop-pattern for
+   * if it contains a bording for the given stop.
+   * <p>
+   * Returns whether passengers can board at a given stop SOMEWHERE in the pattern,
+   * considering all stops in case the pattern visit the same stop twice.
+   * <p>
+   * WARNING! This is an inefficient method iterating over the stops, do not use it in routing.
+   * <p>
+   * WARNING! This does not produce the same result as the {@link #canBoard(int)},
+   *          this method ALWAYS returns {@code false} for the last stop, while the
+   *          other method returns whatever is in the data. This method is probably the
+   *          correct way - but this is not a clear decision.
    */
-  public boolean canAlight(StopLocation stop) {
-    return stopPattern.canAlight(stop);
+  public boolean boardingExist(StopLocation stop) {
+    return stopPattern.boardingExist(stop);
+  }
+
+  /**
+   * Use {@link #canAlight(int)} if you want to check if a stop can be alighted at a given
+   * stop position, ONLY use this method if you would like to search the stop-pattern for a
+   * alighting.
+   * <p>
+   * Returns whether passengers can alight at a given stop SOMEWHERE in the pattern,
+   * considering all stops in case the pattern visit the same stop twice.
+   * <p>
+   * WARNING! This is an inefficient method iterating over the stops, do not use it in routing.
+   * <p>
+   * WARNING! This does not produce the same result as the {@link #canAlight(int)},
+   *          this method ALWAYS returns {@code false} for the first stop, while the
+   *          other method returns whatever is in the data. This method is probably the
+   *          correct way - but this is not a clear decision.
+   */
+  public boolean alightingExist(StopLocation stop) {
+    return stopPattern.alightingExist(stop);
   }
 
   /** Returns whether a given stop is wheelchair-accessible. */
-  public boolean wheelchairAccessible(int stopIndex) {
-    return (stopPattern.getStop(stopIndex).getWheelchairAccessibility() == Accessibility.POSSIBLE);
+  public boolean wheelchairAccessible(int stopPos) {
+    return (stopPattern.getStop(stopPos).getWheelchairAccessibility() == Accessibility.POSSIBLE);
   }
 
-  public PickDrop getAlightType(int stopIndex) {
-    return stopPattern.getDropoff(stopIndex);
+  public PickDrop getAlightType(int stopPos) {
+    return stopPattern.getDropoff(stopPos);
   }
 
-  public PickDrop getBoardType(int stopIndex) {
-    return stopPattern.getPickup(stopIndex);
+  public PickDrop getBoardType(int stopPos) {
+    return stopPattern.getPickup(stopPos);
   }
 
-  public boolean isBoardAndAlightAt(int stopIndex, PickDrop value) {
-    return getBoardType(stopIndex).is(value) && getAlightType(stopIndex).is(value);
+  public boolean isBoardAndAlightAt(int stopPos, PickDrop value) {
+    return getBoardType(stopPos).is(value) && getAlightType(stopPos).is(value);
   }
 
   /* METHODS THAT DELEGATE TO THE SCHEDULED TIMETABLE */
@@ -365,7 +389,7 @@ public final class TripPattern
     var freqTrips = scheduledTimetable
       .getFrequencyEntries()
       .stream()
-      .map(e -> e.tripTimes.getTrip());
+      .map(e -> e.tripTimes().getTrip());
     return Stream.concat(trips, freqTrips).distinct();
   }
 
@@ -423,7 +447,7 @@ public final class TripPattern
    */
   public String getFeedId() {
     // The feed id is the same as the agency id on the route, this allows us to obtain it from there.
-    return route.getId().getFeedId();
+    return getId().getFeedId();
   }
 
   public RoutingTripPattern getRoutingTripPattern() {

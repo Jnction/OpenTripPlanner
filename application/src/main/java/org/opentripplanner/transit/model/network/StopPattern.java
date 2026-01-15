@@ -5,13 +5,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.PickDrop;
 import org.opentripplanner.model.StopTime;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
@@ -63,7 +64,9 @@ public final class StopPattern implements Serializable {
   public StopPattern(Collection<StopTime> stopTimes) {
     this(stopTimes.size());
     int size = stopTimes.size();
-    if (size == 0) return;
+    if (size == 0) {
+      return;
+    }
     Iterator<StopTime> stopTimeIterator = stopTimes.iterator();
 
     for (int i = 0; i < size; ++i) {
@@ -201,12 +204,23 @@ public final class StopPattern implements Serializable {
   }
 
   /**
-   * Returns whether passengers can alight at a given stop. This is an inefficient method iterating
-   * over the stops, do not use it in routing.
+   * Use {@link #canAlight(int)} if you want to check if a stop can be alighted at a given
+   * stop position, ONLY use this method if you would like to search the stop-pattern for a
+   * alighting.
+   * <p>
+   * Returns whether passengers can alight at a given stop SOMEWHERE in the pattern,
+   * considering all stops in case the pattern visit the same stop twice.
+   * <p>
+   * WARNING! This is an inefficient method iterating over the stops, do not use it in routing.
+   * <p>
+   * WARNING! This does not produce the same result as the {@link #canAlight(int)},
+   *          this method ALWAYS returns {@code false} for the first stop, while the
+   *          other method returns whatever is in the data. This method is probably the
+   *          correct way - but this is not a clear decision.
    */
-  boolean canAlight(StopLocation stop) {
-    // We skip the last stop, not allowed for boarding
-    for (int i = 0; i < stops.length - 1; ++i) {
+  boolean alightingExist(StopLocation stop) {
+    // We skip the first stop, not allowed for alighting
+    for (int i = 1; i < stops.length; ++i) {
       if (stop == stops[i] && canAlight(i)) {
         return true;
       }
@@ -220,10 +234,21 @@ public final class StopPattern implements Serializable {
   }
 
   /**
-   * Returns whether passengers can board at a given stop. This is an inefficient method iterating
-   * over the stops, do not use it in routing.
+   * Use {@link #canBoard(int)} if you want to check if a stop can be boarded at a given
+   * stop position, ONLY use this method if you would like to search the stop-pattern for a
+   * boarding.
+   * <p>
+   * Returns whether passengers can board at a given stop SOMEWHERE in the pattern,
+   * considering all stops in case the pattern visit the same stop twice.
+   * <p>
+   * WARNING! This is an inefficient method iterating over the stops, do not use it in routing.
+   * <p>
+   * WARNING! This does not produce the same result as the {@link #canBoard(int)},
+   *          this method ALWAYS returns {@code false} for the last stop, while the
+   *          other method returns whatever is in the data. This method is probably the
+   *          correct way - but this is not a clear decision.
    */
-  boolean canBoard(StopLocation stop) {
+  boolean boardingExist(StopLocation stop) {
     // We skip the last stop, not allowed for boarding
     for (int i = 0; i < stops.length - 1; ++i) {
       if (stop == stops[i] && canBoard(i)) {
@@ -290,13 +315,13 @@ public final class StopPattern implements Serializable {
     var otherOrigin = other.getStop(index).getParentStation();
     var otherDestination = other.getStop(index + 1).getParentStation();
     var origin = getStop(index).getParentStation();
-    var destionation = getStop(index + 1).getParentStation();
+    var destination = getStop(index + 1).getParentStation();
 
     var sameOrigin = Optional.ofNullable(origin)
       .map(o -> o.equals(otherOrigin))
       .orElse(getStop(index).equals(other.getStop(index)));
 
-    var sameDestination = Optional.ofNullable(destionation)
+    var sameDestination = Optional.ofNullable(destination)
       .map(o -> o.equals(otherDestination))
       .orElse(getStop(index + 1).equals(other.getStop(index + 1)));
 
@@ -322,15 +347,26 @@ public final class StopPattern implements Serializable {
     }
 
     /**
-     * Sets pickup and dropoff at given stop indices as CANCELLED.
+     * Updates the pickup types at given stop indices.
      *
      * @return StopPatternBuilder
      */
-    public StopPatternBuilder cancelStops(List<Integer> cancelledStopIndices) {
-      cancelledStopIndices.forEach(index -> {
-        pickups.with(index, PickDrop.CANCELLED);
-        dropoffs.with(index, PickDrop.CANCELLED);
-      });
+    public StopPatternBuilder updatePickups(Map<Integer, PickDrop> updatedPickups) {
+      for (var entry : updatedPickups.entrySet()) {
+        pickups.with(entry.getKey(), entry.getValue());
+      }
+      return this;
+    }
+
+    /**
+     * Updates the pickup types at given stop indices.
+     *
+     * @return StopPatternBuilder
+     */
+    public StopPatternBuilder updateDropoffs(Map<Integer, PickDrop> updatedDropoffs) {
+      for (var entry : updatedDropoffs.entrySet()) {
+        dropoffs.with(entry.getKey(), entry.getValue());
+      }
       return this;
     }
 
@@ -344,6 +380,17 @@ public final class StopPattern implements Serializable {
         if (stops.getOrOriginal(i).getId().equals(old)) {
           stops.with(i, newStop);
         }
+      }
+      return this;
+    }
+
+    /**
+     * Replace the stops at given stop indices
+     */
+    public StopPatternBuilder replaceStops(Map<Integer, StopLocation> newStops) {
+      Objects.requireNonNull(newStops);
+      for (var entry : newStops.entrySet()) {
+        stops.with(entry.getKey(), entry.getValue());
       }
       return this;
     }

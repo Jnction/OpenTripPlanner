@@ -99,7 +99,7 @@ abstract class AbstractFlexTemplate {
    */
   Stream<FlexAccessEgress> createFlexAccessEgressStream(FlexAccessEgressCallbackAdapter callback) {
     if (transferStop instanceof RegularStop stop) {
-      var flexVertex = callback.getStopVertexForStopId(stop.getId());
+      var flexVertex = callback.getStopVertex(stop.getId());
       return Stream.of(createFlexAccessEgress(new ArrayList<>(), flexVertex, stop)).filter(
         Objects::nonNull
       );
@@ -107,8 +107,7 @@ abstract class AbstractFlexTemplate {
     // transferStop is Location Area/Line
     else {
       double maxDistanceMeters =
-        maxTransferDuration.getSeconds() *
-        accessEgress.state.getRequest().preferences().walk().speed();
+        maxTransferDuration.getSeconds() * accessEgress.state.getRequest().walk().speed();
 
       return getTransfersFromTransferStop(callback)
         .stream()

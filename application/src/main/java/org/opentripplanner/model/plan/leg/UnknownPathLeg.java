@@ -7,13 +7,14 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.locationtech.jts.geom.LineString;
-import org.opentripplanner.model.fare.FareProductUse;
+import org.opentripplanner.model.fare.FareOffer;
 import org.opentripplanner.model.plan.Emission;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.model.plan.Place;
 import org.opentripplanner.raptor.spi.RaptorCostCalculator;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
 import org.opentripplanner.utils.time.DurationUtils;
+import org.opentripplanner.utils.time.TimeUtils;
 import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 /**
@@ -39,8 +40,8 @@ public class UnknownPathLeg implements Leg {
   ) {
     this.from = from;
     this.to = to;
-    this.startTime = startTime;
-    this.endTime = endTime;
+    this.startTime = TimeUtils.normalize(startTime);
+    this.endTime = TimeUtils.normalize(endTime);
     this.nTransfers = nTransfers;
   }
 
@@ -118,7 +119,7 @@ public class UnknownPathLeg implements Leg {
   }
 
   @Override
-  public List<FareProductUse> fareProducts() {
+  public List<FareOffer> fareOffers() {
     return List.of();
   }
 

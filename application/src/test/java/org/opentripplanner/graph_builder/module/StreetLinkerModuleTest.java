@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.opentripplanner._support.geometry.Coordinates.KONGSBERG_PLATFORM_1;
+import static org.opentripplanner.routing.linking.VisibilityMode.TRAVERSE_AREA_EDGES;
 import static org.opentripplanner.street.model.StreetTraversalPermission.CAR;
 import static org.opentripplanner.street.model.StreetTraversalPermission.PEDESTRIAN;
 import static org.opentripplanner.transit.model._data.TimetableRepositoryForTest.id;
@@ -19,6 +20,7 @@ import org.opentripplanner.framework.geometry.WgsCoordinate;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.linking.VertexLinker;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
 import org.opentripplanner.street.model._data.StreetModelForTest;
 import org.opentripplanner.street.model.edge.BoardingLocationToStopLink;
@@ -35,7 +37,6 @@ import org.opentripplanner.transit.model.network.StopPattern;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.model.site.StopLocation;
-import org.opentripplanner.transit.model.timetable.RealTimeTripTimes;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripTimesFactory;
 import org.opentripplanner.transit.service.SiteRepository;
@@ -81,7 +82,8 @@ class StreetLinkerModuleTest {
   void linkFlexStop() {
     OTPFeature.FlexRouting.testOn(() -> {
       var model = new TestModel();
-      var flexTrip = TimetableRepositoryForTest.of().unscheduledTrip("flex", model.stop());
+      var flexTrip = TimetableRepositoryForTest.of()
+        .unscheduledTrip("flex", model.stop(), model.stop());
       model.withFlexTrip(flexTrip);
 
       var module = model.streetLinkerModule();
@@ -110,7 +112,8 @@ class StreetLinkerModuleTest {
   void linkFlexStopWithBoardingLocation() {
     OTPFeature.FlexRouting.testOn(() -> {
       var model = new TestModel().withStopLinkedToBoardingLocation();
-      var flexTrip = TimetableRepositoryForTest.of().unscheduledTrip("flex", model.stop());
+      var flexTrip = TimetableRepositoryForTest.of()
+        .unscheduledTrip("flex", model.stop(), model.stop());
       model.withFlexTrip(flexTrip);
 
       var module = model.streetLinkerModule();
@@ -199,8 +202,8 @@ class StreetLinkerModuleTest {
       graph.addVertex(from);
       graph.addVertex(to);
 
-      var walkableEdge = StreetModelForTest.streetEdge(from, to, PEDESTRIAN);
-      var drivableEdge = StreetModelForTest.streetEdge(from, to, CAR);
+      StreetModelForTest.streetEdge(from, to, PEDESTRIAN);
+      StreetModelForTest.streetEdge(from, to, CAR);
       var builder = SiteRepository.of();
       stop = builder
         .regularStop(id("platform-1"))
@@ -210,17 +213,20 @@ class StreetLinkerModuleTest {
 
       timetableRepository = new TimetableRepository(builder.build(), new Deduplicator());
 
-      stopVertex = TransitStopVertex.of().withStop(stop).build();
+      stopVertex = TransitStopVertex.of()
+        .withId(stop.getId())
+        .withPoint(stop.getGeometry())
+        .withWheelchairAccessiblity(stop.getWheelchairAccessibility())
+        .build();
       graph.addVertex(stopVertex);
       graph.hasStreets = true;
 
       module = new StreetLinkerModule(
         graph,
+        new VertexLinker(graph, TRAVERSE_AREA_EDGES, 0),
         new DefaultVehicleParkingRepository(),
         timetableRepository,
-        DataImportIssueStore.NOOP,
-        false,
-        0
+        DataImportIssueStore.NOOP
       );
 
       assertFalse(stopVertex.isConnectedToGraph());

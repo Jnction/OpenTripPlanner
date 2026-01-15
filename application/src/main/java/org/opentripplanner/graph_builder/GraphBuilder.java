@@ -4,13 +4,15 @@ import static org.opentripplanner.datastore.api.FileType.GTFS;
 import static org.opentripplanner.datastore.api.FileType.NETEX;
 import static org.opentripplanner.datastore.api.FileType.OSM;
 
-import jakarta.inject.Inject;
+import java.io.Closeable;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.opentripplanner.ext.emission.EmissionRepository;
+import org.opentripplanner.ext.empiricaldelay.EmpiricalDelayRepository;
 import org.opentripplanner.ext.stopconsolidation.StopConsolidationRepository;
 import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.framework.application.OtpAppException;
@@ -22,10 +24,13 @@ import org.opentripplanner.graph_builder.module.configure.GraphBuilderFactory;
 import org.opentripplanner.routing.fares.FareServiceFactory;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildRepository;
+import org.opentripplanner.service.streetdetails.StreetDetailsRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.service.worldenvelope.WorldEnvelopeRepository;
 import org.opentripplanner.standalone.config.BuildConfig;
-import org.opentripplanner.street.model.StreetLimitationParameters;
+import org.opentripplanner.street.StreetRepository;
+import org.opentripplanner.transfer.TransferRepository;
+import org.opentripplanner.transit.model.framework.DeduplicatorService;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.utils.lang.OtpNumberFormat;
 import org.opentripplanner.utils.time.DurationUtils;
@@ -44,18 +49,23 @@ public class GraphBuilder implements Runnable {
   private final Graph graph;
   private final TimetableRepository timetableRepository;
   private final DataImportIssueStore issueStore;
+  private final Closeable closeDataSourcesHandle;
+  private final DeduplicatorService deduplicator;
 
   private boolean hasTransitData = false;
 
-  @Inject
   public GraphBuilder(
     Graph baseGraph,
+    DeduplicatorService deduplicator,
     TimetableRepository timetableRepository,
-    DataImportIssueStore issueStore
+    DataImportIssueStore issueStore,
+    Closeable closeDataSourcesHandle
   ) {
     this.graph = baseGraph;
+    this.deduplicator = deduplicator;
     this.timetableRepository = timetableRepository;
     this.issueStore = issueStore;
+    this.closeDataSourcesHandle = closeDataSourcesHandle;
   }
 
   /**
@@ -67,13 +77,16 @@ public class GraphBuilder implements Runnable {
     GraphBuilderDataSources dataSources,
     Graph graph,
     OsmInfoGraphBuildRepository osmInfoGraphBuildRepository,
+    StreetDetailsRepository streetDetailsRepository,
     FareServiceFactory fareServiceFactory,
+    StreetRepository streetRepository,
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
     WorldEnvelopeRepository worldEnvelopeRepository,
     VehicleParkingRepository vehicleParkingService,
     @Nullable EmissionRepository emissionRepository,
+    @Nullable EmpiricalDelayRepository empiricalDelayRepository,
     @Nullable StopConsolidationRepository stopConsolidationRepository,
-    StreetLimitationParameters streetLimitationParameters,
     boolean loadStreetGraph,
     boolean saveStreetGraph
   ) {
@@ -89,12 +102,15 @@ public class GraphBuilder implements Runnable {
       .config(config)
       .graph(graph)
       .osmInfoGraphBuildRepository(osmInfoGraphBuildRepository)
+      .streetDetailsRepository(streetDetailsRepository)
+      .streetRepository(streetRepository)
       .timetableRepository(timetableRepository)
+      .transferRepository(transferRepository)
       .worldEnvelopeRepository(worldEnvelopeRepository)
       .vehicleParkingRepository(vehicleParkingService)
       .stopConsolidationRepository(stopConsolidationRepository)
       .emissionRepository(emissionRepository)
-      .streetLimitationParameters(streetLimitationParameters)
+      .empiricalDelayRepository(empiricalDelayRepository)
       .fareServiceFactory(fareServiceFactory)
       .dataSources(dataSources)
       .timeZoneId(timetableRepository.getTimeZone());
@@ -164,6 +180,11 @@ public class GraphBuilder implements Runnable {
       graphBuilder.addModuleOptional(factory.directTransferAnalyzer(), OTPFeature.TransferAnalyzer);
 
       graphBuilder.addModuleOptional(factory.emissionGraphBuilder(), OTPFeature.Emission);
+
+      graphBuilder.addModuleOptional(
+        factory.empiricalDelayGraphBuilder(),
+        OTPFeature.EmpiricalDelay
+      );
     }
 
     if (loadStreetGraph || hasOsm) {
@@ -182,25 +203,29 @@ public class GraphBuilder implements Runnable {
   }
 
   public void run() {
-    // Record how long it takes to build the graph, purely for informational purposes.
-    long startTime = System.currentTimeMillis();
+    try {
+      // Record how long it takes to build the graph, purely for informational purposes.
+      long startTime = System.currentTimeMillis();
 
-    // Check all graph builder inputs, and fail fast to avoid waiting until the build process
-    // advances.
-    for (GraphBuilderModule builder : graphBuilderModules) {
-      builder.checkInputs();
+      // Check all graph builder inputs, and fail fast to avoid waiting until the build process
+      // advances.
+      for (GraphBuilderModule builder : graphBuilderModules) {
+        builder.checkInputs();
+      }
+
+      for (GraphBuilderModule load : graphBuilderModules) {
+        load.buildGraph();
+      }
+
+      new DataImportIssueSummary(issueStore.listIssues()).logSummary();
+
+      // Log before we validate, this way we have more information if the validation fails
+      logGraphBuilderCompleteStatus(startTime, graph, timetableRepository, deduplicator);
+
+      validate();
+    } finally {
+      closeDataSources();
     }
-
-    for (GraphBuilderModule load : graphBuilderModules) {
-      load.buildGraph();
-    }
-
-    new DataImportIssueSummary(issueStore.listIssues()).logSummary();
-
-    // Log before we validate, this way we have more information if the validation fails
-    logGraphBuilderCompleteStatus(startTime, graph, timetableRepository);
-
-    validate();
   }
 
   private void addModuleOptional(@Nullable GraphBuilderModule module, OTPFeature feature) {
@@ -246,10 +271,19 @@ public class GraphBuilder implements Runnable {
     }
   }
 
+  private void closeDataSources() {
+    try {
+      closeDataSourcesHandle.close();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static void logGraphBuilderCompleteStatus(
     long startTime,
     Graph graph,
-    TimetableRepository timetableRepository
+    TimetableRepository timetableRepository,
+    DeduplicatorService deduplicator
   ) {
     long endTime = System.currentTimeMillis();
     String time = DurationUtils.durationToStr(Duration.ofMillis(endTime - startTime));
@@ -268,5 +302,7 @@ public class GraphBuilder implements Runnable {
       nPatterns,
       nTransfers
     );
+    // Log size info for the deduplicator
+    LOG.info("Memory optimized {}", deduplicator.toString());
   }
 }

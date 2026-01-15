@@ -9,9 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.transit.realtime.GtfsRealtime;
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor;
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor.ScheduleRelationship;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ConcurrentModificationException;
@@ -22,14 +22,16 @@ import org.junit.jupiter.api.Test;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.TestOtpModel;
 import org.opentripplanner._support.time.ZoneIds;
-import org.opentripplanner.model.RealTimeTripUpdate;
-import org.opentripplanner.model.Timetable;
-import org.opentripplanner.model.TimetableSnapshot;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.transit.model.framework.Result;
 import org.opentripplanner.transit.model.network.TripPattern;
+import org.opentripplanner.transit.model.timetable.RealTimeTripUpdate;
+import org.opentripplanner.transit.model.timetable.Timetable;
+import org.opentripplanner.transit.model.timetable.TimetableSnapshot;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.updater.spi.UpdateError;
+import org.opentripplanner.updater.spi.UpdateSuccess;
+import org.opentripplanner.updater.trip.gtfs.model.TripUpdate;
 
 /**
  * The test class is called legacy not because it tests a legacy feature but because the test
@@ -75,18 +77,20 @@ public class LegacyTimetableSnapshotIntegrationTest {
     tripDescriptorBuilder.setTripId("1.1");
     tripDescriptorBuilder.setScheduleRelationship(ScheduleRelationship.SCHEDULED);
 
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
+    GtfsRealtime.TripUpdate.Builder tripUpdateBuilder = GtfsRealtime.TripUpdate.newBuilder();
 
     tripUpdateBuilder.setTrip(tripDescriptorBuilder);
 
     var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
     stopTimeUpdateBuilder.setStopSequence(2);
     stopTimeUpdateBuilder.setScheduleRelationship(
-      TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
+      GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
     );
-    stopTimeUpdateBuilder.setDeparture(TripUpdate.StopTimeEvent.newBuilder().setDelay(2).build());
+    stopTimeUpdateBuilder.setDeparture(
+      GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder().setDelay(2).build()
+    );
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
     // add a new timetable for today
     updateSnapshot(resolver, pattern, tripUpdate, today);
@@ -119,18 +123,20 @@ public class LegacyTimetableSnapshotIntegrationTest {
     tripDescriptorBuilder.setTripId("1.1");
     tripDescriptorBuilder.setScheduleRelationship(ScheduleRelationship.SCHEDULED);
 
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
+    GtfsRealtime.TripUpdate.Builder tripUpdateBuilder = GtfsRealtime.TripUpdate.newBuilder();
 
     tripUpdateBuilder.setTrip(tripDescriptorBuilder);
 
     var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
     stopTimeUpdateBuilder.setStopSequence(2);
     stopTimeUpdateBuilder.setScheduleRelationship(
-      TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
+      GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
     );
-    stopTimeUpdateBuilder.setDeparture(TripUpdate.StopTimeEvent.newBuilder().setDelay(5).build());
+    stopTimeUpdateBuilder.setDeparture(
+      GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder().setDelay(5).build()
+    );
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
     // new timetable for today
     updateSnapshot(resolver, pattern, tripUpdate, today);
@@ -171,20 +177,20 @@ public class LegacyTimetableSnapshotIntegrationTest {
       tripDescriptorBuilder.setTripId("1.1");
       tripDescriptorBuilder.setScheduleRelationship(ScheduleRelationship.SCHEDULED);
 
-      TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
+      GtfsRealtime.TripUpdate.Builder tripUpdateBuilder = GtfsRealtime.TripUpdate.newBuilder();
 
       tripUpdateBuilder.setTrip(tripDescriptorBuilder);
 
       var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
       stopTimeUpdateBuilder.setStopSequence(2);
       stopTimeUpdateBuilder.setScheduleRelationship(
-        TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
+        GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
       );
       stopTimeUpdateBuilder.setDeparture(
-        TripUpdate.StopTimeEvent.newBuilder().setDelay(10).build()
+        GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder().setDelay(10).build()
       );
 
-      TripUpdate tripUpdate = tripUpdateBuilder.build();
+      GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
       // add a new timetable for today, commit, and everything should match
       assertTrue(updateSnapshot(resolver, pattern, tripUpdate, today).isSuccess());
@@ -222,18 +228,20 @@ public class LegacyTimetableSnapshotIntegrationTest {
     tripDescriptorBuilder.setTripId("1.1");
     tripDescriptorBuilder.setScheduleRelationship(ScheduleRelationship.SCHEDULED);
 
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
+    GtfsRealtime.TripUpdate.Builder tripUpdateBuilder = GtfsRealtime.TripUpdate.newBuilder();
 
     tripUpdateBuilder.setTrip(tripDescriptorBuilder);
 
     var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
     stopTimeUpdateBuilder.setStopSequence(2);
     stopTimeUpdateBuilder.setScheduleRelationship(
-      TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
+      GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED
     );
-    stopTimeUpdateBuilder.setDeparture(TripUpdate.StopTimeEvent.newBuilder().setDelay(15).build());
+    stopTimeUpdateBuilder.setDeparture(
+      GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder().setDelay(15).build()
+    );
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
     TimetableSnapshot resolver = new TimetableSnapshot();
     updateSnapshot(resolver, pattern, tripUpdate, today);
@@ -258,21 +266,26 @@ public class LegacyTimetableSnapshotIntegrationTest {
   private Result<?, UpdateError> updateSnapshot(
     TimetableSnapshot resolver,
     TripPattern pattern,
-    TripUpdate tripUpdate,
+    GtfsRealtime.TripUpdate tripUpdate,
     LocalDate serviceDate
   ) {
     final Timetable scheduledTimetable = pattern.getScheduledTimetable();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var result = TripTimesUpdater.createUpdatedTripTimesFromGtfsRt(
       scheduledTimetable,
-      tripUpdate,
+      new TripUpdate(tripUpdate),
       timeZone,
       serviceDate,
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
     if (result.isSuccess()) {
-      return resolver.update(
-        new RealTimeTripUpdate(pattern, result.successValue().getTripTimes(), serviceDate)
+      var realTimeTripUpdate = new RealTimeTripUpdate(
+        pattern,
+        result.successValue().tripTimes(),
+        serviceDate
       );
+      resolver.update(realTimeTripUpdate);
+      return Result.success(UpdateSuccess.noWarnings(realTimeTripUpdate.producer()));
     }
     throw new RuntimeException("createUpdatedTripTimes returned an error: " + result);
   }

@@ -13,11 +13,11 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.operation.valid.IsValidOp;
-import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.osm.model.OsmEntity;
 import org.opentripplanner.osm.model.OsmNode;
 import org.opentripplanner.osm.model.OsmWay;
+import org.opentripplanner.street.model.StreetTraversalPermission;
 
 /**
  * Stores information about an OSM area needed for visibility graph construction. Algorithm based on
@@ -128,7 +128,8 @@ class OsmArea {
       return closedRings;
     }
 
-    long firstEndpoint = 0, otherEndpoint = 0;
+    long firstEndpoint = 0;
+    long otherEndpoint = 0;
     OsmWay firstWay = null;
     for (Long endpoint : waysByEndpoint.keySet()) {
       List<OsmWay> list = waysByEndpoint.get(endpoint);
@@ -160,6 +161,10 @@ class OsmArea {
       return centroid;
     }
     return jtsMultiPolygon.getInteriorPoint();
+  }
+
+  public StreetTraversalPermission getPermission() {
+    return parent.getPermission();
   }
 
   private MultiPolygon calculateJTSMultiPolygon() {
@@ -215,7 +220,8 @@ class OsmArea {
         closedRings.add(newRing);
         // if we're out of endpoints, then we have succeeded
         if (waysByEndpoint.size() == 0) {
-          return true; // success
+          // success
+          return true;
         }
 
         // otherwise, we need to start a new partial ring
