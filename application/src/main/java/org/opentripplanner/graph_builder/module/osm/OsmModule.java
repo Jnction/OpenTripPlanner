@@ -76,7 +76,7 @@ public class OsmModule implements GraphBuilderModule {
 
   private final DataImportIssueStore issueStore;
   private final OsmProcessingParameters params;
-  private final SafetyValueNormalizer normalizer;
+  private final SafetyValueApplier safetyValueApplier;
 
   OsmModule(
     Collection<OsmProvider> providers,
@@ -96,7 +96,7 @@ public class OsmModule implements GraphBuilderModule {
     this.streetRepository = streetRepository;
     this.issueStore = issueStore;
     this.params = params;
-    this.normalizer = new SafetyValueNormalizer(graph, issueStore);
+    this.safetyValueApplier = new SafetyValueApplier(graph);
   }
 
   public static OsmModuleBuilder of(
@@ -144,7 +144,12 @@ public class OsmModule implements GraphBuilderModule {
     build(osmdb, vertexGenerator);
     graph.hasStreets = true;
     streetRepository.setStreetModelDetails(
-      new StreetModelDetails(getMaxCarSpeed(), params.maxAreaNodes())
+      new StreetModelDetails(
+        getMaxCarSpeed(),
+        params.maxAreaNodes(),
+        safetyValueApplier.getBestBikeSafety(),
+        safetyValueApplier.getBestWalkSafety()
+      )
     );
     vertexGenerator.createDifferentLevelsSharingBarrierIssues();
   }
@@ -237,8 +242,6 @@ public class OsmModule implements GraphBuilderModule {
     TurnRestrictionUnifier.unifyTurnRestrictions(osmdb, issueStore, osmInfoGraphBuildRepository);
 
     params.edgeNamer().finalizeNames();
-
-    normalizer.applySafetyFactors();
   }
 
   /**
@@ -288,7 +291,7 @@ public class OsmModule implements GraphBuilderModule {
       osmInfoGraphBuildRepository,
       vertexGenerator,
       params.edgeNamer(),
-      normalizer,
+      safetyValueApplier,
       issueStore,
       params.maxAreaNodes(),
       params.platformEntriesLinking(),
@@ -508,7 +511,7 @@ public class OsmModule implements GraphBuilderModule {
 
           StreetEdge street = streets.main();
           StreetEdge backStreet = streets.back();
-          normalizer.applyWayProperties(
+          safetyValueApplier.applyWayProperties(
             street,
             backStreet,
             wayData.forward(),
