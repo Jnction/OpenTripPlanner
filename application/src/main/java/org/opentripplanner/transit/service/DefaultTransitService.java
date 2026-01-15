@@ -21,13 +21,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.locationtech.jts.geom.Envelope;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.flex.FlexIndex;
 import org.opentripplanner.framework.application.OTPRequestTimeoutException;
 import org.opentripplanner.model.FeedInfo;
-import org.opentripplanner.model.PathTransfer;
 import org.opentripplanner.model.StopTimesInPattern;
-import org.opentripplanner.model.Timetable;
-import org.opentripplanner.model.TimetableSnapshot;
 import org.opentripplanner.model.TripTimeOnDate;
 import org.opentripplanner.model.calendar.CalendarService;
 import org.opentripplanner.model.transfer.TransferService;
@@ -49,19 +47,21 @@ import org.opentripplanner.transit.model.filter.transit.TripMatcherFactory;
 import org.opentripplanner.transit.model.filter.transit.TripOnServiceDateMatcherFactory;
 import org.opentripplanner.transit.model.framework.AbstractTransitEntity;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.GroupOfRoutes;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.organization.Agency;
 import org.opentripplanner.transit.model.organization.Operator;
 import org.opentripplanner.transit.model.site.AreaStop;
+import org.opentripplanner.transit.model.site.Entrance;
 import org.opentripplanner.transit.model.site.GroupStop;
 import org.opentripplanner.transit.model.site.MultiModalStation;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
 import org.opentripplanner.transit.model.site.StopLocationsGroup;
+import org.opentripplanner.transit.model.timetable.Timetable;
+import org.opentripplanner.transit.model.timetable.TimetableSnapshot;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripIdAndServiceDate;
 import org.opentripplanner.transit.model.timetable.TripOnServiceDate;
@@ -215,6 +215,11 @@ public class DefaultTransitService implements TransitEditorService {
   @Override
   public RegularStop getRegularStop(FeedScopedId id) {
     return this.timetableRepository.getSiteRepository().getRegularStop(id);
+  }
+
+  @Override
+  public Entrance getEntrance(FeedScopedId id) {
+    return this.timetableRepository.getSiteRepository().getEntrance(id);
   }
 
   @Override
@@ -616,11 +621,6 @@ public class DefaultTransitService implements TransitEditorService {
   @Nullable
   public FeedScopedId getOrCreateServiceIdForDate(LocalDate serviceDate) {
     return timetableRepository.getOrCreateServiceIdForDate(serviceDate);
-  }
-
-  @Override
-  public Collection<PathTransfer> findPathTransfers(StopLocation stop) {
-    return this.timetableRepository.getTransfersByStop(stop);
   }
 
   @Override

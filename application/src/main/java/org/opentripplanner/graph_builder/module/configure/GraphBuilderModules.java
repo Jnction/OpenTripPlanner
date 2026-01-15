@@ -21,7 +21,6 @@ import org.opentripplanner.graph_builder.issue.api.DataImportIssueSummary;
 import org.opentripplanner.graph_builder.issue.report.DataImportIssueReporter;
 import org.opentripplanner.graph_builder.issue.service.DefaultDataImportIssueStore;
 import org.opentripplanner.graph_builder.model.ConfiguredDataSource;
-import org.opentripplanner.graph_builder.module.DirectTransferGenerator;
 import org.opentripplanner.graph_builder.module.RouteToCentroidStationIdsValidator;
 import org.opentripplanner.graph_builder.module.StreetLinkerModule;
 import org.opentripplanner.graph_builder.module.TurnRestrictionModule;
@@ -33,7 +32,9 @@ import org.opentripplanner.graph_builder.module.ned.NEDGridCoverageFactoryImpl;
 import org.opentripplanner.graph_builder.module.ned.parameter.DemExtractParameters;
 import org.opentripplanner.graph_builder.module.osm.OsmModule;
 import org.opentripplanner.graph_builder.module.osm.parameters.OsmExtractParameters;
+import org.opentripplanner.graph_builder.module.transfer.DirectTransferGenerator;
 import org.opentripplanner.graph_builder.services.ned.ElevationGridCoverageFactory;
+import org.opentripplanner.graph_builder.services.osm.EdgeNamer;
 import org.opentripplanner.gtfs.graphbuilder.GtfsBundle;
 import org.opentripplanner.gtfs.graphbuilder.GtfsModule;
 import org.opentripplanner.netex.NetexModule;
@@ -45,9 +46,11 @@ import org.opentripplanner.routing.fares.FareServiceFactory;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.linking.VertexLinker;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildRepository;
+import org.opentripplanner.service.streetdetails.StreetDetailsRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.standalone.config.BuildConfig;
 import org.opentripplanner.street.StreetRepository;
+import org.opentripplanner.transfer.TransferRepository;
 import org.opentripplanner.transit.model.framework.Deduplicator;
 import org.opentripplanner.transit.model.framework.DeduplicatorService;
 import org.opentripplanner.transit.service.TimetableRepository;
@@ -65,8 +68,10 @@ public class GraphBuilderModules {
     BuildConfig config,
     Graph graph,
     OsmInfoGraphBuildRepository osmInfoGraphBuildRepository,
+    StreetDetailsRepository streetDetailsRepository,
     StreetRepository streetRepository,
     VehicleParkingRepository vehicleParkingRepository,
+    EdgeNamer edgeNamer,
     DataImportIssueStore issueStore
   ) {
     List<OsmProvider> providers = new ArrayList<>();
@@ -88,14 +93,16 @@ public class GraphBuilderModules {
       providers,
       graph,
       osmInfoGraphBuildRepository,
+      streetDetailsRepository,
       streetRepository,
       vehicleParkingRepository
     )
-      .withEdgeNamer(config.edgeNamer)
+      .withEdgeNamer(edgeNamer)
       .withAreaVisibility(config.areaVisibility)
       .withPlatformEntriesLinking(config.platformEntriesLinking)
       .withStaticParkAndRide(config.staticParkAndRide)
       .withStaticBikeParkAndRide(config.staticBikeParkAndRide)
+      .withIncludeInclinedEdgeLevelInfo(config.includeInclinedEdgeLevelInfo)
       .withMaxAreaNodes(config.maxAreaNodes)
       .withBoardingAreaRefTags(config.boardingLocationTags)
       .withIncludeOsmSubwayEntrances(config.osmDefaults.includeOsmSubwayEntrances())
@@ -111,6 +118,7 @@ public class GraphBuilderModules {
     Graph graph,
     DeduplicatorService deduplicator,
     TimetableRepository timetableRepository,
+    StreetDetailsRepository streetDetailsRepository,
     DataImportIssueStore issueStore,
     FareServiceFactory fareServiceFactory
   ) {
@@ -121,6 +129,7 @@ public class GraphBuilderModules {
     return new GtfsModule(
       gtfsBundles,
       timetableRepository,
+      streetDetailsRepository,
       graph,
       deduplicator,
       issueStore,
@@ -139,13 +148,15 @@ public class GraphBuilderModules {
     Graph graph,
     DeduplicatorService deduplicator,
     TimetableRepository timetableRepository,
-    VehicleParkingRepository parkingService,
+    StreetDetailsRepository streetDetailsRepository,
+    VehicleParkingRepository parkingRepository,
     DataImportIssueStore issueStore
   ) {
     return new NetexConfigure(config).createNetexModule(
       dataSources.getNetexConfiguredDataSource(),
       timetableRepository,
-      parkingService,
+      parkingRepository,
+      streetDetailsRepository,
       graph,
       deduplicator,
       issueStore
@@ -241,11 +252,13 @@ public class GraphBuilderModules {
     BuildConfig config,
     Graph graph,
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
     DataImportIssueStore issueStore
   ) {
     return new DirectTransferGenerator(
       graph,
       timetableRepository,
+      transferRepository,
       issueStore,
       config.maxTransferDuration,
       config.transferRequests,

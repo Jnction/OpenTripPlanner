@@ -14,15 +14,24 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.opentripplanner.astar.model.GraphPath;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.framework.geometry.WgsCoordinate;
 import org.opentripplanner.model.plan.walkstep.RelativeDirection;
 import org.opentripplanner.model.plan.walkstep.WalkStep;
 import org.opentripplanner.model.plan.walkstep.WalkStepBuilder;
+import org.opentripplanner.model.plan.walkstep.verticaltransportation.ElevatorUse;
+import org.opentripplanner.model.plan.walkstep.verticaltransportation.EscalatorUse;
+import org.opentripplanner.model.plan.walkstep.verticaltransportation.StairsUse;
 import org.opentripplanner.routing.services.notes.StreetNotesService;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsRepository;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsService;
 import org.opentripplanner.street.search.state.TestStateBuilder;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.transit.model.site.Entrance;
 
 class StatesToWalkStepsMapperTest {
+
+  private static final FeedScopedId ENTRANCE_ID = new FeedScopedId("F", "Lichterfelde-Ost");
 
   @Test
   void absoluteDirection() {
@@ -38,7 +47,37 @@ class StatesToWalkStepsMapperTest {
     );
     var elevatorStep = walkSteps.get(3);
     assertEquals(RelativeDirection.ELEVATOR, elevatorStep.getRelativeDirection());
+    assertEquals(
+      ElevatorUse.class.getSimpleName(),
+      elevatorStep.verticalTransportationUse().get().getClass().getSimpleName()
+    );
     assertTrue(elevatorStep.getAbsoluteDirection().isEmpty());
+  }
+
+  @Test
+  void stairs() {
+    var walkSteps = buildWalkSteps(
+      TestStateBuilder.ofWalking().streetEdge().stairsEdge().streetEdge()
+    );
+    assertEquals(RelativeDirection.DEPART, walkSteps.get(0).getRelativeDirection());
+    assertEquals(
+      StairsUse.class.getSimpleName(),
+      walkSteps.get(1).verticalTransportationUse().get().getClass().getSimpleName()
+    );
+    assertEquals(RelativeDirection.CONTINUE, walkSteps.get(2).getRelativeDirection());
+  }
+
+  @Test
+  void escalator() {
+    var walkSteps = buildWalkSteps(
+      TestStateBuilder.ofWalking().streetEdge().escalatorEdge().streetEdge()
+    );
+    assertEquals(RelativeDirection.DEPART, walkSteps.get(0).getRelativeDirection());
+    assertEquals(
+      EscalatorUse.class.getSimpleName(),
+      walkSteps.get(1).verticalTransportationUse().get().getClass().getSimpleName()
+    );
+    assertEquals(RelativeDirection.CONTINUE, walkSteps.get(2).getRelativeDirection());
   }
 
   @Test
@@ -64,7 +103,7 @@ class StatesToWalkStepsMapperTest {
     var walkSteps = buildWalkSteps(builder);
     assertEquals(2, walkSteps.size());
     var enter = walkSteps.get(1);
-    assertEquals(new FeedScopedId("F", "Lichterfelde-Ost"), enter.entrance().get().getId());
+    assertEquals(ENTRANCE_ID, enter.entrance().get().getId());
     assertEquals(ENTER_STATION, enter.getRelativeDirection());
   }
 
@@ -76,7 +115,7 @@ class StatesToWalkStepsMapperTest {
     var walkSteps = buildWalkSteps(builder);
     assertEquals(3, walkSteps.size());
     var exit = walkSteps.get(2);
-    assertEquals(new FeedScopedId("F", "Lichterfelde-Ost"), exit.entrance().get().getId());
+    assertEquals(ENTRANCE_ID, exit.entrance().get().getId());
     assertEquals(EXIT_STATION, exit.getRelativeDirection());
   }
 
@@ -94,7 +133,14 @@ class StatesToWalkStepsMapperTest {
   private static List<WalkStep> buildWalkSteps(TestStateBuilder builder) {
     var result = builder.build();
     var path = new GraphPath<>(result);
-    var mapper = new StatesToWalkStepsMapper(path.states, null, new StreetNotesService(), 0);
+    var mapper = new StatesToWalkStepsMapper(
+      path.states,
+      null,
+      new StreetNotesService(),
+      new DefaultStreetDetailsService(new DefaultStreetDetailsRepository()),
+      id -> Entrance.of(id).withCoordinate(WgsCoordinate.GREENWICH).build(),
+      0
+    );
     return mapper.generateWalkSteps();
   }
 

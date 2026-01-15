@@ -100,8 +100,8 @@ public class OsmDatabase {
    * Track which vertical levels OSM entities belong to.
    * Level information can be set for ways, nodes and relations.
    * An entity only has an entry if at least one level is defined in OSM.
-   * The ordering is important because in the future it will be used for building stairs
-   * and escalators. At the moment, the level is used e.g. for building elevators.
+   * The ordering is important because it is used for building stairs and escalators.
+   * The level is also used e.g. for building elevators and connecting areas.
    */
   private final ArrayListMultimap<OsmEntity, OsmLevel> entityLevels = ArrayListMultimap.create();
 
@@ -526,7 +526,9 @@ public class OsmDatabase {
 
             // don't insert the same node twice. This is not always safe; suppose a way crosses over the same node in the parking area twice.
             // but we assume it doesn't (and even if it does, it's not a huge deal, as it is still connected elsewhere on the same way).
-            if (way.getNodeRefs().contains(ringSegment.nA.getId())) continue;
+            if (way.getNodeRefs().contains(ringSegment.nA.getId())) {
+              continue;
+            }
 
             way.addNodeRef(ringSegment.nA.getId(), i + 1);
 
@@ -543,7 +545,9 @@ public class OsmDatabase {
           } else if (checkIntersectionDistance(p, ringSegment.nB, epsilon)) {
             // insert node B into the road, if it's not already there
 
-            if (way.getNodeRefs().contains(ringSegment.nB.getId())) continue;
+            if (way.getNodeRefs().contains(ringSegment.nB.getId())) {
+              continue;
+            }
 
             way.addNodeRef(ringSegment.nB.getId(), i + 1);
 

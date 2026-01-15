@@ -1,6 +1,5 @@
 package org.opentripplanner.apis.gtfs.mapping.routerequest;
 
-import static graphql.execution.ExecutionContextBuilder.newExecutionContextBuilder;
 import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -9,15 +8,12 @@ import static org.junit.jupiter.params.provider.Arguments.of;
 import static org.opentripplanner.routing.core.VehicleRoutingOptimizeType.SAFE_STREETS;
 import static org.opentripplanner.routing.core.VehicleRoutingOptimizeType.TRIANGLE;
 
-import graphql.ExecutionInput;
-import graphql.execution.ExecutionId;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.DataFetchingEnvironmentImpl;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -29,7 +25,8 @@ import org.opentripplanner.apis.gtfs.GraphQLRequestContext;
 import org.opentripplanner.apis.gtfs.SchemaFactory;
 import org.opentripplanner.apis.gtfs.TestRoutingService;
 import org.opentripplanner.apis.gtfs.generated.GraphQLTypes;
-import org.opentripplanner.ext.fares.impl.gtfs.DefaultFareService;
+import org.opentripplanner.apis.support.graphql.DataFetchingSupport;
+import org.opentripplanner.ext.fares.service.gtfs.v1.DefaultFareService;
 import org.opentripplanner.model.plan.PlanTestConstants;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.preference.TimeSlopeSafetyTriangle;
@@ -45,6 +42,7 @@ import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParking
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingService;
 import org.opentripplanner.service.vehiclerental.internal.DefaultVehicleRentalService;
 import org.opentripplanner.street.search.TraverseMode;
+import org.opentripplanner.transfer.TransferServiceTestFactory;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
 import org.opentripplanner.transit.model.framework.Deduplicator;
 import org.opentripplanner.transit.service.DefaultTransitService;
@@ -63,6 +61,7 @@ class LegacyRouteRequestMapperTest implements PlanTestConstants {
     var timetableRepository = new TimetableRepository(stopModelBuilder.build(), new Deduplicator());
     timetableRepository.initTimeZone(ZoneIds.BERLIN);
     final DefaultTransitService transitService = new DefaultTransitService(timetableRepository);
+    var transferService = TransferServiceTestFactory.defaultTransferService();
     var routeRequest = RouteRequest.defaultValue();
     var vertexLinker = VertexLinkerTestFactory.of(graph);
     var vertexCreationService = new VertexCreationService(vertexLinker);
@@ -74,6 +73,7 @@ class LegacyRouteRequestMapperTest implements PlanTestConstants {
     context = new GraphQLRequestContext(
       new TestRoutingService(List.of()),
       transitService,
+      transferService,
       new DefaultFareService(),
       new DefaultVehicleRentalService(),
       new DefaultVehicleParkingService(new DefaultVehicleParkingRepository()),
@@ -314,17 +314,7 @@ class LegacyRouteRequestMapperTest implements PlanTestConstants {
   }
 
   private DataFetchingEnvironment executionContext(Map<String, Object> arguments) {
-    ExecutionInput executionInput = ExecutionInput.newExecutionInput()
-      .query("")
-      .operationName("plan")
-      .context(context)
-      .locale(Locale.ENGLISH)
-      .build();
-
-    var executionContext = newExecutionContextBuilder()
-      .executionInput(executionInput)
-      .executionId(ExecutionId.from(this.getClass().getName()))
-      .build();
+    var executionContext = DataFetchingSupport.executionContext();
     return DataFetchingEnvironmentImpl.newDataFetchingEnvironment(executionContext)
       .arguments(arguments)
       .build();

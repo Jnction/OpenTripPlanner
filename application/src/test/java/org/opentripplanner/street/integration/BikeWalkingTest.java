@@ -2,6 +2,7 @@ package org.opentripplanner.street.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -253,9 +254,9 @@ public class BikeWalkingTest extends GraphRoutingTest {
       Q,
       "null - 0 / 0.0 - null",
       "WALK - 10 / 20.0 - CD street",
-      "WALK - 90 / 90.0 - Elevator",
-      "WALK - 20 / 20.0 - null",
-      "WALK - 0 / 1.0 - L-Q"
+      "WALK - 90 / 195.0 - ElevatorBoardEdge",
+      "WALK - 20 / 40.0 - null",
+      "WALK - 0 / 1.0 - elevator"
     );
   }
 
@@ -269,9 +270,9 @@ public class BikeWalkingTest extends GraphRoutingTest {
       Q,
       "null - 0 / 0.0 - null",
       "🚲WALK - 20 / 100.0 - CD street",
-      "🚲WALK - 90 / 90.0 - Elevator",
-      "🚲WALK - 20 / 20.0 - null",
-      "🚲WALK - 0 / 1.0 - L-Q"
+      "🚲WALK - 90 / 195.0 - ElevatorBoardEdge",
+      "🚲WALK - 20 / 40.0 - null",
+      "🚲WALK - 0 / 1.0 - elevator"
     );
   }
 
@@ -284,16 +285,16 @@ public class BikeWalkingTest extends GraphRoutingTest {
       List.of(
         "null - 0 / 0.0 - null",
         "BICYCLE - 5 / 10.0 - CD street",
-        "🚲WALK - 190 / 1090.0 - Elevator",
-        "🚲WALK - 20 / 20.0 - null",
-        "🚲WALK - 0 / 1.0 - L-Q"
+        "🚲WALK - 190 / 1195.0 - ElevatorBoardEdge",
+        "🚲WALK - 20 / 40.0 - null",
+        "🚲WALK - 0 / 1.0 - elevator"
       ),
       List.of(
         "null - 0 / 0.0 - null",
         "BICYCLE - 105 / 1010.0 - CD street",
-        "🚲WALK - 90 / 90.0 - Elevator",
-        "🚲WALK - 20 / 20.0 - null",
-        "🚲WALK - 0 / 1.0 - L-Q"
+        "🚲WALK - 90 / 195.0 - ElevatorBoardEdge",
+        "🚲WALK - 20 / 40.0 - null",
+        "🚲WALK - 0 / 1.0 - elevator"
       )
     );
   }
@@ -380,7 +381,10 @@ public class BikeWalkingTest extends GraphRoutingTest {
             it
               .withSpeed(20d)
               .withWalking(w ->
-                w.withSpeed(5d).withMountDismountTime(100).withMountDismountCost(1000)
+                w
+                  .withSpeed(5d)
+                  .withMountDismountTime(Duration.ofSeconds(100))
+                  .withMountDismountCost(1000)
               )
           )
       )

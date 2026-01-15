@@ -19,12 +19,15 @@ import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.routing.core.VehicleRoutingOptimizeType;
 import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.graphfinder.NoopSiteResolver;
 import org.opentripplanner.routing.impl.GraphPathFinder;
 import org.opentripplanner.routing.linking.LinkingContextFactory;
 import org.opentripplanner.routing.linking.TemporaryVerticesContainer;
 import org.opentripplanner.routing.linking.VertexLinkerTestFactory;
 import org.opentripplanner.routing.linking.internal.VertexCreationService;
 import org.opentripplanner.routing.linking.mapping.LinkingContextRequestMapper;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsRepository;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsService;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.test.support.ResourceLoader;
 
@@ -98,13 +101,14 @@ public class BicycleRoutingTest {
     var paths = gpf.graphPathFinderEntryPoint(request, linkingContext);
 
     GraphPathToItineraryMapper graphPathToItineraryMapper = new GraphPathToItineraryMapper(
-      id -> null,
+      new NoopSiteResolver(),
       ZoneIds.BERLIN,
       graph.streetNotesService,
+      new DefaultStreetDetailsService(new DefaultStreetDetailsRepository()),
       graph.ellipsoidToGeoidDifference
     );
 
-    var itineraries = graphPathToItineraryMapper.mapItineraries(paths);
+    var itineraries = graphPathToItineraryMapper.mapItineraries(paths, request);
     temporaryVerticesContainer.close();
 
     // make sure that we only get BICYCLE legs

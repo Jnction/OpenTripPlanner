@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
 import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
 import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.linking.DisposableEdgeCollection;
@@ -169,7 +169,7 @@ public class TemporaryPartialStreetEdgeTest {
 
     StreetSearchRequest request = StreetSearchRequest.of()
       .withMode(StreetMode.CAR)
-      .withPreferences(p -> p.withStreet(s -> s.withTurnReluctance(0.5)))
+      .withTurnReluctance(0.5)
       .build();
 
     // All intersections take 10 minutes - we'll notice if one isn't counted.
