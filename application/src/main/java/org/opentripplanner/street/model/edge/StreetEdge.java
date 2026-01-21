@@ -212,16 +212,13 @@ public class StreetEdge
       return Double.NaN;
     }
 
-    final double speed =
-      switch (traverseMode) {
-        case WALK -> walkingBike
-          ? preferences.bike().walking().speed()
-          : preferences.walk().speed();
-        case BICYCLE -> Math.min(preferences.bike().speed(), getCyclingSpeedLimit());
-        case CAR -> getCarSpeed();
-        case SCOOTER -> Math.min(preferences.scooter().speed(), getCyclingSpeedLimit());
-        case FLEX -> throw new IllegalArgumentException("getSpeed(): Invalid mode " + traverseMode);
-      };
+    final double speed = switch (traverseMode) {
+      case WALK -> walkingBike ? preferences.bike().walking().speed() : preferences.walk().speed();
+      case BICYCLE -> Math.min(preferences.bike().speed(), getCyclingSpeedLimit());
+      case CAR -> getCarSpeed();
+      case SCOOTER -> Math.min(preferences.scooter().speed(), getCyclingSpeedLimit());
+      case FLEX -> throw new IllegalArgumentException("getSpeed(): Invalid mode " + traverseMode);
+    };
 
     return isStairs() ? (speed / preferences.walk().stairsTimeFactor()) : speed;
   }
@@ -999,18 +996,17 @@ public class StreetEdge
     // Automobiles have variable speeds depending on the edge type
     double speed = calculateSpeed(request, traverseMode, walkingBike);
 
-    var traversalCosts =
-      switch (traverseMode) {
-        case BICYCLE, SCOOTER -> bicycleOrScooterTraversalCost(request, traverseMode, speed, s0);
-        case WALK -> walkingTraversalCosts(
-          request,
-          traverseMode,
-          speed,
-          walkingBike,
-          s0.getRequest().wheelchairEnabled()
-        );
-        default -> otherTraversalCosts(request, traverseMode, walkingBike, speed);
-      };
+    var traversalCosts = switch (traverseMode) {
+      case BICYCLE, SCOOTER -> bicycleOrScooterTraversalCost(request, traverseMode, speed, s0);
+      case WALK -> walkingTraversalCosts(
+        request,
+        traverseMode,
+        speed,
+        walkingBike,
+        s0.getRequest().wheelchairEnabled()
+      );
+      default -> otherTraversalCosts(request, traverseMode, walkingBike, speed);
+    };
 
     long time_ms = (long) Math.ceil(1000.0 * traversalCosts.time());
     var weight = traversalCosts.weight();
@@ -1067,16 +1063,15 @@ public class StreetEdge
         turnDuration = 0;
       }
 
-      var modeReluctance =
-        switch (intersectionMode) {
-          case WALK -> walkingBikeThroughIntersection
-            ? request.bike().walking().reluctance()
-            : request.walk().reluctance();
-          case BICYCLE -> request.bike().reluctance();
-          case SCOOTER -> request.scooter().reluctance();
-          case CAR -> request.car().reluctance();
-          case FLEX -> 1;
-        };
+      var modeReluctance = switch (intersectionMode) {
+        case WALK -> walkingBikeThroughIntersection
+          ? request.bike().walking().reluctance()
+          : request.walk().reluctance();
+        case BICYCLE -> request.bike().reluctance();
+        case SCOOTER -> request.scooter().reluctance();
+        case CAR -> request.car().reluctance();
+        case FLEX -> 1;
+      };
       time_ms += (long) Math.ceil(1000.0 * turnDuration);
       weight += modeReluctance * request.turnReluctance() * turnDuration;
     }
@@ -1131,8 +1126,9 @@ public class StreetEdge
       case SAFEST_STREETS -> weight =
         (getSafetyForSafestStreet(bicycleSafetyFactor) * getDistanceMeters()) / speed;
       case SAFE_STREETS -> weight = getEffectiveBicycleSafetyDistance() / speed;
-      case FLAT_STREETS -> /* see notes in StreetVertex on speed overhead */weight =
-        getEffectiveWorkDistanceForPropulsion(propulsion, electricAssistSlopeSensitivity) / speed;
+      case FLAT_STREETS ->
+        /* see notes in StreetVertex on speed overhead */ weight =
+          getEffectiveWorkDistanceForPropulsion(propulsion, electricAssistSlopeSensitivity) / speed;
       case SHORTEST_DURATION -> weight = effectiveTimeDistance / speed;
       case TRIANGLE -> {
         double quick = effectiveTimeDistance;
