@@ -10,11 +10,13 @@ import static org.opentripplanner.street.model.StreetTraversalPermission.NONE;
 import static org.opentripplanner.street.model.StreetTraversalPermission.PEDESTRIAN;
 import static org.opentripplanner.street.model.StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE;
 
+import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
 import org.opentripplanner.osm.model.OsmEntity;
 import org.opentripplanner.osm.model.TraverseDirection;
 import org.opentripplanner.osm.wayproperty.MixinPropertiesBuilder;
 import org.opentripplanner.osm.wayproperty.WayProperties;
 import org.opentripplanner.osm.wayproperty.WayPropertySet;
+import org.opentripplanner.osm.wayproperty.WayPropertySetBuilder;
 import org.opentripplanner.osm.wayproperty.specifier.BestMatchSpecifier;
 import org.opentripplanner.osm.wayproperty.specifier.Condition;
 import org.opentripplanner.osm.wayproperty.specifier.Condition.Equals;
@@ -52,7 +54,8 @@ import org.opentripplanner.routing.services.notes.StreetNotesService;
 public class OsmTagMapper {
 
   /* Populate properties on existing WayPropertySet */
-  public void populateProperties(WayPropertySet props) {
+  public WayPropertySet buildWayPropertySet() {
+    var props = WayPropertySet.of();
     WayProperties allWayProperties = withModes(ALL).build();
     WayProperties noneWayProperties = withModes(NONE).build();
     /* no bicycle tags */
@@ -212,9 +215,7 @@ public class OsmTagMapper {
     props.setMixinProperties(
       new ExactMatchSpecifier(
         new Equals("foot", "designated"),
-        new Not(new Equals("highway", "footway")),
-        new Not(new Equals("highway", "pedestrian")),
-        new Not(new Equals("highway", "path"))
+        new Not(new Condition.OneOf("highway", "footway", "pedestrian", "path"))
       ),
       ofWalkSafety(0.9)
     );
@@ -259,19 +260,7 @@ public class OsmTagMapper {
     props.setMixinProperties(
       new LogicalOrSpecifier(
         new ExactMatchSpecifier(
-          new Equals("sidewalk", "yes"),
-          new Not(new Condition.OneOf("highway", "footway", "pedestrian", "path", "trunk"))
-        ),
-        new ExactMatchSpecifier(
-          new Equals("sidewalk", "left"),
-          new Not(new Condition.OneOf("highway", "footway", "pedestrian", "path", "trunk"))
-        ),
-        new ExactMatchSpecifier(
-          new Equals("sidewalk", "right"),
-          new Not(new Condition.OneOf("highway", "footway", "pedestrian", "path", "trunk"))
-        ),
-        new ExactMatchSpecifier(
-          new Equals("sidewalk", "both"),
+          new Condition.OneOf("sidewalk", "yes", "left", "right", "both"),
           new Not(new Condition.OneOf("highway", "footway", "pedestrian", "path", "trunk"))
         )
       ),
@@ -289,6 +278,8 @@ public class OsmTagMapper {
         "highway=trunk_link;sidewalk=right",
         "highway=trunk_link;sidewalk=both"
       ),
+      // reduce trunk walk safety value with sidewalk because a trunk road has a high safety value
+      // by default
       ofWalkSafety(0.4)
     );
 
@@ -343,9 +334,9 @@ public class OsmTagMapper {
     props.setCarSpeed("highway=road", 11.2f);
 
     // default ~= 25 mph
-    props.defaultCarSpeed = 11.2f;
+    props.setDefaultCarSpeed(11.2f);
     // 38 m/s ~= 85 mph ~= 137 kph
-    props.maxPossibleCarSpeed = 38f;
+    props.setMaxPossibleCarSpeed(38f);
 
     /* special situations */
 
@@ -413,9 +404,11 @@ public class OsmTagMapper {
     props.setSlopeOverride(new BestMatchSpecifier("tunnel=*"), true);
     props.setSlopeOverride(new BestMatchSpecifier("location=underground"), true);
     props.setSlopeOverride(new BestMatchSpecifier("indoor=yes"), true);
+
+    return props.build();
   }
 
-  static void populateNotesAndNames(WayPropertySet props) {
+  static void populateNotesAndNames(WayPropertySetBuilder props) {
     /* and the notes */
     // TODO: The curly brackets in the string below mean that the CreativeNamer should substitute in OSM tag values.
     // However they are not taken into account when passed to the translation function.
@@ -529,12 +522,12 @@ public class OsmTagMapper {
     );
   }
 
-  public float getCarSpeedForWay(OsmEntity way, TraverseDirection direction) {
-    return way.getOsmProvider().getWayPropertySet().getCarSpeedForWay(way, direction);
-  }
-
-  public Float getMaxUsedCarSpeed(WayPropertySet wayPropertySet) {
-    return wayPropertySet.maxUsedCarSpeed;
+  public float getCarSpeedForWay(
+    OsmEntity way,
+    TraverseDirection direction,
+    DataImportIssueStore issueStore
+  ) {
+    return way.getOsmProvider().getWayPropertySet().getCarSpeedForWay(way, direction, issueStore);
   }
 
   public boolean isGeneralNoThroughTraffic(OsmEntity way) {
