@@ -3,7 +3,7 @@ package org.opentripplanner.apis.gtfs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.opentripplanner._support.time.ZoneIds.BERLIN;
-import static org.opentripplanner.model.plan.PlanTestConstants.D10m;
+import static org.opentripplanner.model.plan.PlanTestConstants.D10_m;
 import static org.opentripplanner.model.plan.PlanTestConstants.T11_00;
 import static org.opentripplanner.model.plan.PlanTestConstants.T11_01;
 import static org.opentripplanner.model.plan.PlanTestConstants.T11_15;
@@ -19,17 +19,21 @@ import static org.opentripplanner.transit.model.timetable.OccupancyStatus.FEW_SE
 
 import com.google.common.collect.ImmutableListMultimap;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -40,30 +44,29 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.locationtech.jts.geom.Coordinate;
 import org.opentripplanner._support.text.I18NStrings;
-import org.opentripplanner._support.time.ZoneIds;
+import org.opentripplanner.core.model.accessibility.Accessibility;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.fares.ItineraryFaresDecorator;
-import org.opentripplanner.ext.fares.impl.DefaultFareService;
-import org.opentripplanner.framework.geometry.WgsCoordinate;
-import org.opentripplanner.framework.i18n.I18NString;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
-import org.opentripplanner.framework.model.Gram;
-import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
-import org.opentripplanner.model.FeedInfo;
-import org.opentripplanner.model.RealTimeTripUpdate;
-import org.opentripplanner.model.TimetableSnapshot;
+import org.opentripplanner.ext.fares.service.gtfs.v1.DefaultFareService;
+import org.opentripplanner.model.FeedInfoTestFactory;
 import org.opentripplanner.model.calendar.CalendarServiceData;
 import org.opentripplanner.model.fare.FareMedium;
+import org.opentripplanner.model.fare.FareOffer;
 import org.opentripplanner.model.fare.FareProduct;
 import org.opentripplanner.model.fare.ItineraryFare;
 import org.opentripplanner.model.fare.RiderCategory;
-import org.opentripplanner.model.plan.Emissions;
+import org.opentripplanner.model.plan.Emission;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.model.plan.Place;
-import org.opentripplanner.model.plan.RelativeDirection;
-import org.opentripplanner.model.plan.ScheduledTransitLeg;
-import org.opentripplanner.model.plan.WalkStep;
-import org.opentripplanner.model.plan.WalkStepBuilder;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
+import org.opentripplanner.model.plan.leg.ViaLocationType;
+import org.opentripplanner.model.plan.walkstep.RelativeDirection;
+import org.opentripplanner.model.plan.walkstep.WalkStep;
+import org.opentripplanner.model.plan.walkstep.WalkStepBuilder;
+import org.opentripplanner.model.plan.walkstep.verticaltransportation.VerticalTransportationUseFactory;
 import org.opentripplanner.routing.alertpatch.AlertCause;
 import org.opentripplanner.routing.alertpatch.AlertEffect;
 import org.opentripplanner.routing.alertpatch.AlertSeverity;
@@ -71,7 +74,6 @@ import org.opentripplanner.routing.alertpatch.EntitySelector;
 import org.opentripplanner.routing.alertpatch.TimePeriod;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graphfinder.GraphFinder;
 import org.opentripplanner.routing.graphfinder.NearbyStop;
 import org.opentripplanner.routing.graphfinder.PlaceAtDistance;
@@ -80,6 +82,11 @@ import org.opentripplanner.routing.impl.TransitAlertServiceImpl;
 import org.opentripplanner.routing.services.TransitAlertService;
 import org.opentripplanner.service.realtimevehicles.internal.DefaultRealtimeVehicleService;
 import org.opentripplanner.service.realtimevehicles.model.RealtimeVehicle;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsRepository;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsService;
+import org.opentripplanner.service.streetdetails.model.InclinedEdgeLevelInfo;
+import org.opentripplanner.service.streetdetails.model.Level;
+import org.opentripplanner.service.streetdetails.model.VertexLevelInfo;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingService;
@@ -90,23 +97,29 @@ import org.opentripplanner.service.vehiclerental.model.TestVehicleRentalStationB
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalStation;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalVehicle;
 import org.opentripplanner.standalone.config.framework.json.JsonSupport;
+import org.opentripplanner.street.geometry.WgsCoordinate;
+import org.opentripplanner.street.model.edge.ElevatorAlightEdge;
+import org.opentripplanner.street.model.edge.ElevatorBoardEdge;
+import org.opentripplanner.street.search.state.TestStateBuilder;
 import org.opentripplanner.test.support.FilePatternSource;
+import org.opentripplanner.transfer.regular.TransferServiceTestFactory;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
-import org.opentripplanner.transit.model.basic.Accessibility;
 import org.opentripplanner.transit.model.basic.Money;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.framework.AbstractBuilder;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.BikeAccess;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.organization.Agency;
 import org.opentripplanner.transit.model.site.Entrance;
 import org.opentripplanner.transit.model.site.RegularStop;
+import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
-import org.opentripplanner.transit.model.timetable.RealTimeTripTimes;
+import org.opentripplanner.transit.model.timetable.RealTimeTripUpdate;
+import org.opentripplanner.transit.model.timetable.TimetableSnapshot;
 import org.opentripplanner.transit.model.timetable.Trip;
+import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.model.timetable.TripTimesFactory;
 import org.opentripplanner.transit.service.DefaultTransitService;
 import org.opentripplanner.transit.service.TimetableRepository;
@@ -118,9 +131,14 @@ class GraphQLIntegrationTest {
 
   private static final TimetableRepositoryForTest TEST_MODEL = TimetableRepositoryForTest.of();
 
+  private static final Station OMEGA = TEST_MODEL.station("Omega").build();
   private static final Place A = TEST_MODEL.place("A", 5.0, 8.0);
   private static final Place B = TEST_MODEL.place("B", 6.0, 8.5);
-  private static final Place C = TEST_MODEL.place("C", 7.0, 9.0);
+  private static final Place C = TEST_MODEL.place(
+    "C",
+    builder -> builder.withParentStation(OMEGA).withCoordinate(7.0, 9.0),
+    ViaLocationType.PASS_THROUGH
+  );
   private static final Place D = TEST_MODEL.place("D", 8.0, 9.5);
   private static final Place E = TEST_MODEL.place("E", 9.0, 10.0);
   private static final Place F = TEST_MODEL.place("F", 9.0, 10.5);
@@ -133,7 +151,6 @@ class GraphQLIntegrationTest {
   private static final Route ROUTE = TimetableRepositoryForTest.route("a-route").build();
   private static final String ADDED_TRIP_ID = "ADDED_TRIP";
   private static final String REPLACEMENT_TRIP_ID = "REPLACEMENT_TRIP";
-  public static final ZoneId TIME_ZONE = ZoneIds.BERLIN;
   public static final String FEED_ID = TimetableRepositoryForTest.FEED_ID;
 
   private static final VehicleRentalStation VEHICLE_RENTAL_STATION =
@@ -156,8 +173,6 @@ class GraphQLIntegrationTest {
       .withCurrentFuelPercent(null)
       .build();
 
-  static final Graph GRAPH = new Graph();
-
   static final Instant ALERT_START_TIME = OffsetDateTime.parse(
     "2023-02-15T12:03:28+01:00"
   ).toInstant();
@@ -170,12 +185,12 @@ class GraphQLIntegrationTest {
   private static GraphQLRequestContext context;
 
   private static final Deduplicator DEDUPLICATOR = new Deduplicator();
-  private static final VehicleParkingRepository parkingRepository =
+  private static final VehicleParkingRepository PARKING_REPOSITORY =
     new DefaultVehicleParkingRepository();
 
   @BeforeAll
   static void setup() {
-    parkingRepository.updateVehicleParking(
+    PARKING_REPOSITORY.updateVehicleParking(
       List.of(
         VehicleParking.builder()
           .id(id("parking-1"))
@@ -188,8 +203,9 @@ class GraphQLIntegrationTest {
 
     var siteRepositoryBuilder = TEST_MODEL.siteRepositoryBuilder();
     STOP_LOCATIONS.forEach(siteRepositoryBuilder::withRegularStop);
+    siteRepositoryBuilder.withStation(OMEGA);
     var siteRepository = siteRepositoryBuilder.build();
-    var timetableRepository = new TimetableRepository(siteRepository, DEDUPLICATOR);
+    var timetableRepository = new TimetableRepository(siteRepository);
 
     var cal_id = TimetableRepositoryForTest.id("CAL_1");
     var trip = TimetableRepositoryForTest.trip("123")
@@ -205,6 +221,10 @@ class GraphQLIntegrationTest {
     var stopTimes2 = TEST_MODEL.stopTimesEvery5Minutes(3, trip2, "11:30");
     var tripTimes2 = TripTimesFactory.tripTimes(trip2, stopTimes2, DEDUPLICATOR);
 
+    // realtime-trip.graphql will return isReplacementTrip: false even though it is logically
+    // wrong, because currently there is no way to represent a BUS replacing a BUS in GTFS
+    // data so that the replacement link exists, or is even implied by some attribute. We
+    // still include the test in the hope that one day it becomes possible.
     var tripToBeReplaced = TimetableRepositoryForTest.trip(REPLACEMENT_TRIP_ID)
       .withServiceId(cal_id)
       .build();
@@ -225,7 +245,7 @@ class GraphQLIntegrationTest {
 
     timetableRepository.addTripPattern(id("pattern-1"), pattern);
 
-    var feedInfo = FeedInfo.dummyForTest(FEED_ID);
+    var feedInfo = FeedInfoTestFactory.dummyForTest(FEED_ID);
     timetableRepository.addFeedInfo(feedInfo);
 
     var agency = Agency.of(new FeedScopedId(FEED_ID, "agency-xx"))
@@ -246,30 +266,43 @@ class GraphQLIntegrationTest {
       List.of(firstDate, secondDate, SERVICE_DATE)
     );
     timetableRepository.getServiceCodes().put(cal_id, SERVICE_CODE);
-    timetableRepository.updateCalendarServiceData(
-      true,
-      calendarServiceData,
-      DataImportIssueStore.NOOP
-    );
+    timetableRepository.updateCalendarServiceData(calendarServiceData);
     timetableRepository.index();
 
     TimetableSnapshot timetableSnapshot = new TimetableSnapshot();
-    tripTimes2.cancelTrip();
-    timetableSnapshot.update(new RealTimeTripUpdate(pattern, tripTimes2, secondDate));
+    timetableSnapshot.update(
+      RealTimeTripUpdate.of(
+        pattern,
+        tripTimes2.createRealTimeFromScheduledTimes().cancelTrip().build(),
+        secondDate
+      ).build()
+    );
 
-    var routes = Arrays.stream(TransitMode.values())
-      .sorted(Comparator.comparing(Enum::name))
-      .map(m ->
-        TimetableRepositoryForTest.route(m.name())
-          .withMode(m)
-          .withLongName(I18NString.of("Long name for %s".formatted(m)))
-          .withGtfsSortOrder(sortOrder(m))
-          .withBikesAllowed(bikesAllowed(m))
+    var routes = Stream.concat(
+      Arrays.stream(TransitMode.values())
+        .sorted(Comparator.comparing(Enum::name))
+        .map(m ->
+          TimetableRepositoryForTest.route(m.name())
+            .withMode(m)
+            .withLongName(I18NString.of("Long name for %s".formatted(m)))
+            .withGtfsSortOrder(sortOrder(m))
+            .withBikesAllowed(bikesAllowed(m))
+            .build()
+        ),
+      Stream.of(
+        TimetableRepositoryForTest.route("replacement")
+          .withMode(BUS)
+          .withLongName(I18NString.of("Long name for replacement bus"))
+          .withGtfsType(714)
           .build()
       )
-      .toList();
+    ).toList();
 
-    var busRoute = routes.stream().filter(r -> r.getMode().equals(BUS)).findFirst().get();
+    var busRoute = routes
+      .stream()
+      .filter(r -> r.getMode().equals(BUS))
+      .findFirst()
+      .get();
 
     final Trip addedTrip = Trip.of(new FeedScopedId(FEED_ID, ADDED_TRIP_ID))
       .withRoute(busRoute)
@@ -280,28 +313,19 @@ class GraphQLIntegrationTest {
         t,
         TEST_MODEL.stopTimesEvery5Minutes(4, t, "00:00"),
         new Deduplicator()
-      );
-      realTimeTripTimes.setServiceCode(SERVICE_CODE);
+      ).withServiceCode(SERVICE_CODE);
       timetableSnapshot.update(
-        new RealTimeTripUpdate(
+        RealTimeTripUpdate.of(
           TripPattern.of(new FeedScopedId(FEED_ID, "ADDED_TRIP_PATTERN"))
             .withRoute(t.getRoute())
-            .withStopPattern(
-              TimetableRepositoryForTest.stopPattern(
-                (RegularStop) A.stop,
-                (RegularStop) B.stop,
-                (RegularStop) C.stop,
-                (RegularStop) D.stop
-              )
-            )
-            .withCreatedByRealtimeUpdater(true)
+            .withStopPattern(TimetableRepositoryForTest.stopPattern(A.stop, B.stop, C.stop, D.stop))
+            .withRealTimeStopPatternModified()
             .build(),
           realTimeTripTimes,
-          SERVICE_DATE,
-          null,
-          t == addedTrip,
-          false
+          SERVICE_DATE
         )
+          .withTripCreation(t == addedTrip)
+          .build()
       );
     }
 
@@ -326,15 +350,41 @@ class GraphQLIntegrationTest {
       public Set<Route> findRoutes(StopLocation stop) {
         return Set.of(ROUTE);
       }
-    };
 
-    routes.forEach(transitService::addRoutes);
+      @Override
+      public Collection<Route> listRoutes() {
+        return routes;
+      }
+    };
+    var streetDetailsRepository = new DefaultStreetDetailsRepository();
+    VerticalTransportationUseFactory verticalTransportationUseFactory =
+      new VerticalTransportationUseFactory(
+        new DefaultStreetDetailsService(streetDetailsRepository)
+      );
 
     var step1 = walkStep("street")
       .withRelativeDirection(RelativeDirection.DEPART)
       .withAbsoluteDirection(20)
       .build();
-    var step2 = walkStep("elevator").withRelativeDirection(RelativeDirection.ELEVATOR).build();
+
+    var elevatorState = TestStateBuilder.ofWalking().elevator().build();
+    ElevatorBoardEdge elevatorBoardEdge = (ElevatorBoardEdge) elevatorState
+      .getBackState()
+      .getBackState()
+      .getBackEdge();
+    ElevatorAlightEdge elevatorAlightEdge = (ElevatorAlightEdge) elevatorState.getBackEdge();
+    streetDetailsRepository.addHorizontalEdgeLevelInfo(elevatorBoardEdge, new Level(-2.0, "-2"));
+    streetDetailsRepository.addHorizontalEdgeLevelInfo(elevatorAlightEdge, new Level(-1.0, "-1"));
+    var step2 = walkStep("elevator")
+      .withRelativeDirection(RelativeDirection.ELEVATOR)
+      .withVerticalTransportationUse(
+        verticalTransportationUseFactory.createElevatorUse(
+          elevatorState.getBackState(),
+          elevatorAlightEdge
+        )
+      )
+      .build();
+
     FeedScopedId entranceId = new FeedScopedId("osm", "123");
     Entrance entrance = Entrance.of(entranceId)
       .withCoordinate(new WgsCoordinate(60, 80))
@@ -346,7 +396,32 @@ class GraphQLIntegrationTest {
       .withEntrance(entrance)
       .build();
 
+    var stairsState = TestStateBuilder.ofWalking().stairsEdge().build();
+    var stairsEdge = stairsState.getBackEdge();
+    var inclinedEdgeLevelInfo = new InclinedEdgeLevelInfo(
+      new VertexLevelInfo(new Level(1.0, "1"), 1),
+      new VertexLevelInfo(new Level(2.0, "2"), 2)
+    );
+    streetDetailsRepository.addInclinedEdgeLevelInfo(stairsEdge, inclinedEdgeLevelInfo);
+    var step4 = walkStep("stairs")
+      .withRelativeDirection(RelativeDirection.CONTINUE)
+      .withVerticalTransportationUse(verticalTransportationUseFactory.createStairsUse(stairsEdge))
+      .addEdge(stairsEdge)
+      .build();
+
+    var escalatorState = TestStateBuilder.ofWalking().escalatorEdge().build();
+    var escalatorEdge = escalatorState.getBackEdge();
+    streetDetailsRepository.addInclinedEdgeLevelInfo(escalatorEdge, inclinedEdgeLevelInfo);
+    var step5 = walkStep("escalator")
+      .withRelativeDirection(RelativeDirection.CONTINUE)
+      .withVerticalTransportationUse(
+        verticalTransportationUseFactory.createEscalatorUse(escalatorEdge)
+      )
+      .addEdge(escalatorEdge)
+      .build();
+
     var entitySelector = new EntitySelector.Stop(A.stop.getId());
+    var stationEntitySelector = new EntitySelector.Stop(OMEGA.getId());
     var alert = TransitAlert.of(id("an-alert"))
       .withHeaderText(I18NString.of("A header"))
       .withDescriptionText(I18NString.of("A description"))
@@ -359,25 +434,31 @@ class GraphQLIntegrationTest {
         new TimePeriod(ALERT_START_TIME.getEpochSecond(), ALERT_END_TIME.getEpochSecond())
       )
       .build();
+    var stationAlert = TransitAlert.of(id("a-station-alert"))
+      .withHeaderText(I18NString.of("Station closed"))
+      .withDescriptionText(I18NString.of("This station is currently closed"))
+      .withEffect(AlertEffect.NO_SERVICE)
+      .addEntity(stationEntitySelector)
+      .build();
 
-    // TODO - Use itineraryBuilder() here not build() and compleate building the itinerary using
+    // TODO - Use itineraryBuilder() here not build() and complete building the itinerary using
     //        the ItineraryBuilder and not going back and forth between the Itinerary and the
     //        builder.
     var i1 = newItinerary(A, T11_00)
-      .walk(20, B, List.of(step1, step2, step3))
+      .walk(20, B, List.of(step1, step2, step3, step4, step5))
       .bus(busRoute, 122, T11_01, T11_15, C)
       .rail(439, T11_30, T11_50, D)
-      .carHail(D10m, E)
+      .carHail(D10_m, E)
       .build();
 
     i1 = add10MinuteDelay(i1);
 
     var busLeg = i1.transitLeg(1);
     var railLeg = (ScheduledTransitLeg) i1.transitLeg(2);
-    railLeg = railLeg.copy().withAlerts(Set.of(alert)).withAccessibilityScore(3f).build();
+    railLeg = railLeg.copyOf().withAlerts(Set.of(alert)).withAccessibilityScore(3f).build();
     ArrayList<Leg> legs = new ArrayList<>(i1.legs());
     legs.set(2, railLeg);
-    i1 = i1.copyOf().withLegs(ignore -> legs).build();
+    i1 = i1.copyOf().withLegs(legs).build();
 
     var fares = new ItineraryFare();
 
@@ -385,17 +466,17 @@ class GraphQLIntegrationTest {
     fares.addItineraryProducts(List.of(dayPass));
 
     var singleTicket = fareProduct("single-ticket");
-    fares.addFareProduct(railLeg, singleTicket);
-    fares.addFareProduct(busLeg, singleTicket);
+    fares.addFareProduct(railLeg, FareOffer.of(railLeg.startTime(), singleTicket));
+    fares.addFareProduct(busLeg, FareOffer.of(busLeg.startTime(), singleTicket));
 
     i1 = ItineraryFaresDecorator.decorateItineraryWithFare(i1, fares);
 
     i1 = i1.copyOf().withAccessibilityScore(0.5f).build();
 
-    var emissions = new Emissions(new Gram(123.0));
-    i1 = i1.copyOf().withEmissionsPerPerson(emissions).build();
+    var emission = Emission.ofCo2Gram(123.0);
+    i1 = i1.copyOf().withEmissionPerPerson(emission).build();
 
-    var alerts = ListUtils.combine(List.of(alert), getTransitAlert(entitySelector));
+    var alerts = ListUtils.combine(List.of(alert, stationAlert), getTransitAlert(entitySelector));
     transitService.getTransitAlertService().setAlerts(alerts);
 
     var realtimeVehicleService = new DefaultRealtimeVehicleService(transitService);
@@ -428,16 +509,17 @@ class GraphQLIntegrationTest {
     defaultVehicleRentalService.addVehicleRentalStation(RENTAL_VEHICLE_1);
     defaultVehicleRentalService.addVehicleRentalStation(RENTAL_VEHICLE_2);
 
-    var routeRequest = new RouteRequest();
+    var routeRequest = RouteRequest.defaultValue();
     context = new GraphQLRequestContext(
       new TestRoutingService(List.of(i1)),
       transitService,
+      TransferServiceTestFactory.defaultTransferService(),
       new DefaultFareService(),
       defaultVehicleRentalService,
-      new DefaultVehicleParkingService(parkingRepository),
+      new DefaultVehicleParkingService(PARKING_REPOSITORY),
       realtimeVehicleService,
       SchemaFactory.createSchemaWithDefaultInjection(routeRequest),
-      finder,
+      FINDER,
       routeRequest
     );
   }
@@ -466,12 +548,15 @@ class GraphQLIntegrationTest {
       .copyOf()
       .transformTransitLegs(tl -> {
         if (tl instanceof ScheduledTransitLeg stl) {
-          var rtt = (RealTimeTripTimes) stl.getTripTimes();
+          TripTimes scheduledTimes = stl.tripTimes();
+          var builder = scheduledTimes.createRealTimeFromScheduledTimes();
 
-          for (var i = 0; i < rtt.getNumStops(); i++) {
-            rtt.updateArrivalTime(i, rtt.getArrivalTime(i) + TEN_MINUTES);
-            rtt.updateDepartureTime(i, rtt.getDepartureTime(i) + TEN_MINUTES);
+          for (var i = 0; i < scheduledTimes.getNumStops(); i++) {
+            builder.withArrivalTime(i, scheduledTimes.getArrivalTime(i) + TEN_MINUTES);
+            builder.withDepartureTime(i, scheduledTimes.getDepartureTime(i) + TEN_MINUTES);
           }
+
+          return stl.copyOf().withTripTimes(builder.build()).build();
         }
         return tl;
       })
@@ -491,7 +576,8 @@ class GraphQLIntegrationTest {
       2000,
       2000,
       Locale.ENGLISH,
-      context
+      context,
+      Collections.emptyList()
     );
     var actualJson = responseBody(response);
     assertEquals(200, response.getStatus());
@@ -538,14 +624,10 @@ class GraphQLIntegrationTest {
   }
 
   private static FareProduct fareProduct(String name) {
-    return new FareProduct(
-      id(name),
-      name,
-      Money.euros(10),
-      null,
-      new RiderCategory(id("senior-citizens"), "Senior citizens", null),
-      new FareMedium(id("oyster"), "TfL Oyster Card")
-    );
+    return FareProduct.of(id(name), name, Money.euros(10))
+      .withCategory(RiderCategory.of(id("senior-citizens")).withName("Senior citizens").build())
+      .withMedium(new FareMedium(id("oyster"), "TfL Oyster Card"))
+      .build();
   }
 
   /**
@@ -562,13 +644,23 @@ class GraphQLIntegrationTest {
 
   private static String responseBody(Response response) {
     if (response instanceof OutboundJaxrsResponse outbound) {
-      return (String) outbound.getContext().getEntity();
+      var entity = outbound.getContext().getEntity();
+      if (entity instanceof StreamingOutput streaming) {
+        try {
+          var baos = new ByteArrayOutputStream();
+          streaming.write(baos);
+          return baos.toString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+          fail("Failed to read streaming response: " + e.getMessage());
+        }
+      }
+      return (String) entity;
     }
     fail("expected an outbound response but got %s".formatted(response.getClass().getSimpleName()));
     return null;
   }
 
-  private static final GraphFinder finder = new GraphFinder() {
+  private static final GraphFinder FINDER = new GraphFinder() {
     @Override
     public List<NearbyStop> findClosestStops(Coordinate coordinate, double radiusMeters) {
       return null;

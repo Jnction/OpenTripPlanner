@@ -11,12 +11,12 @@ import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.opentripplanner.core.framework.deduplicator.DeduplicatorService;
+import org.opentripplanner.core.model.accessibility.Accessibility;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.framework.error.OtpError;
-import org.opentripplanner.framework.i18n.I18NString;
-import org.opentripplanner.transit.model.basic.Accessibility;
 import org.opentripplanner.transit.model.framework.DataValidationException;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.DeduplicatorService;
 import org.opentripplanner.transit.model.timetable.booking.BookingInfo;
 import org.opentripplanner.utils.lang.IntUtils;
 import org.opentripplanner.utils.time.DurationUtils;
@@ -28,7 +28,7 @@ import org.opentripplanner.utils.time.TimeUtils;
  *
  * @see RealTimeTripTimes for real-time version
  */
-public final class ScheduledTripTimes implements TripTimes {
+public final class ScheduledTripTimes implements TripTimes<ScheduledTripTimes> {
 
   /**
    * When time-shifting from one time-zone to another negative times may occur.
@@ -126,12 +126,17 @@ public final class ScheduledTripTimes implements TripTimes {
   }
 
   @Override
-  public RealTimeTripTimes copyScheduledTimes() {
-    return RealTimeTripTimes.of(this);
+  public RealTimeTripTimesBuilder createRealTimeWithoutScheduledTimes() {
+    return new RealTimeTripTimesBuilder(this);
   }
 
   @Override
-  public TripTimes adjustTimesToGraphTimeZone(Duration shiftDelta) {
+  public RealTimeTripTimesBuilder createRealTimeFromScheduledTimes() {
+    return RealTimeTripTimesBuilder.fromScheduledTimes(this);
+  }
+
+  @Override
+  public ScheduledTripTimes withAdjustedTimes(Duration shiftDelta) {
     return copyOfNoDuplication().plusTimeShift((int) shiftDelta.toSeconds()).build();
   }
 
@@ -141,33 +146,38 @@ public final class ScheduledTripTimes implements TripTimes {
   }
 
   @Override
-  public int getScheduledArrivalTime(final int stop) {
-    return timeShifted(arrivalTimes[stop]);
+  public ScheduledTripTimes withServiceCode(int serviceCode) {
+    return this.copyOfNoDuplication().withServiceCode(serviceCode).build();
   }
 
   @Override
-  public int getArrivalTime(final int stop) {
-    return getScheduledArrivalTime(stop);
+  public int getScheduledArrivalTime(final int stopPos) {
+    return timeShifted(arrivalTimes[stopPos]);
   }
 
   @Override
-  public int getArrivalDelay(final int stop) {
-    return getArrivalTime(stop) - timeShifted(arrivalTimes[stop]);
+  public int getArrivalTime(final int stopPos) {
+    return getScheduledArrivalTime(stopPos);
   }
 
   @Override
-  public int getScheduledDepartureTime(final int stop) {
-    return timeShifted(departureTimes[stop]);
+  public int getArrivalDelay(final int stopPos) {
+    return getArrivalTime(stopPos) - timeShifted(arrivalTimes[stopPos]);
   }
 
   @Override
-  public int getDepartureTime(final int stop) {
-    return getScheduledDepartureTime(stop);
+  public int getScheduledDepartureTime(final int stopPos) {
+    return timeShifted(departureTimes[stopPos]);
   }
 
   @Override
-  public int getDepartureDelay(final int stop) {
-    return getDepartureTime(stop) - timeShifted(departureTimes[stop]);
+  public int getDepartureTime(final int stopPos) {
+    return getScheduledDepartureTime(stopPos);
+  }
+
+  @Override
+  public int getDepartureDelay(final int stopPos) {
+    return getDepartureTime(stopPos) - timeShifted(departureTimes[stopPos]);
   }
 
   @Override
@@ -181,18 +191,13 @@ public final class ScheduledTripTimes implements TripTimes {
   }
 
   @Override
-  public int sortIndex() {
-    return getDepartureTime(0);
+  public BookingInfo getDropOffBookingInfo(int stopPos) {
+    return dropOffBookingInfos.get(stopPos);
   }
 
   @Override
-  public BookingInfo getDropOffBookingInfo(int stop) {
-    return dropOffBookingInfos.get(stop);
-  }
-
-  @Override
-  public BookingInfo getPickupBookingInfo(int stop) {
-    return pickupBookingInfos.get(stop);
+  public BookingInfo getPickupBookingInfo(int stopPos) {
+    return pickupBookingInfos.get(stopPos);
   }
 
   @Override
@@ -221,27 +226,37 @@ public final class ScheduledTripTimes implements TripTimes {
   }
 
   @Override
-  public boolean isCancelledStop(int stop) {
+  public boolean isCancelledStop(int stopPos) {
     return false;
   }
 
   @Override
-  public boolean isRecordedStop(int stop) {
+  public boolean hasArrived(int stopPosition) {
     return false;
   }
 
   @Override
-  public boolean isNoDataStop(int stop) {
+  public boolean hasDeparted(int stopPosition) {
     return false;
   }
 
   @Override
-  public boolean isPredictionInaccurate(int stop) {
+  public boolean isNoDataStop(int stopPos) {
     return false;
   }
 
   @Override
-  public boolean isRealTimeUpdated(int stop) {
+  public boolean isPredictionInaccurate(int stopPos) {
+    return false;
+  }
+
+  @Override
+  public boolean isExtraCall(int stopPos) {
+    return false;
+  }
+
+  @Override
+  public boolean isRealTimeUpdated(int stopPos) {
     return false;
   }
 
@@ -252,18 +267,18 @@ public final class ScheduledTripTimes implements TripTimes {
 
   @Override
   @Nullable
-  public I18NString getHeadsign(final int stop) {
-    return (headsigns != null && headsigns[stop] != null)
-      ? headsigns[stop]
+  public I18NString getHeadsign(final int stopPos) {
+    return (headsigns != null && headsigns[stopPos] != null)
+      ? headsigns[stopPos]
       : getTrip().getHeadsign();
   }
 
   @Override
-  public List<String> getHeadsignVias(final int stop) {
-    if (headsignVias == null || headsignVias[stop] == null) {
+  public List<String> getHeadsignVias(final int stopPos) {
+    if (headsignVias == null || headsignVias[stopPos] == null) {
       return List.of();
     }
-    return List.of(headsignVias[stop]);
+    return List.of(headsignVias[stopPos]);
   }
 
   @Override
@@ -282,12 +297,12 @@ public final class ScheduledTripTimes implements TripTimes {
   }
 
   @Override
-  public int gtfsSequenceOfStopIndex(final int stop) {
-    return gtfsSequenceOfStopIndex[stop];
+  public int gtfsSequenceOfStopIndex(final int stopPos) {
+    return gtfsSequenceOfStopIndex[stopPos];
   }
 
   @Override
-  public OptionalInt stopIndexOfGtfsSequence(int stopSequence) {
+  public OptionalInt stopPositionForGtfsSequence(int stopSequence) {
     if (gtfsSequenceOfStopIndex == null) {
       return OptionalInt.empty();
     }
@@ -300,10 +315,25 @@ public final class ScheduledTripTimes implements TripTimes {
     return OptionalInt.empty();
   }
 
+  /**
+   * Returns a time-shifted copy of this TripTimes in which the vehicle passes the given stop index
+   * at the given time.
+   */
+  public ScheduledTripTimes timeShift(final int stopPos, final int time, final boolean depart) {
+    // Adjust 0-based times to match desired stoptime.
+    final int shift = time - (depart ? getDepartureTime(stopPos) : getArrivalTime(stopPos));
+
+    return copyOfNoDuplication().plusTimeShift(shift).build();
+  }
+
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ScheduledTripTimes that = (ScheduledTripTimes) o;
     return (
       timeShift == that.timeShift &&
@@ -366,14 +396,16 @@ public final class ScheduledTripTimes implements TripTimes {
    * We really don't want those being used in routing. This method checks that all times are
    * increasing. The first stop arrival time and the last stops departure time is NOT checked -
    * these should be ignored by raptor.
+   *
+   * TODO: This should be make private as the constructor should ensure the data consistency
    */
-  private void validateNonIncreasingTimes() {
-    final int lastStop = arrivalTimes.length - 1;
+  public void validateNonIncreasingTimes() {
+    final int lastStopPos = arrivalTimes.length - 1;
 
     // This check is currently used since Flex trips may have only one stop. This class should
     // not be used to represent FLEX, so remove this check and create new data classes for FLEX
     // trips.
-    if (lastStop < 1) {
+    if (lastStopPos < 1) {
       return;
     }
     int prevDep = getDepartureTime(0);
@@ -385,7 +417,7 @@ public final class ScheduledTripTimes implements TripTimes {
       if (prevDep > arr) {
         throw new DataValidationException(new TimetableValidationError(NEGATIVE_HOP_TIME, i, trip));
       }
-      if (i == lastStop) {
+      if (i == lastStopPos) {
         return;
       }
       if (dep < arr) {

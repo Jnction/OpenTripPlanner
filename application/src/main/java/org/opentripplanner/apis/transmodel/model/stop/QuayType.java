@@ -19,14 +19,15 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import org.locationtech.jts.geom.Geometry;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.model.EnumTypes;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelDirectives;
 import org.opentripplanner.apis.transmodel.model.plan.JourneyWhiteListed;
 import org.opentripplanner.apis.transmodel.model.scalars.GeoJSONCoordinatesScalar;
 import org.opentripplanner.apis.transmodel.support.GqlUtil;
+import org.opentripplanner.core.model.accessibility.Accessibility;
 import org.opentripplanner.framework.graphql.GraphQLUtils;
 import org.opentripplanner.model.TripTimeOnDate;
-import org.opentripplanner.transit.model.basic.Accessibility;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.Station;
@@ -38,7 +39,13 @@ public class QuayType {
   private static final String NAME = "Quay";
   public static final GraphQLOutputType REF = new GraphQLTypeReference(NAME);
 
-  public static GraphQLObjectType create(
+  private final FeedScopedIdMapper idMapper;
+
+  public QuayType(FeedScopedIdMapper idMapper) {
+    this.idMapper = idMapper;
+  }
+
+  public GraphQLObjectType create(
     GraphQLInterfaceType placeInterface,
     GraphQLOutputType stopPlaceType,
     GraphQLOutputType lineType,
@@ -54,7 +61,7 @@ public class QuayType {
         "A place such as platform, stance, or quayside where passengers have access to PT vehicles."
       )
       .withInterface(placeInterface)
-      .field(GqlUtil.newTransitIdField())
+      .field(GqlUtil.newTransitIdField(idMapper))
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
           .name("name")
@@ -219,7 +226,7 @@ public class QuayType {
               .name("numberOfDeparturesPerLineAndDestinationDisplay")
               .description(
                 "Limit the number of departures per line and destination display returned. The parameter is only applied " +
-                "when the value is between 1 and 'numberOfDepartures'."
+                  "when the value is between 1 and 'numberOfDepartures'."
               )
               .type(Scalars.GraphQLInt)
               .build()
@@ -238,12 +245,12 @@ public class QuayType {
               .type(EnumTypes.ARRIVAL_DEPARTURE)
               .description(
                 "Filters results by either departures, arrivals or both. " +
-                "For departures forBoarding has to be true and the departure " +
-                "time has to be within the specified time range. For arrivals, " +
-                "forAlight has to be true and the arrival time has to be within " +
-                "the specified time range. If both are asked for, either the " +
-                "conditions for arrivals or the conditions for departures will " +
-                "have to be true for an EstimatedCall to show."
+                  "For departures forBoarding has to be true and the departure " +
+                  "time has to be within the specified time range. For arrivals, " +
+                  "forAlight has to be true and the arrival time has to be within " +
+                  "the specified time range. If both are asked for, either the " +
+                  "conditions for arrivals or the conditions for departures will " +
+                  "have to be true for an EstimatedCall to show."
               )
               .defaultValue(ArrivalDeparture.DEPARTURES)
               .build()
@@ -284,7 +291,7 @@ public class QuayType {
             Duration timeRange = Duration.ofSeconds(timeRangeInput);
             StopLocation stop = environment.getSource();
 
-            JourneyWhiteListed whiteListed = new JourneyWhiteListed(environment);
+            JourneyWhiteListed whiteListed = new JourneyWhiteListed(environment, idMapper);
             Collection<TransitMode> transitModes = environment.getArgument("whiteListedModes");
 
             Long startTimeInput = environment.getArgument("startTime");

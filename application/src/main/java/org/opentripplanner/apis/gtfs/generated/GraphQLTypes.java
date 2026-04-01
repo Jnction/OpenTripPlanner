@@ -194,17 +194,21 @@ public class GraphQLTypes {
 
     private List<GraphQLParkingFilterInput> filters;
     private List<GraphQLParkingFilterInput> preferred;
-    private org.opentripplanner.framework.model.Cost unpreferredCost;
+    private org.opentripplanner.core.model.basic.Cost unpreferredCost;
 
     public GraphQLBicycleParkingPreferencesInput(Map<String, Object> args) {
       if (args != null) {
         if (args.get("filters") != null) {
-          this.filters = (List<GraphQLParkingFilterInput>) args.get("filters");
+          this.filters = ((List<Map<String, Object>>) args.get("filters")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
         if (args.get("preferred") != null) {
-          this.preferred = (List<GraphQLParkingFilterInput>) args.get("preferred");
+          this.preferred = ((List<Map<String, Object>>) args.get("preferred")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
-        this.unpreferredCost = (org.opentripplanner.framework.model.Cost) args.get(
+        this.unpreferredCost = (org.opentripplanner.core.model.basic.Cost) args.get(
           "unpreferredCost"
         );
       }
@@ -218,7 +222,7 @@ public class GraphQLTypes {
       return this.preferred;
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLUnpreferredCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLUnpreferredCost() {
       return this.unpreferredCost;
     }
 
@@ -231,7 +235,7 @@ public class GraphQLTypes {
     }
 
     public void setGraphQLUnpreferredCost(
-      org.opentripplanner.framework.model.Cost unpreferredCost
+      org.opentripplanner.core.model.basic.Cost unpreferredCost
     ) {
       this.unpreferredCost = unpreferredCost;
     }
@@ -239,7 +243,7 @@ public class GraphQLTypes {
 
   public static class GraphQLBicyclePreferencesInput {
 
-    private org.opentripplanner.framework.model.Cost boardCost;
+    private org.opentripplanner.core.model.basic.Cost boardCost;
     private GraphQLCyclingOptimizationInput optimization;
     private GraphQLBicycleParkingPreferencesInput parking;
     private Double reluctance;
@@ -249,7 +253,7 @@ public class GraphQLTypes {
 
     public GraphQLBicyclePreferencesInput(Map<String, Object> args) {
       if (args != null) {
-        this.boardCost = (org.opentripplanner.framework.model.Cost) args.get("boardCost");
+        this.boardCost = (org.opentripplanner.core.model.basic.Cost) args.get("boardCost");
         this.optimization = new GraphQLCyclingOptimizationInput(
           (Map<String, Object>) args.get("optimization")
         );
@@ -265,7 +269,7 @@ public class GraphQLTypes {
       }
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLBoardCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLBoardCost() {
       return this.boardCost;
     }
 
@@ -293,7 +297,7 @@ public class GraphQLTypes {
       return this.walk;
     }
 
-    public void setGraphQLBoardCost(org.opentripplanner.framework.model.Cost boardCost) {
+    public void setGraphQLBoardCost(org.opentripplanner.core.model.basic.Cost boardCost) {
       this.boardCost = boardCost;
     }
 
@@ -367,19 +371,19 @@ public class GraphQLTypes {
 
   public static class GraphQLBicycleWalkPreferencesCostInput {
 
-    private org.opentripplanner.framework.model.Cost mountDismountCost;
+    private org.opentripplanner.core.model.basic.Cost mountDismountCost;
     private Double reluctance;
 
     public GraphQLBicycleWalkPreferencesCostInput(Map<String, Object> args) {
       if (args != null) {
-        this.mountDismountCost = (org.opentripplanner.framework.model.Cost) args.get(
+        this.mountDismountCost = (org.opentripplanner.core.model.basic.Cost) args.get(
           "mountDismountCost"
         );
         this.reluctance = (Double) args.get("reluctance");
       }
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLMountDismountCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLMountDismountCost() {
       return this.mountDismountCost;
     }
 
@@ -388,7 +392,7 @@ public class GraphQLTypes {
     }
 
     public void setGraphQLMountDismountCost(
-      org.opentripplanner.framework.model.Cost mountDismountCost
+      org.opentripplanner.core.model.basic.Cost mountDismountCost
     ) {
       this.mountDismountCost = mountDismountCost;
     }
@@ -464,6 +468,12 @@ public class GraphQLTypes {
     NO_INFORMATION,
   }
 
+  public enum GraphQLCarsAllowed {
+    ALLOWED,
+    NOT_ALLOWED,
+    NO_INFORMATION,
+  }
+
   public static class GraphQLBoardPreferencesInput {
 
     private java.time.Duration slack;
@@ -493,6 +503,69 @@ public class GraphQLTypes {
     }
   }
 
+  public static class GraphQLCanceledTripsFilterInput {
+
+    private List<GraphQLCanceledTripsFilterSelectInput> exclude;
+    private List<GraphQLCanceledTripsFilterSelectInput> include;
+
+    public GraphQLCanceledTripsFilterInput(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("exclude") != null) {
+          this.exclude = ((List<Map<String, Object>>) args.get("exclude")).stream()
+            .map(o -> o == null ? null : new GraphQLCanceledTripsFilterSelectInput(o))
+            .collect(Collectors.toList());
+        }
+        if (args.get("include") != null) {
+          this.include = ((List<Map<String, Object>>) args.get("include")).stream()
+            .map(o -> o == null ? null : new GraphQLCanceledTripsFilterSelectInput(o))
+            .collect(Collectors.toList());
+        }
+      }
+    }
+
+    public List<GraphQLCanceledTripsFilterSelectInput> getGraphQLExclude() {
+      return this.exclude;
+    }
+
+    public List<GraphQLCanceledTripsFilterSelectInput> getGraphQLInclude() {
+      return this.include;
+    }
+
+    public void setGraphQLExclude(List<GraphQLCanceledTripsFilterSelectInput> exclude) {
+      this.exclude = exclude;
+    }
+
+    public void setGraphQLInclude(List<GraphQLCanceledTripsFilterSelectInput> include) {
+      this.include = include;
+    }
+  }
+
+  public static class GraphQLCanceledTripsFilterSelectInput {
+
+    private List<GraphQLTransitMode> modes;
+
+    public GraphQLCanceledTripsFilterSelectInput(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("modes") != null) {
+          this.modes = ((List<Object>) args.get("modes")).stream()
+            .map(item ->
+              item instanceof GraphQLTransitMode ? item : GraphQLTransitMode.valueOf((String) item)
+            )
+            .map(GraphQLTransitMode.class::cast)
+            .collect(Collectors.toList());
+        }
+      }
+    }
+
+    public List<GraphQLTransitMode> getGraphQLModes() {
+      return this.modes;
+    }
+
+    public void setGraphQLModes(List<GraphQLTransitMode> modes) {
+      this.modes = modes;
+    }
+  }
+
   public static class GraphQLCarParkNameArgs {
 
     private String language;
@@ -516,17 +589,21 @@ public class GraphQLTypes {
 
     private List<GraphQLParkingFilterInput> filters;
     private List<GraphQLParkingFilterInput> preferred;
-    private org.opentripplanner.framework.model.Cost unpreferredCost;
+    private org.opentripplanner.core.model.basic.Cost unpreferredCost;
 
     public GraphQLCarParkingPreferencesInput(Map<String, Object> args) {
       if (args != null) {
         if (args.get("filters") != null) {
-          this.filters = (List<GraphQLParkingFilterInput>) args.get("filters");
+          this.filters = ((List<Map<String, Object>>) args.get("filters")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
         if (args.get("preferred") != null) {
-          this.preferred = (List<GraphQLParkingFilterInput>) args.get("preferred");
+          this.preferred = ((List<Map<String, Object>>) args.get("preferred")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
-        this.unpreferredCost = (org.opentripplanner.framework.model.Cost) args.get(
+        this.unpreferredCost = (org.opentripplanner.core.model.basic.Cost) args.get(
           "unpreferredCost"
         );
       }
@@ -540,7 +617,7 @@ public class GraphQLTypes {
       return this.preferred;
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLUnpreferredCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLUnpreferredCost() {
       return this.unpreferredCost;
     }
 
@@ -553,7 +630,7 @@ public class GraphQLTypes {
     }
 
     public void setGraphQLUnpreferredCost(
-      org.opentripplanner.framework.model.Cost unpreferredCost
+      org.opentripplanner.core.model.basic.Cost unpreferredCost
     ) {
       this.unpreferredCost = unpreferredCost;
     }
@@ -561,14 +638,14 @@ public class GraphQLTypes {
 
   public static class GraphQLCarPreferencesInput {
 
-    private org.opentripplanner.framework.model.Cost boardCost;
+    private org.opentripplanner.core.model.basic.Cost boardCost;
     private GraphQLCarParkingPreferencesInput parking;
     private Double reluctance;
     private GraphQLCarRentalPreferencesInput rental;
 
     public GraphQLCarPreferencesInput(Map<String, Object> args) {
       if (args != null) {
-        this.boardCost = (org.opentripplanner.framework.model.Cost) args.get("boardCost");
+        this.boardCost = (org.opentripplanner.core.model.basic.Cost) args.get("boardCost");
         this.parking = new GraphQLCarParkingPreferencesInput(
           (Map<String, Object>) args.get("parking")
         );
@@ -579,7 +656,7 @@ public class GraphQLTypes {
       }
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLBoardCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLBoardCost() {
       return this.boardCost;
     }
 
@@ -595,7 +672,7 @@ public class GraphQLTypes {
       return this.rental;
     }
 
-    public void setGraphQLBoardCost(org.opentripplanner.framework.model.Cost boardCost) {
+    public void setGraphQLBoardCost(org.opentripplanner.core.model.basic.Cost boardCost) {
       this.boardCost = boardCost;
     }
 
@@ -616,11 +693,13 @@ public class GraphQLTypes {
 
     private List<String> allowedNetworks;
     private List<String> bannedNetworks;
+    private java.time.Duration rentalDuration;
 
     public GraphQLCarRentalPreferencesInput(Map<String, Object> args) {
       if (args != null) {
         this.allowedNetworks = (List<String>) args.get("allowedNetworks");
         this.bannedNetworks = (List<String>) args.get("bannedNetworks");
+        this.rentalDuration = (java.time.Duration) args.get("rentalDuration");
       }
     }
 
@@ -632,12 +711,20 @@ public class GraphQLTypes {
       return this.bannedNetworks;
     }
 
+    public java.time.Duration getGraphQLRentalDuration() {
+      return this.rentalDuration;
+    }
+
     public void setGraphQLAllowedNetworks(List<String> allowedNetworks) {
       this.allowedNetworks = allowedNetworks;
     }
 
     public void setGraphQLBannedNetworks(List<String> bannedNetworks) {
       this.bannedNetworks = bannedNetworks;
+    }
+
+    public void setGraphQLRentalDuration(java.time.Duration rentalDuration) {
+      this.rentalDuration = rentalDuration;
     }
   }
 
@@ -746,15 +833,52 @@ public class GraphQLTypes {
     }
   }
 
+  public static class GraphQLDependentFareProductDependenciesArgs {
+
+    private GraphQLDependentFareProductFilter filter;
+
+    public GraphQLDependentFareProductDependenciesArgs(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("filter") instanceof GraphQLDependentFareProductFilter) {
+          this.filter = (GraphQLDependentFareProductFilter) args.get("filter");
+        } else if (args.get("filter") != null) {
+          this.filter = GraphQLDependentFareProductFilter.valueOf((String) args.get("filter"));
+        }
+      }
+    }
+
+    public GraphQLDependentFareProductFilter getGraphQLFilter() {
+      return this.filter;
+    }
+
+    public void setGraphQLFilter(GraphQLDependentFareProductFilter filter) {
+      this.filter = filter;
+    }
+  }
+
+  /**
+   * Dependent fare products can lead to many combinations of fares, however it is often not useful
+   * information to the passenger.
+   *
+   * This enum allows filtering of the dependencies.
+   *
+   * Since it is recognised that this is not covered well in the specification, it is discussed here:
+   * https://github.com/google/transit/pull/423
+   */
+  public enum GraphQLDependentFareProductFilter {
+    ALL,
+    MATCH_CATEGORY_AND_MEDIUM,
+  }
+
   public static class GraphQLDestinationBicyclePolicyInput {
 
     private Boolean allowKeeping;
-    private org.opentripplanner.framework.model.Cost keepingCost;
+    private org.opentripplanner.core.model.basic.Cost keepingCost;
 
     public GraphQLDestinationBicyclePolicyInput(Map<String, Object> args) {
       if (args != null) {
         this.allowKeeping = (Boolean) args.get("allowKeeping");
-        this.keepingCost = (org.opentripplanner.framework.model.Cost) args.get("keepingCost");
+        this.keepingCost = (org.opentripplanner.core.model.basic.Cost) args.get("keepingCost");
       }
     }
 
@@ -762,7 +886,7 @@ public class GraphQLTypes {
       return this.allowKeeping;
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLKeepingCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLKeepingCost() {
       return this.keepingCost;
     }
 
@@ -770,7 +894,7 @@ public class GraphQLTypes {
       this.allowKeeping = allowKeeping;
     }
 
-    public void setGraphQLKeepingCost(org.opentripplanner.framework.model.Cost keepingCost) {
+    public void setGraphQLKeepingCost(org.opentripplanner.core.model.basic.Cost keepingCost) {
       this.keepingCost = keepingCost;
     }
   }
@@ -778,12 +902,12 @@ public class GraphQLTypes {
   public static class GraphQLDestinationScooterPolicyInput {
 
     private Boolean allowKeeping;
-    private org.opentripplanner.framework.model.Cost keepingCost;
+    private org.opentripplanner.core.model.basic.Cost keepingCost;
 
     public GraphQLDestinationScooterPolicyInput(Map<String, Object> args) {
       if (args != null) {
         this.allowKeeping = (Boolean) args.get("allowKeeping");
-        this.keepingCost = (org.opentripplanner.framework.model.Cost) args.get("keepingCost");
+        this.keepingCost = (org.opentripplanner.core.model.basic.Cost) args.get("keepingCost");
       }
     }
 
@@ -791,7 +915,7 @@ public class GraphQLTypes {
       return this.allowKeeping;
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLKeepingCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLKeepingCost() {
       return this.keepingCost;
     }
 
@@ -799,7 +923,7 @@ public class GraphQLTypes {
       this.allowKeeping = allowKeeping;
     }
 
-    public void setGraphQLKeepingCost(org.opentripplanner.framework.model.Cost keepingCost) {
+    public void setGraphQLKeepingCost(org.opentripplanner.core.model.basic.Cost keepingCost) {
       this.keepingCost = keepingCost;
     }
   }
@@ -846,6 +970,25 @@ public class GraphQLTypes {
     STATION,
     STOP,
     VEHICLE_RENT,
+  }
+
+  public static class GraphQLFlexRequestInput {
+
+    private java.time.OffsetDateTime bookingTime;
+
+    public GraphQLFlexRequestInput(Map<String, Object> args) {
+      if (args != null) {
+        this.bookingTime = (java.time.OffsetDateTime) args.get("bookingTime");
+      }
+    }
+
+    public java.time.OffsetDateTime getGraphQLBookingTime() {
+      return this.bookingTime;
+    }
+
+    public void setGraphQLBookingTime(java.time.OffsetDateTime bookingTime) {
+      this.bookingTime = bookingTime;
+    }
   }
 
   public enum GraphQLFormFactor {
@@ -971,6 +1114,7 @@ public class GraphQLTypes {
     DATE_TIME,
     FROM,
     TO,
+    VIA,
   }
 
   public static class GraphQLInputFiltersInput {
@@ -1331,6 +1475,32 @@ public class GraphQLTypes {
     OFF,
   }
 
+  public static class GraphQLLegIntermediateStopsArgs {
+
+    private List<GraphQLStopType> include;
+
+    public GraphQLLegIntermediateStopsArgs(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("include") != null) {
+          this.include = ((List<Object>) args.get("include")).stream()
+            .map(item ->
+              item instanceof GraphQLStopType ? item : GraphQLStopType.valueOf((String) item)
+            )
+            .map(GraphQLStopType.class::cast)
+            .collect(Collectors.toList());
+        }
+      }
+    }
+
+    public List<GraphQLStopType> getGraphQLInclude() {
+      return this.include;
+    }
+
+    public void setGraphQLInclude(List<GraphQLStopType> include) {
+      this.include = include;
+    }
+  }
+
   public static class GraphQLLegNextLegsArgs {
 
     private List<GraphQLTransitMode> destinationModesWithParentStation;
@@ -1562,10 +1732,14 @@ public class GraphQLTypes {
     public GraphQLParkingFilterInput(Map<String, Object> args) {
       if (args != null) {
         if (args.get("not") != null) {
-          this.not = (List<GraphQLParkingFilterOperationInput>) args.get("not");
+          this.not = ((List<Map<String, Object>>) args.get("not")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterOperationInput(o))
+            .collect(Collectors.toList());
         }
         if (args.get("select") != null) {
-          this.select = (List<GraphQLParkingFilterOperationInput>) args.get("select");
+          this.select = ((List<Map<String, Object>>) args.get("select")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterOperationInput(o))
+            .collect(Collectors.toList());
         }
       }
     }
@@ -2178,7 +2352,9 @@ public class GraphQLTypes {
             .collect(Collectors.toList());
         }
         if (args.get("transit") != null) {
-          this.transit = (List<GraphQLPlanTransitModePreferenceInput>) args.get("transit");
+          this.transit = ((List<Map<String, Object>>) args.get("transit")).stream()
+            .map(o -> o == null ? null : new GraphQLPlanTransitModePreferenceInput(o))
+            .collect(Collectors.toList());
         }
       }
     }
@@ -2502,6 +2678,7 @@ public class GraphQLTypes {
 
     private String after;
     private String before;
+    private List<GraphQLCanceledTripsFilterInput> filters;
     private Integer first;
     private Integer last;
 
@@ -2509,6 +2686,11 @@ public class GraphQLTypes {
       if (args != null) {
         this.after = (String) args.get("after");
         this.before = (String) args.get("before");
+        if (args.get("filters") != null) {
+          this.filters = ((List<Map<String, Object>>) args.get("filters")).stream()
+            .map(o -> o == null ? null : new GraphQLCanceledTripsFilterInput(o))
+            .collect(Collectors.toList());
+        }
         this.first = (Integer) args.get("first");
         this.last = (Integer) args.get("last");
       }
@@ -2520,6 +2702,10 @@ public class GraphQLTypes {
 
     public String getGraphQLBefore() {
       return this.before;
+    }
+
+    public List<GraphQLCanceledTripsFilterInput> getGraphQLFilters() {
+      return this.filters;
     }
 
     public Integer getGraphQLFirst() {
@@ -2536,6 +2722,10 @@ public class GraphQLTypes {
 
     public void setGraphQLBefore(String before) {
       this.before = before;
+    }
+
+    public void setGraphQLFilters(List<GraphQLCanceledTripsFilterInput> filters) {
+      this.filters = filters;
     }
 
     public void setGraphQLFirst(Integer first) {
@@ -3085,9 +3275,11 @@ public class GraphQLTypes {
         this.heuristicStepsPerMainStep = (Integer) args.get("heuristicStepsPerMainStep");
         this.ignoreRealtimeUpdates = (Boolean) args.get("ignoreRealtimeUpdates");
         if (args.get("intermediatePlaces") != null) {
-          this.intermediatePlaces = (List<GraphQLInputCoordinatesInput>) args.get(
-            "intermediatePlaces"
-          );
+          this.intermediatePlaces = ((List<Map<String, Object>>) args.get(
+              "intermediatePlaces"
+            )).stream()
+            .map(o -> o == null ? null : new GraphQLInputCoordinatesInput(o))
+            .collect(Collectors.toList());
         }
         this.itineraryFiltering = (Double) args.get("itineraryFiltering");
         this.keepingRentedBicycleAtDestinationCost = (Integer) args.get(
@@ -3123,14 +3315,18 @@ public class GraphQLTypes {
         this.toPlace = (String) args.get("toPlace");
         this.transferPenalty = (Integer) args.get("transferPenalty");
         if (args.get("transportModes") != null) {
-          this.transportModes = (List<GraphQLTransportModeInput>) args.get("transportModes");
+          this.transportModes = ((List<Map<String, Object>>) args.get("transportModes")).stream()
+            .map(o -> o == null ? null : new GraphQLTransportModeInput(o))
+            .collect(Collectors.toList());
         }
         this.triangle = new GraphQLInputTriangleInput((Map<String, Object>) args.get("triangle"));
         this.unpreferred = new GraphQLInputUnpreferredInput(
           (Map<String, Object>) args.get("unpreferred")
         );
         if (args.get("via") != null) {
-          this.via = (List<GraphQLPlanViaLocationInput>) args.get("via");
+          this.via = ((List<Map<String, Object>>) args.get("via")).stream()
+            .map(o -> o == null ? null : new GraphQLPlanViaLocationInput(o))
+            .collect(Collectors.toList());
         }
         this.waitAtBeginningFactor = (Double) args.get("waitAtBeginningFactor");
         this.waitReluctance = (Double) args.get("waitReluctance");
@@ -3669,6 +3865,7 @@ public class GraphQLTypes {
     private GraphQLPlanDateTimeInput dateTime;
     private GraphQLPlanLabeledLocationInput destination;
     private Integer first;
+    private GraphQLFlexRequestInput flex;
     private GraphQLPlanItineraryFilterInput itineraryFilter;
     private Integer last;
     private java.util.Locale locale;
@@ -3687,6 +3884,7 @@ public class GraphQLTypes {
           (Map<String, Object>) args.get("destination")
         );
         this.first = (Integer) args.get("first");
+        this.flex = new GraphQLFlexRequestInput((Map<String, Object>) args.get("flex"));
         this.itineraryFilter = new GraphQLPlanItineraryFilterInput(
           (Map<String, Object>) args.get("itineraryFilter")
         );
@@ -3699,7 +3897,9 @@ public class GraphQLTypes {
         );
         this.searchWindow = (java.time.Duration) args.get("searchWindow");
         if (args.get("via") != null) {
-          this.via = (List<GraphQLPlanViaLocationInput>) args.get("via");
+          this.via = ((List<Map<String, Object>>) args.get("via")).stream()
+            .map(o -> o == null ? null : new GraphQLPlanViaLocationInput(o))
+            .collect(Collectors.toList());
         }
       }
     }
@@ -3722,6 +3922,10 @@ public class GraphQLTypes {
 
     public Integer getGraphQLFirst() {
       return this.first;
+    }
+
+    public GraphQLFlexRequestInput getGraphQLFlex() {
+      return this.flex;
     }
 
     public GraphQLPlanItineraryFilterInput getGraphQLItineraryFilter() {
@@ -3774,6 +3978,10 @@ public class GraphQLTypes {
 
     public void setGraphQLFirst(Integer first) {
       this.first = first;
+    }
+
+    public void setGraphQLFlex(GraphQLFlexRequestInput flex) {
+      this.flex = flex;
     }
 
     public void setGraphQLItineraryFilter(GraphQLPlanItineraryFilterInput itineraryFilter) {
@@ -4981,6 +5189,12 @@ public class GraphQLTypes {
     TRIPS,
   }
 
+  public enum GraphQLStopType {
+    LOCATION,
+    LOCATION_GROUP,
+    STOP,
+  }
+
   public static class GraphQLStoptimeHeadsignArgs {
 
     private String language;
@@ -5041,21 +5255,21 @@ public class GraphQLTypes {
 
   public static class GraphQLTransferPreferencesInput {
 
-    private org.opentripplanner.framework.model.Cost cost;
+    private org.opentripplanner.core.model.basic.Cost cost;
     private Integer maximumAdditionalTransfers;
     private Integer maximumTransfers;
     private java.time.Duration slack;
 
     public GraphQLTransferPreferencesInput(Map<String, Object> args) {
       if (args != null) {
-        this.cost = (org.opentripplanner.framework.model.Cost) args.get("cost");
+        this.cost = (org.opentripplanner.core.model.basic.Cost) args.get("cost");
         this.maximumAdditionalTransfers = (Integer) args.get("maximumAdditionalTransfers");
         this.maximumTransfers = (Integer) args.get("maximumTransfers");
         this.slack = (java.time.Duration) args.get("slack");
       }
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLCost() {
       return this.cost;
     }
 
@@ -5071,7 +5285,7 @@ public class GraphQLTypes {
       return this.slack;
     }
 
-    public void setGraphQLCost(org.opentripplanner.framework.model.Cost cost) {
+    public void setGraphQLCost(org.opentripplanner.core.model.basic.Cost cost) {
       this.cost = cost;
     }
 
@@ -5085,6 +5299,72 @@ public class GraphQLTypes {
 
     public void setGraphQLSlack(java.time.Duration slack) {
       this.slack = slack;
+    }
+  }
+
+  public static class GraphQLTransitFilterInput {
+
+    private List<GraphQLTransitFilterSelectInput> exclude;
+    private List<GraphQLTransitFilterSelectInput> include;
+
+    public GraphQLTransitFilterInput(Map<String, Object> args) {
+      if (args != null) {
+        if (args.get("exclude") != null) {
+          this.exclude = ((List<Map<String, Object>>) args.get("exclude")).stream()
+            .map(o -> o == null ? null : new GraphQLTransitFilterSelectInput(o))
+            .collect(Collectors.toList());
+        }
+        if (args.get("include") != null) {
+          this.include = ((List<Map<String, Object>>) args.get("include")).stream()
+            .map(o -> o == null ? null : new GraphQLTransitFilterSelectInput(o))
+            .collect(Collectors.toList());
+        }
+      }
+    }
+
+    public List<GraphQLTransitFilterSelectInput> getGraphQLExclude() {
+      return this.exclude;
+    }
+
+    public List<GraphQLTransitFilterSelectInput> getGraphQLInclude() {
+      return this.include;
+    }
+
+    public void setGraphQLExclude(List<GraphQLTransitFilterSelectInput> exclude) {
+      this.exclude = exclude;
+    }
+
+    public void setGraphQLInclude(List<GraphQLTransitFilterSelectInput> include) {
+      this.include = include;
+    }
+  }
+
+  public static class GraphQLTransitFilterSelectInput {
+
+    private List<String> agencies;
+    private List<String> routes;
+
+    public GraphQLTransitFilterSelectInput(Map<String, Object> args) {
+      if (args != null) {
+        this.agencies = (List<String>) args.get("agencies");
+        this.routes = (List<String>) args.get("routes");
+      }
+    }
+
+    public List<String> getGraphQLAgencies() {
+      return this.agencies;
+    }
+
+    public List<String> getGraphQLRoutes() {
+      return this.routes;
+    }
+
+    public void setGraphQLAgencies(List<String> agencies) {
+      this.agencies = agencies;
+    }
+
+    public void setGraphQLRoutes(List<String> routes) {
+      this.routes = routes;
     }
   }
 
@@ -5104,6 +5384,7 @@ public class GraphQLTypes {
     GONDOLA,
     MONORAIL,
     RAIL,
+    SNOW_AND_ICE,
     SUBWAY,
     TAXI,
     TRAM,
@@ -5133,6 +5414,7 @@ public class GraphQLTypes {
 
     private GraphQLAlightPreferencesInput alight;
     private GraphQLBoardPreferencesInput board;
+    private List<GraphQLTransitFilterInput> filters;
     private GraphQLTimetablePreferencesInput timetable;
     private GraphQLTransferPreferencesInput transfer;
 
@@ -5140,6 +5422,11 @@ public class GraphQLTypes {
       if (args != null) {
         this.alight = new GraphQLAlightPreferencesInput((Map<String, Object>) args.get("alight"));
         this.board = new GraphQLBoardPreferencesInput((Map<String, Object>) args.get("board"));
+        if (args.get("filters") != null) {
+          this.filters = ((List<Map<String, Object>>) args.get("filters")).stream()
+            .map(o -> o == null ? null : new GraphQLTransitFilterInput(o))
+            .collect(Collectors.toList());
+        }
         this.timetable = new GraphQLTimetablePreferencesInput(
           (Map<String, Object>) args.get("timetable")
         );
@@ -5157,6 +5444,10 @@ public class GraphQLTypes {
       return this.board;
     }
 
+    public List<GraphQLTransitFilterInput> getGraphQLFilters() {
+      return this.filters;
+    }
+
     public GraphQLTimetablePreferencesInput getGraphQLTimetable() {
       return this.timetable;
     }
@@ -5171,6 +5462,10 @@ public class GraphQLTypes {
 
     public void setGraphQLBoard(GraphQLBoardPreferencesInput board) {
       this.board = board;
+    }
+
+    public void setGraphQLFilters(List<GraphQLTransitFilterInput> filters) {
+      this.filters = filters;
     }
 
     public void setGraphQLTimetable(GraphQLTimetablePreferencesInput timetable) {
@@ -5458,10 +5753,14 @@ public class GraphQLTypes {
     public GraphQLVehicleParkingInput(Map<String, Object> args) {
       if (args != null) {
         if (args.get("filters") != null) {
-          this.filters = (List<GraphQLParkingFilterInput>) args.get("filters");
+          this.filters = ((List<Map<String, Object>>) args.get("filters")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
         if (args.get("preferred") != null) {
-          this.preferred = (List<GraphQLParkingFilterInput>) args.get("preferred");
+          this.preferred = ((List<Map<String, Object>>) args.get("preferred")).stream()
+            .map(o -> o == null ? null : new GraphQLParkingFilterInput(o))
+            .collect(Collectors.toList());
         }
         this.unpreferredCost = (Integer) args.get("unpreferredCost");
       }
@@ -5517,23 +5816,36 @@ public class GraphQLTypes {
     TRANSIT,
   }
 
+  /** The vertical direction e.g. for a set of stairs. */
+  public enum GraphQLVerticalDirection {
+    DOWN,
+    UNKNOWN,
+    UP,
+  }
+
+  /** Categorization for via locations. */
+  public enum GraphQLViaLocationType {
+    PASS_THROUGH,
+    VISIT,
+  }
+
   public static class GraphQLWalkPreferencesInput {
 
-    private org.opentripplanner.framework.model.Cost boardCost;
+    private org.opentripplanner.core.model.basic.Cost boardCost;
     private Double reluctance;
     private Double safetyFactor;
     private Double speed;
 
     public GraphQLWalkPreferencesInput(Map<String, Object> args) {
       if (args != null) {
-        this.boardCost = (org.opentripplanner.framework.model.Cost) args.get("boardCost");
+        this.boardCost = (org.opentripplanner.core.model.basic.Cost) args.get("boardCost");
         this.reluctance = (Double) args.get("reluctance");
         this.safetyFactor = (Double) args.get("safetyFactor");
         this.speed = (Double) args.get("speed");
       }
     }
 
-    public org.opentripplanner.framework.model.Cost getGraphQLBoardCost() {
+    public org.opentripplanner.core.model.basic.Cost getGraphQLBoardCost() {
       return this.boardCost;
     }
 
@@ -5549,7 +5861,7 @@ public class GraphQLTypes {
       return this.speed;
     }
 
-    public void setGraphQLBoardCost(org.opentripplanner.framework.model.Cost boardCost) {
+    public void setGraphQLBoardCost(org.opentripplanner.core.model.basic.Cost boardCost) {
       this.boardCost = boardCost;
     }
 

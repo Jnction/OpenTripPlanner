@@ -2,8 +2,8 @@ package org.opentripplanner.updater.vehicle_rental;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.opentripplanner.street.model._data.StreetModelForTest.intersectionVertex;
-import static org.opentripplanner.street.model._data.StreetModelForTest.streetEdge;
+import static org.opentripplanner.street.model.StreetModelForTest.intersectionVertex;
+import static org.opentripplanner.street.model.StreetModelForTest.streetEdge;
 import static org.opentripplanner.transit.model._data.TimetableRepositoryForTest.id;
 
 import java.util.List;
@@ -12,11 +12,11 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.opentripplanner._support.geometry.Polygons;
-import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.service.vehiclerental.model.GeofencingZone;
 import org.opentripplanner.service.vehiclerental.street.BusinessAreaBorder;
 import org.opentripplanner.service.vehiclerental.street.GeofencingZoneExtension;
 import org.opentripplanner.service.vehiclerental.street.NoRestriction;
+import org.opentripplanner.street.geometry.GeometryUtils;
 import org.opentripplanner.street.model.edge.StreetEdge;
 import org.opentripplanner.street.model.vertex.StreetVertex;
 
@@ -39,6 +39,7 @@ class GeofencingVertexUpdaterTest {
   static GeometryFactory fac = GeometryUtils.getGeometryFactory();
   final GeofencingZone zone = new GeofencingZone(
     id("frogner-park"),
+    null,
     Polygons.OSLO_FROGNER_PARK,
     true,
     false
@@ -47,6 +48,7 @@ class GeofencingVertexUpdaterTest {
   MultiPolygon osloMultiPolygon = fac.createMultiPolygon(new Polygon[] { Polygons.OSLO });
   final GeofencingZone businessArea = new GeofencingZone(
     id("oslo"),
+    null,
     osloMultiPolygon,
     false,
     false

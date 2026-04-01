@@ -54,24 +54,13 @@ public class GtfsConfig {
     var docDefaults = GtfsFeedParameters.DEFAULT;
     return defaults
       .copyOf()
-      .withRemoveRepeatedStops(
-        node
-          .of("removeRepeatedStops")
-          .since(V2_3)
-          .summary(
-            "Should consecutive identical stops be merged into one stop time entry." +
-            documentationAddition
-          )
-          .docDefaultValue(docDefaults.removeRepeatedStops())
-          .asBoolean(defaults.removeRepeatedStops())
-      )
       .withStationTransferPreference(
         node
           .of("stationTransferPreference")
           .since(V2_3)
           .summary(
             "Should there be some preference or aversion for transfers at stops that are part of a station." +
-            documentationAddition
+              documentationAddition
           )
           .description(
             """
@@ -104,7 +93,7 @@ public class GtfsConfig {
           .since(V2_3)
           .summary(
             "Whether to create stay-seated transfers in between two trips with the same block id." +
-            documentationAddition
+              documentationAddition
           )
           .docDefaultValue(docDefaults.blockBasedInterlining())
           .asBoolean(defaults.blockBasedInterlining())
@@ -115,7 +104,7 @@ public class GtfsConfig {
           .since(V2_3)
           .summary(
             "Maximal distance between stops in meters that will connect consecutive trips that are made with same vehicle." +
-            documentationAddition
+              documentationAddition
           )
           .docDefaultValue(docDefaults.maxInterlineDistance())
           .asInt(defaults.maxInterlineDistance())

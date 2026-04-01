@@ -27,18 +27,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
-import org.opentripplanner.apis.transmodel.mapping.TransitIdMapper;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.model.EnumTypes;
 import org.opentripplanner.apis.transmodel.model.TransmodelTransportSubmode;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelDirectives;
 import org.opentripplanner.apis.transmodel.model.plan.JourneyWhiteListed;
 import org.opentripplanner.apis.transmodel.support.GqlUtil;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.framework.graphql.GraphQLUtils;
 import org.opentripplanner.model.StopTimesInPattern;
 import org.opentripplanner.model.TripTimeOnDate;
 import org.opentripplanner.transit.model.basic.SubMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.site.MultiModalStation;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
@@ -52,7 +52,13 @@ public class StopPlaceType {
   public static final String NAME = "StopPlace";
   public static final GraphQLOutputType REF = new GraphQLTypeReference(NAME);
 
-  public static GraphQLObjectType create(
+  private final FeedScopedIdMapper idMapper;
+
+  public StopPlaceType(FeedScopedIdMapper idMapper) {
+    this.idMapper = idMapper;
+  }
+
+  public GraphQLObjectType create(
     GraphQLInterfaceType placeInterface,
     GraphQLOutputType quayType,
     GraphQLOutputType tariffZoneType,
@@ -71,7 +77,7 @@ public class StopPlaceType {
           .name("id")
           .type(new GraphQLNonNull(Scalars.GraphQLID))
           .dataFetcher(env ->
-            TransitIdMapper.mapIDToApi(((MonoOrMultiModalStation) env.getSource()).getId())
+            idMapper.mapToApi(((MonoOrMultiModalStation) env.getSource()).getId())
           )
           .build()
       )
@@ -99,8 +105,9 @@ public class StopPlaceType {
               .build()
           )
           .dataFetcher(environment ->
-            (((MonoOrMultiModalStation) environment.getSource()).getName()
-                .toString(GqlUtil.getLocale(environment)))
+            (((MonoOrMultiModalStation) environment.getSource()).getName().toString(
+                GqlUtil.getLocale(environment)
+              ))
           )
           .build()
       )
@@ -108,7 +115,8 @@ public class StopPlaceType {
         GraphQLFieldDefinition.newFieldDefinition()
           .name("latitude")
           .type(Scalars.GraphQLFloat)
-          .dataFetcher(environment -> (((MonoOrMultiModalStation) environment.getSource()).getLat())
+          .dataFetcher(environment ->
+            (((MonoOrMultiModalStation) environment.getSource()).getLat())
           )
           .build()
       )
@@ -116,7 +124,8 @@ public class StopPlaceType {
         GraphQLFieldDefinition.newFieldDefinition()
           .name("longitude")
           .type(Scalars.GraphQLFloat)
-          .dataFetcher(environment -> (((MonoOrMultiModalStation) environment.getSource()).getLon())
+          .dataFetcher(environment ->
+            (((MonoOrMultiModalStation) environment.getSource()).getLon())
           )
           .build()
       )
@@ -297,7 +306,7 @@ public class StopPlaceType {
               .name("numberOfDeparturesPerLineAndDestinationDisplay")
               .description(
                 "Limit the number of departures per line and destination display returned. The parameter is only applied " +
-                "when the value is between 1 and 'numberOfDepartures'."
+                  "when the value is between 1 and 'numberOfDepartures'."
               )
               .type(Scalars.GraphQLInt)
               .build()
@@ -345,7 +354,7 @@ public class StopPlaceType {
             Duration timeRange = Duration.ofSeconds(timeRangeInput);
 
             MonoOrMultiModalStation monoOrMultiModalStation = environment.getSource();
-            JourneyWhiteListed whiteListed = new JourneyWhiteListed(environment);
+            JourneyWhiteListed whiteListed = new JourneyWhiteListed(environment, idMapper);
             Collection<TransitMode> transitModes = environment.getArgument("whiteListedModes");
 
             Instant startTime = environment.containsArgument("startTime")
@@ -405,7 +414,7 @@ public class StopPlaceType {
     Duration timeRange,
     ArrivalDeparture arrivalDeparture,
     boolean includeCancelledTrips,
-    int numberOfDepartures,
+    int numberOfDeparturesPerPattern,
     Integer departuresPerLineAndDestinationDisplay,
     Collection<FeedScopedId> authorityIdsWhiteListed,
     Collection<FeedScopedId> lineIdsWhiteListed,
@@ -418,7 +427,7 @@ public class StopPlaceType {
       stop,
       startTimeSeconds,
       timeRange,
-      numberOfDepartures,
+      numberOfDeparturesPerPattern,
       arrivalDeparture,
       includeCancelledTrips
     );

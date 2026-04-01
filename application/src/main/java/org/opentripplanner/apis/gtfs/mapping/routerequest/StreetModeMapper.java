@@ -3,8 +3,8 @@ package org.opentripplanner.apis.gtfs.mapping.routerequest;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.request.JourneyRequest;
+import org.opentripplanner.street.model.StreetMode;
 
 /**
  * Mapping and validation methods for StreetModes.
@@ -29,7 +29,7 @@ public class StreetModeMapper {
   public static StreetMode getStreetModeForRouting(List<StreetMode> modes) {
     if (modes.size() > 2) {
       throw new IllegalArgumentException(
-        "Only one or two modes can be specified for a leg, got: %.".formatted(modes)
+        "Only one or two modes can be specified for a leg, got: " + modes + "."
       );
     }
     if (modes.size() == 1) {
@@ -39,32 +39,34 @@ public class StreetModeMapper {
       // only walking.
       if (!isAlwaysPresentInLeg(mode)) {
         throw new IllegalArgumentException(
-          "For the time being, %s needs to be combined with WALK mode for the same leg.".formatted(
-              mode
-            )
+          "For the time being, " + mode + " needs to be combined with WALK mode for the same leg."
         );
       }
       return mode;
     }
     if (modes.contains(StreetMode.BIKE)) {
       throw new IllegalArgumentException(
-        "Bicycle can't be combined with other modes for the same leg: %s.".formatted(modes)
+        "Bicycle can't be combined with other modes for the same leg: " + modes + "."
       );
     }
     if (modes.contains(StreetMode.CAR)) {
       throw new IllegalArgumentException(
-        "Car can't be combined with other modes for the same leg: %s.".formatted(modes)
+        "Car can't be combined with other modes for the same leg: " + modes + "."
       );
     }
     if (!modes.contains(StreetMode.WALK)) {
       throw new IllegalArgumentException(
-        "For the time being, WALK needs to be added as a mode for a leg when using %s and these two can't be used in the same leg.".formatted(
-            modes
-          )
+        "For the time being, WALK needs to be added as a mode for a leg when using " +
+          modes +
+          " and these two can't be used in the same leg."
       );
     }
     // Walk is currently always used as an implied mode when mode is not car.
-    return modes.stream().filter(mode -> mode != StreetMode.WALK).findFirst().get();
+    return modes
+      .stream()
+      .filter(mode -> mode != StreetMode.WALK)
+      .findFirst()
+      .get();
   }
 
   /**
@@ -105,6 +107,7 @@ public class StreetModeMapper {
       mode == StreetMode.BIKE ||
       mode == StreetMode.CAR ||
       mode == StreetMode.WALK ||
+      mode == StreetMode.CARPOOL ||
       mode.includesParking()
     );
   }

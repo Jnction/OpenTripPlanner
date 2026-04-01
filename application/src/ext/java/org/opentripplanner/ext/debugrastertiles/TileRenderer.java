@@ -3,7 +3,7 @@ package org.opentripplanner.ext.debugrastertiles;
 import java.awt.Graphics2D;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.street.graph.Graph;
 
 /**
  * Interface for a slippy map tile renderer.
@@ -16,9 +16,6 @@ public interface TileRenderer {
 
   /** Implementation of the tile rendering */
   void renderTile(TileRenderContext context);
-
-  /** Gets descriptive name of this Tile Render */
-  String getName();
 
   /**
    * Context used for rendering a tile.
@@ -41,7 +38,8 @@ public interface TileRenderer {
     public double metersPerPixel;
 
     /** Tile size in pixels */
-    public int tileWidth, tileHeight;
+    public int tileWidth;
+    public int tileHeight;
 
     /** Expand the bounding box to add some margins, in pixel size. */
     public abstract Envelope expandPixels(double marginXPixels, double marginYPixels);

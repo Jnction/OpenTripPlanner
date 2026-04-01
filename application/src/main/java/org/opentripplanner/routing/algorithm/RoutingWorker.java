@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import javax.annotation.Nullable;
@@ -25,12 +26,19 @@ import org.opentripplanner.routing.algorithm.raptoradapter.router.TransitRouter;
 import org.opentripplanner.routing.algorithm.raptoradapter.router.street.DirectFlexRouter;
 import org.opentripplanner.routing.algorithm.raptoradapter.router.street.DirectStreetRouter;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
+import org.opentripplanner.routing.api.request.request.StreetRequest;
+import org.opentripplanner.routing.api.response.InputField;
+import org.opentripplanner.routing.api.response.RoutingError;
+import org.opentripplanner.routing.api.response.RoutingErrorCode;
 import org.opentripplanner.routing.api.response.RoutingResponse;
 import org.opentripplanner.routing.error.RoutingValidationException;
 import org.opentripplanner.routing.framework.DebugTimingAggregator;
+import org.opentripplanner.routing.linking.LinkingContext;
+import org.opentripplanner.routing.linking.mapping.LinkingContextRequestMapper;
 import org.opentripplanner.service.paging.PagingService;
 import org.opentripplanner.standalone.api.OtpServerRequestContext;
+import org.opentripplanner.street.linking.TemporaryVerticesContainer;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.transit.model.network.grouppriority.TransitGroupPriorityService;
 import org.opentripplanner.utils.time.ServiceDateUtils;
 import org.slf4j.Logger;
@@ -65,9 +73,16 @@ public class RoutingWorker {
   private SearchParams raptorSearchParamsUsed = null;
   private PageCursorInput pageCursorInput = null;
 
-  public RoutingWorker(OtpServerRequestContext serverContext, RouteRequest request, ZoneId zoneId) {
-    request.applyPageCursor();
-    this.request = request;
+  /// Lazy-init linkingContext, use {@link #linkingContext()} to access
+  @Nullable
+  private LinkingContext currentLinkingContext = null;
+
+  public RoutingWorker(
+    OtpServerRequestContext serverContext,
+    RouteRequest orginalRequest,
+    ZoneId zoneId
+  ) {
+    this.request = orginalRequest.withPageCursor();
     this.serverContext = serverContext;
     this.debugTimingAggregator = new DebugTimingAggregator(
       serverContext.meterRegistry(),
@@ -88,33 +103,30 @@ public class RoutingWorker {
 
   public RoutingResponse route() {
     OTPRequestTimeoutException.checkForTimeout();
-
-    // If no direct mode is set, then we set one.
-    // See {@link FilterTransitWhenDirectModeIsEmpty}
-    var emptyDirectModeHandler = new FilterTransitWhenDirectModeIsEmpty(
-      request.journey().direct().mode()
-    );
-
-    request.journey().direct().setMode(emptyDirectModeHandler.resolveDirectMode());
-
     this.debugTimingAggregator.finishedPrecalculating();
-
     var result = RoutingResult.empty();
 
-    if (OTPFeature.ParallelRouting.isOn()) {
-      // TODO: This is not using {@link OtpRequestThreadFactory} which means we do not get
-      //       log-trace-parameters-propagation and graceful timeout handling here.
-      try {
-        var r1 = CompletableFuture.supplyAsync(this::routeDirectStreet);
-        var r2 = CompletableFuture.supplyAsync(this::routeDirectFlex);
-        var r3 = CompletableFuture.supplyAsync(this::routeTransit);
+    try (var temporaryVerticesContainer = new TemporaryVerticesContainer()) {
+      this.currentLinkingContext = createLinkingContext(temporaryVerticesContainer);
 
-        result.merge(r1.join(), r2.join(), r3.join());
-      } catch (CompletionException e) {
-        RoutingValidationException.unwrapAndRethrowCompletionException(e);
+      if (OTPFeature.ParallelRouting.isOn()) {
+        // TODO: This is not using {@link OtpRequestThreadFactory} which means we do not get
+        //       log-trace-parameters-propagation and graceful timeout handling here.
+        try {
+          var r1 = CompletableFuture.supplyAsync(() -> routeDirectStreet());
+          var r2 = CompletableFuture.supplyAsync(() -> routeDirectFlex());
+          var r3 = CompletableFuture.supplyAsync(() -> routeTransit());
+          var r4 = CompletableFuture.supplyAsync(() -> routeCarpooling());
+
+          result.merge(r1.join(), r2.join(), r3.join(), r4.join());
+        } catch (CompletionException e) {
+          RoutingValidationException.unwrapAndRethrowCompletionException(e);
+        }
+      } else {
+        result.merge(routeDirectStreet(), routeDirectFlex(), routeTransit(), routeCarpooling());
       }
-    } else {
-      result.merge(routeDirectStreet(), routeDirectFlex(), routeTransit());
+    } catch (RoutingValidationException e) {
+      result.merge(RoutingResult.failed(e.getRoutingErrors()));
     }
 
     // Set C2 value for Street and FLEX if transit-group-priority is used
@@ -134,8 +146,7 @@ public class RoutingWorker {
         serverContext,
         earliestDepartureTimeUsed(),
         searchWindowUsed(),
-        emptyDirectModeHandler.removeWalkAllTheWayResults() ||
-        removeWalkAllTheWayResultsFromDirectFlex,
+        result.removeWalkAllTheWayResults() || removeWalkAllTheWayResultsFromDirectFlex,
         it -> pageCursorInput = it
       );
 
@@ -146,15 +157,16 @@ public class RoutingWorker {
     if (LOG.isDebugEnabled()) {
       LOG.debug(
         "Return TripPlan with {} filtered itineraries out of {} total.",
-        result.itineraries().stream().filter(it -> !it.isFlaggedForDeletion()).count(),
+        result
+          .itineraries()
+          .stream()
+          .filter(it -> !it.isFlaggedForDeletion())
+          .count(),
         result.itineraries().size()
       );
     }
 
     this.debugTimingAggregator.finishedFiltering();
-
-    // Restore original directMode.
-    request.journey().direct().setMode(emptyDirectModeHandler.originalDirectMode());
 
     // Adjust the search-window for the next search if the current search-window
     // is off (too few or too many results found).
@@ -225,9 +237,29 @@ public class RoutingWorker {
       return RoutingResult.empty();
     }
 
+    // If no direct mode is set, then we set one.
+    // See {@link FilterTransitWhenDirectModeIsEmpty}
+    var emptyDirectModeHandler = new FilterTransitWhenDirectModeIsEmpty(
+      request.journey().direct().mode(),
+      request.pageCursor() != null
+    );
+    var directBuilder = request.copyOf();
+
+    directBuilder.withJourney(jb ->
+      jb.withDirect(
+        new StreetRequest(
+          emptyDirectModeHandler.resolveDirectMode(),
+          request.journey().direct().rentalDuration()
+        )
+      )
+    );
+
     debugTimingAggregator.startedDirectStreetRouter();
     try {
-      return RoutingResult.ok(DirectStreetRouter.route(serverContext, request));
+      return RoutingResult.ok(
+        DirectStreetRouter.route(serverContext, directBuilder.buildRequest(), linkingContext()),
+        emptyDirectModeHandler.removeWalkAllTheWayResults()
+      );
     } catch (RoutingValidationException e) {
       return RoutingResult.failed(e.getRoutingErrors());
     } finally {
@@ -241,11 +273,27 @@ public class RoutingWorker {
     }
     debugTimingAggregator.startedDirectFlexRouter();
     try {
-      return RoutingResult.ok(DirectFlexRouter.route(serverContext, request, additionalSearchDays));
+      return RoutingResult.ok(
+        DirectFlexRouter.route(serverContext, request, additionalSearchDays, linkingContext())
+      );
     } catch (RoutingValidationException e) {
       return RoutingResult.failed(e.getRoutingErrors());
     } finally {
       debugTimingAggregator.finishedDirectFlexRouter();
+    }
+  }
+
+  private RoutingResult routeCarpooling() {
+    if (OTPFeature.CarPooling.isOff()) {
+      return RoutingResult.ok(List.of());
+    }
+    debugTimingAggregator.startedDirectCarpoolRouter();
+    try {
+      return RoutingResult.ok(serverContext.carpoolingService().route(request, linkingContext()));
+    } catch (RoutingValidationException e) {
+      return RoutingResult.failed(e.getRoutingErrors());
+    } finally {
+      debugTimingAggregator.finishedDirectCarpoolRouter();
     }
   }
 
@@ -258,10 +306,13 @@ public class RoutingWorker {
         transitGroupPriorityService,
         transitSearchTimeZero,
         additionalSearchDays,
-        debugTimingAggregator
+        debugTimingAggregator,
+        linkingContext()
       );
       raptorSearchParamsUsed = transitResults.getSearchParams();
-      return RoutingResult.ok(transitResults.getItineraries());
+      var itineraries = transitResults.getItineraries();
+      checkIfTransitConnectionExistsInSearchWindow(itineraries);
+      return RoutingResult.ok(itineraries);
     } catch (RoutingValidationException e) {
       return RoutingResult.failed(e.getRoutingErrors());
     } finally {
@@ -283,5 +334,31 @@ public class RoutingWorker {
       pageCursorInput,
       itineraries
     );
+  }
+
+  /**
+   * If the transit search was performed but found no itineraries in the search window, the
+   * heuristic found a transit connection exists but no trips run in the current window.
+   */
+  private void checkIfTransitConnectionExistsInSearchWindow(List<Itinerary> itineraries) {
+    if (itineraries.isEmpty() && raptorSearchParamsUsed != null) {
+      throw new RoutingValidationException(
+        List.of(
+          new RoutingError(
+            RoutingErrorCode.NO_TRANSIT_CONNECTION_IN_SEARCH_WINDOW,
+            InputField.DATE_TIME
+          )
+        )
+      );
+    }
+  }
+
+  private LinkingContext linkingContext() {
+    return Objects.requireNonNull(currentLinkingContext);
+  }
+
+  private LinkingContext createLinkingContext(TemporaryVerticesContainer container) {
+    var linkingRequest = LinkingContextRequestMapper.map(request);
+    return serverContext.linkingContextFactory().create(container, linkingRequest);
   }
 }

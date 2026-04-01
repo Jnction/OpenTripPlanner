@@ -90,9 +90,9 @@ public class ToStringBuilderTest {
 
   @Test
   public void addStr() {
-    assertEquals("{a: 'text'}", ToStringBuilder.of().addStr("a", "text").toString());
-    assertEquals("{}", ToStringBuilder.of().addStr("a", null).toString());
-    assertEquals("{}", ToStringBuilder.of().addStr("a", "text", "text").toString());
+    assertEquals("(a: 'text')", ToStringBuilder.ofEmbeddedType().addStr("a", "text").toString());
+    assertEquals("()", ToStringBuilder.ofEmbeddedType().addStr("a", null).toString());
+    assertEquals("()", ToStringBuilder.ofEmbeddedType().addStr("a", "text", "text").toString());
   }
 
   @Test
@@ -119,9 +119,16 @@ public class ToStringBuilderTest {
   public void addObjOpSafe() {
     assertEquals(
       "ToStringBuilderTest{obj: Foo{a: 5, b: 'X'}}",
-      subject().addObjOpSafe("obj", () -> new Foo(5, "X")).toString()
+      subject()
+        .addObjOpSafe("obj", () -> new Foo(5, "X"))
+        .toString()
     );
-    assertEquals("ToStringBuilderTest{}", subject().addObjOpSafe("obj", () -> null).toString());
+    assertEquals(
+      "ToStringBuilderTest{}",
+      subject()
+        .addObjOpSafe("obj", () -> null)
+        .toString()
+    );
     assertEquals(
       "ToStringBuilderTest{}",
       subject()
@@ -201,7 +208,9 @@ public class ToStringBuilderTest {
 
     assertEquals(
       "ToStringBuilderTest{c: [<1>, <3.0>, <true>]}",
-      subject().addCol("c", List.of(1, 3d, true), e -> "<" + e + ">").toString()
+      subject()
+        .addCol("c", List.of(1, 3d, true), e -> "<" + e + ">")
+        .toString()
     );
   }
 
@@ -270,6 +279,7 @@ public class ToStringBuilderTest {
       subject().addDateTime("t", time).toString()
     );
     assertEquals("ToStringBuilderTest{}", subject().addDateTime("t", null).toString());
+    assertEquals("ToStringBuilderTest{}", subject().addDateTime("t", time, time).toString());
   }
 
   @Test

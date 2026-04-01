@@ -1,27 +1,23 @@
 package org.opentripplanner.gtfs.mapping;
 
-import static org.opentripplanner.gtfs.mapping.AgencyAndIdMapper.mapAgencyAndId;
-
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.fares.model.FareTransferRule;
-import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.ext.fares.model.TimeLimitType;
+import org.opentripplanner.model.fare.FareProduct;
 
-public class FareTransferRuleMapper {
+class FareTransferRuleMapper {
 
-  public final int MISSING_VALUE = -999;
-
-  private final DataImportIssueStore issueStore;
+  private final IdFactory idFactory;
   private final FareProductMapper fareProductMapper;
 
-  public FareTransferRuleMapper(
-    FareProductMapper fareProductMapper,
-    DataImportIssueStore issueStore
-  ) {
+  FareTransferRuleMapper(IdFactory idFactory, FareProductMapper fareProductMapper) {
+    this.idFactory = idFactory;
     this.fareProductMapper = fareProductMapper;
-    this.issueStore = issueStore;
   }
 
   public Collection<FareTransferRule> map(
@@ -31,30 +27,49 @@ public class FareTransferRuleMapper {
   }
 
   private FareTransferRule doMap(org.onebusaway.gtfs.model.FareTransferRule rhs) {
-    var fareProductId = mapAgencyAndId(rhs.getFareProductId());
-    var products = fareProductMapper.getByFareProductId(fareProductId);
-    if (products.isEmpty()) {
-      issueStore.add(
-        "UnknownFareProductId",
-        "Fare product with id %s referenced by fare transfer rule with id %s not found.".formatted(
-            fareProductId,
-            rhs.getId()
-          )
-      );
-      return null;
-    }
+    var fareProductId = idFactory.createNullableId(rhs.getFareProductId());
+    final var products = findFareProducts(fareProductId, rhs.getId());
 
-    Duration duration = null;
-    if (rhs.getDurationLimit() != MISSING_VALUE) {
-      duration = Duration.ofSeconds(rhs.getDurationLimit());
+    var builder = FareTransferRule.of()
+      .withId(idFactory.createId(rhs.getId(), "fare transfer rule"))
+      .withFromLegGroup(idFactory.createNullableId(rhs.getFromLegGroupId()))
+      .withToLegGroup(idFactory.createNullableId(rhs.getToLegGroupId()))
+      .withFareProducts(products);
+    if (rhs.isTransferCountSet()) {
+      builder.withTransferCount(rhs.getTransferCount());
     }
-    return new FareTransferRule(
-      new FeedScopedId(fareProductId.getFeedId(), rhs.getId()),
-      AgencyAndIdMapper.mapAgencyAndId(rhs.getFromLegGroupId()),
-      AgencyAndIdMapper.mapAgencyAndId(rhs.getToLegGroupId()),
-      rhs.getTransferCount(),
-      duration,
-      products
-    );
+    if (rhs.isDurationLimitSet()) {
+      var duration = Duration.ofSeconds(rhs.getDurationLimit());
+      var type = mapLimitType(rhs.getDurationLimitType());
+      builder.withTimeLimit(type, duration);
+    }
+    return builder.build();
+  }
+
+  private Collection<FareProduct> findFareProducts(
+    @Nullable FeedScopedId fareProductId,
+    String ruleId
+  ) {
+    // as per the GTFS Fares V2 spec an empty product id means that the transfer is free
+    if (fareProductId == null) {
+      return List.of();
+    }
+    var products = fareProductMapper.findFareProducts(fareProductId);
+    if (products.isEmpty()) {
+      throw new IllegalArgumentException(
+        "Cannot find fare product '%s' for transfer rule '%s'".formatted(fareProductId, ruleId)
+      );
+    }
+    return products;
+  }
+
+  static TimeLimitType mapLimitType(int durationLimitType) {
+    return switch (durationLimitType) {
+      case 0 -> TimeLimitType.DEPARTURE_TO_ARRIVAL;
+      case 1 -> TimeLimitType.DEPARTURE_TO_DEPARTURE;
+      case 2 -> TimeLimitType.ARRIVAL_TO_DEPARTURE;
+      case 3 -> TimeLimitType.ARRIVAL_TO_ARRIVAL;
+      default -> throw new IllegalArgumentException("Valid duration limit type must be provided.");
+    };
   }
 }

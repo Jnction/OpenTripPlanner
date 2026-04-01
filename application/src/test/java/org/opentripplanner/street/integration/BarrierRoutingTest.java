@@ -2,8 +2,8 @@ package org.opentripplanner.street.integration;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.opentripplanner.routing.api.request.StreetMode.BIKE;
-import static org.opentripplanner.routing.api.request.StreetMode.CAR;
+import static org.opentripplanner.street.model.StreetMode.BIKE;
+import static org.opentripplanner.street.model.StreetMode.CAR;
 import static org.opentripplanner.test.support.PolylineAssert.assertThatPolylinesAreEqual;
 
 import java.time.Instant;
@@ -19,23 +19,32 @@ import org.locationtech.jts.geom.Geometry;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.TestOtpModel;
 import org.opentripplanner._support.time.ZoneIds;
-import org.opentripplanner.framework.geometry.EncodedPolyline;
+import org.opentripplanner.api.model.geometry.EncodedPolyline;
 import org.opentripplanner.model.GenericLocation;
 import org.opentripplanner.model.plan.Itinerary;
-import org.opentripplanner.model.plan.StreetLeg;
-import org.opentripplanner.model.plan.WalkStep;
+import org.opentripplanner.model.plan.leg.StreetLeg;
+import org.opentripplanner.model.plan.walkstep.WalkStep;
 import org.opentripplanner.routing.algorithm.mapping.GraphPathToItineraryMapper;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.api.request.RouteRequestBuilder;
+import org.opentripplanner.routing.api.request.request.StreetRequest;
+import org.opentripplanner.routing.graphfinder.NoopSiteResolver;
 import org.opentripplanner.routing.impl.GraphPathFinder;
-import org.opentripplanner.street.search.TemporaryVerticesContainer;
+import org.opentripplanner.routing.linking.LinkingContextFactory;
+import org.opentripplanner.routing.linking.VertexLinkerTestFactory;
+import org.opentripplanner.routing.linking.internal.VertexCreationService;
+import org.opentripplanner.routing.linking.mapping.LinkingContextRequestMapper;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsRepository;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsService;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.linking.TemporaryVerticesContainer;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.test.support.ResourceLoader;
 
 public class BarrierRoutingTest {
 
-  private static final Instant dateTime = Instant.now();
+  private static final Instant DATE_TIME = Instant.now();
 
   private static Graph graph;
 
@@ -45,7 +54,7 @@ public class BarrierRoutingTest {
       ResourceLoader.of(BarrierRoutingTest.class).file("herrenberg-barrier-gates.osm.pbf")
     );
     graph = model.graph();
-    graph.index(model.timetableRepository().getSiteRepository());
+    graph.index();
   }
 
   /**
@@ -53,8 +62,8 @@ public class BarrierRoutingTest {
    */
   @Test
   public void shouldWalkForBarriers() {
-    var from = new GenericLocation(48.59384, 8.86848);
-    var to = new GenericLocation(48.59370, 8.87079);
+    var from = GenericLocation.fromCoordinate(48.59384, 8.86848);
+    var to = GenericLocation.fromCoordinate(48.59370, 8.87079);
 
     // This takes a detour to avoid walking with the bike
     var polyline1 = computePolyline(graph, from, to, BIKE);
@@ -83,7 +92,7 @@ public class BarrierRoutingTest {
                   i
                     .legs()
                     .get(0)
-                    .getWalkSteps()
+                    .listWalkSteps()
                     .stream()
                     .map(WalkStep::isWalkingBike)
                     .collect(Collectors.toList())
@@ -99,8 +108,8 @@ public class BarrierRoutingTest {
    */
   @Test
   public void shouldDriveAroundBarriers() {
-    var from = new GenericLocation(48.59291, 8.87037);
-    var to = new GenericLocation(48.59262, 8.86879);
+    var from = GenericLocation.fromCoordinate(48.59291, 8.87037);
+    var to = GenericLocation.fromCoordinate(48.59262, 8.86879);
 
     // This takes a detour to avoid walking with the bike
     var polyline1 = computePolyline(graph, from, to, CAR);
@@ -109,8 +118,8 @@ public class BarrierRoutingTest {
 
   @Test
   public void shouldDriveToBarrier() {
-    var from = new GenericLocation(48.59291, 8.87037);
-    var to = new GenericLocation(48.59276, 8.86963);
+    var from = GenericLocation.fromCoordinate(48.59291, 8.87037);
+    var to = GenericLocation.fromCoordinate(48.59276, 8.86963);
 
     // This takes a detour to avoid walking with the bike
     var polyline1 = computePolyline(graph, from, to, CAR);
@@ -119,8 +128,8 @@ public class BarrierRoutingTest {
 
   @Test
   public void shouldDriveFromBarrier() {
-    var from = new GenericLocation(48.59273, 8.86931);
-    var to = new GenericLocation(48.59291, 8.87037);
+    var from = GenericLocation.fromCoordinate(48.59273, 8.86931);
+    var to = GenericLocation.fromCoordinate(48.59291, 8.87037);
 
     // This takes a detour to avoid walking with the bike
     var polyline1 = computePolyline(graph, from, to, CAR);
@@ -169,34 +178,42 @@ public class BarrierRoutingTest {
     GenericLocation from,
     GenericLocation to,
     StreetMode streetMode,
-    Consumer<RouteRequest> options,
+    Consumer<RouteRequestBuilder> options,
     Function<List<Itinerary>, Stream<Executable>> assertions
   ) {
-    RouteRequest request = new RouteRequest();
-    request.setDateTime(dateTime);
-    request.setFrom(from);
-    request.setTo(to);
-    request.journey().direct().setMode(streetMode);
+    var builder = RouteRequest.of()
+      .withDateTime(DATE_TIME)
+      .withFrom(from)
+      .withTo(to)
+      .withJourney(jb -> jb.withDirect(new StreetRequest(streetMode)));
 
-    options.accept(request);
+    options.accept(builder);
 
-    var temporaryVertices = new TemporaryVerticesContainer(graph, from, to, streetMode, streetMode);
+    var temporaryVerticesContainer = new TemporaryVerticesContainer();
+    var request = builder.buildRequest();
+    var vertexLinker = VertexLinkerTestFactory.of(graph);
+    var vertexCreationService = new VertexCreationService(vertexLinker);
+    var linkingContextFactory = new LinkingContextFactory(graph, vertexCreationService);
+    var linkingRequest = LinkingContextRequestMapper.map(request);
+    var linkingContext = linkingContextFactory.create(temporaryVerticesContainer, linkingRequest);
     var gpf = new GraphPathFinder(null);
-    var paths = gpf.graphPathFinderEntryPoint(request, temporaryVertices);
+    var paths = gpf.graphPathFinderEntryPoint(request, linkingContext);
 
     GraphPathToItineraryMapper graphPathToItineraryMapper = new GraphPathToItineraryMapper(
+      new NoopSiteResolver(),
       ZoneIds.BERLIN,
       graph.streetNotesService,
+      new DefaultStreetDetailsService(new DefaultStreetDetailsRepository()),
       graph.ellipsoidToGeoidDifference
     );
 
-    var itineraries = graphPathToItineraryMapper.mapItineraries(paths);
+    var itineraries = graphPathToItineraryMapper.mapItineraries(paths, request);
 
     assertAll(assertions.apply(itineraries));
 
-    Geometry legGeometry = itineraries.get(0).legs().get(0).getLegGeometry();
-    temporaryVertices.close();
+    Geometry legGeometry = itineraries.get(0).legs().get(0).legGeometry();
+    temporaryVerticesContainer.close();
 
-    return EncodedPolyline.encode(legGeometry).points();
+    return EncodedPolyline.of(legGeometry).points();
   }
 }

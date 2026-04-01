@@ -2,30 +2,18 @@
   "data": {
     "routes": [
       {
-        "longName": "Long name for CARPOOL",
-        "shortName": "RCARPOOL",
-        "gtfsId": "F:CARPOOL",
+        "longName": "Long name for AIRPLANE",
+        "shortName": "RAIRPLANE",
+        "gtfsId": "F:AIRPLANE",
         "agency": {
           "gtfsId": "F:A1",
           "name": "Agency Test"
         },
-        "mode": "CARPOOL",
-        "sortOrder": 12,
+        "mode": "AIRPLANE",
+        "sortOrder": 6,
         "bikesAllowed": "ALLOWED",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for SUBWAY",
-        "shortName": "RSUBWAY",
-        "gtfsId": "F:SUBWAY",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "SUBWAY",
-        "sortOrder": 2,
-        "bikesAllowed": "NO_INFORMATION",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
       },
       {
         "longName": "Long name for BUS",
@@ -38,46 +26,8 @@
         "mode": "BUS",
         "sortOrder": 3,
         "bikesAllowed": "ALLOWED",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for FERRY",
-        "shortName": "RFERRY",
-        "gtfsId": "F:FERRY",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "FERRY",
-        "sortOrder": 5,
-        "bikesAllowed": "NO_INFORMATION",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for COACH",
-        "shortName": "RCOACH",
-        "gtfsId": "F:COACH",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "COACH",
-        "sortOrder": 1,
-        "bikesAllowed": "NOT_ALLOWED",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for TRAM",
-        "shortName": "RTRAM",
-        "gtfsId": "F:TRAM",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "TRAM",
-        "sortOrder": 4,
-        "bikesAllowed": "NOT_ALLOWED",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
       },
       {
         "longName": "Long name for CABLE_CAR",
@@ -90,7 +40,50 @@
         "mode": "CABLE_CAR",
         "sortOrder": 7,
         "bikesAllowed": "NOT_ALLOWED",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for CARPOOL",
+        "shortName": "RCARPOOL",
+        "gtfsId": "F:CARPOOL",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "CARPOOL",
+        "sortOrder": 12,
+        "bikesAllowed": "ALLOWED",
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for COACH",
+        "shortName": "RCOACH",
+        "gtfsId": "F:COACH",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "COACH",
+        "sortOrder": 1,
+        "bikesAllowed": "NOT_ALLOWED",
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for FERRY",
+        "shortName": "RFERRY",
+        "gtfsId": "F:FERRY",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "FERRY",
+        "sortOrder": 5,
+        "bikesAllowed": "NO_INFORMATION",
+        "patterns": [],
+        "isReplacement": false
       },
       {
         "longName": "Long name for FUNICULAR",
@@ -103,33 +96,8 @@
         "mode": "FUNICULAR",
         "sortOrder": 9,
         "bikesAllowed": "ALLOWED",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for RAIL",
-        "shortName": "RRAIL",
-        "gtfsId": "F:RAIL",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "RAIL",
-        "sortOrder": null,
-        "bikesAllowed": "ALLOWED",
-        "patterns": []
-      },
-      {
-        "longName": "Long name for MONORAIL",
-        "shortName": "RMONORAIL",
-        "gtfsId": "F:MONORAIL",
-        "agency": {
-          "gtfsId": "F:A1",
-          "name": "Agency Test"
-        },
-        "mode": "MONORAIL",
-        "sortOrder": 11,
-        "bikesAllowed": "NO_INFORMATION",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
       },
       {
         "longName": "Long name for GONDOLA",
@@ -142,33 +110,64 @@
         "mode": "GONDOLA",
         "sortOrder": 8,
         "bikesAllowed": "NO_INFORMATION",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
       },
       {
-        "longName": "Long name for TROLLEYBUS",
-        "shortName": "RTROLLEYBUS",
-        "gtfsId": "F:TROLLEYBUS",
+        "longName": "Long name for MONORAIL",
+        "shortName": "RMONORAIL",
+        "gtfsId": "F:MONORAIL",
         "agency": {
           "gtfsId": "F:A1",
           "name": "Agency Test"
         },
-        "mode": "TROLLEYBUS",
-        "sortOrder": 10,
-        "bikesAllowed": "NOT_ALLOWED",
-        "patterns": []
+        "mode": "MONORAIL",
+        "sortOrder": 11,
+        "bikesAllowed": "NO_INFORMATION",
+        "patterns": [],
+        "isReplacement": false
       },
       {
-        "longName": "Long name for AIRPLANE",
-        "shortName": "RAIRPLANE",
-        "gtfsId": "F:AIRPLANE",
+        "longName": "Long name for RAIL",
+        "shortName": "RRAIL",
+        "gtfsId": "F:RAIL",
         "agency": {
           "gtfsId": "F:A1",
           "name": "Agency Test"
         },
-        "mode": "AIRPLANE",
-        "sortOrder": 6,
+        "mode": "RAIL",
+        "sortOrder": null,
         "bikesAllowed": "ALLOWED",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for SNOW_AND_ICE",
+        "shortName": "RSNOW_AND_ICE",
+        "gtfsId": "F:SNOW_AND_ICE",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "SNOW_AND_ICE",
+        "sortOrder": 14,
+        "bikesAllowed": "NO_INFORMATION",
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for SUBWAY",
+        "shortName": "RSUBWAY",
+        "gtfsId": "F:SUBWAY",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "SUBWAY",
+        "sortOrder": 2,
+        "bikesAllowed": "NO_INFORMATION",
+        "patterns": [],
+        "isReplacement": false
       },
       {
         "longName": "Long name for TAXI",
@@ -181,7 +180,50 @@
         "mode": "TAXI",
         "sortOrder": 13,
         "bikesAllowed": "NOT_ALLOWED",
-        "patterns": []
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for TRAM",
+        "shortName": "RTRAM",
+        "gtfsId": "F:TRAM",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "TRAM",
+        "sortOrder": 4,
+        "bikesAllowed": "NOT_ALLOWED",
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for TROLLEYBUS",
+        "shortName": "RTROLLEYBUS",
+        "gtfsId": "F:TROLLEYBUS",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "TROLLEYBUS",
+        "sortOrder": 10,
+        "bikesAllowed": "NOT_ALLOWED",
+        "patterns": [],
+        "isReplacement": false
+      },
+      {
+        "longName": "Long name for replacement bus",
+        "shortName": "Rreplacement",
+        "gtfsId": "F:replacement",
+        "agency": {
+          "gtfsId": "F:A1",
+          "name": "Agency Test"
+        },
+        "mode": "BUS",
+        "sortOrder": null,
+        "bikesAllowed": "NO_INFORMATION",
+        "patterns": [],
+        "isReplacement": true
       }
     ]
   }

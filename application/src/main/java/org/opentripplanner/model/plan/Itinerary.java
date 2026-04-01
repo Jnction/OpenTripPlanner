@@ -4,22 +4,24 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.opentripplanner.core.model.basic.NormalizedCost;
 import org.opentripplanner.ext.flex.FlexibleTransitLeg;
-import org.opentripplanner.framework.model.Cost;
 import org.opentripplanner.framework.model.TimeAndCost;
 import org.opentripplanner.model.SystemNotice;
 import org.opentripplanner.model.fare.ItineraryFare;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
+import org.opentripplanner.model.plan.leg.StreetLeg;
 import org.opentripplanner.raptor.api.model.RaptorConstants;
 import org.opentripplanner.raptor.api.path.PathStringBuilder;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.preference.ItineraryFilterPreferences;
 import org.opentripplanner.utils.lang.DoubleUtils;
+import org.opentripplanner.utils.lang.Sandbox;
 import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 /**
@@ -36,7 +38,8 @@ public class Itinerary implements ItinerarySortKey {
   /* COST AND PENALTY */
   private final TimeAndCost accessPenalty;
   private final TimeAndCost egressPenalty;
-  private final Cost generalizedCost;
+  private final NormalizedCost generalizedCost;
+  private final NormalizedCost generalizedCostIncludingPenalty;
 
   @Nullable
   private final Integer generalizedCost2;
@@ -56,14 +59,14 @@ public class Itinerary implements ItinerarySortKey {
   private final Duration totalWalkDuration;
   private final boolean walkOnly;
 
-  /* RENATL */
+  /* RENTAL */
   private final boolean arrivedAtDestinationWithRentedVehicle;
 
   /* WAIT */
   private final Duration totalWaitingDuration;
 
   /* ELEVATION */
-  // TODO See #getElevationGained()
+  // TODO See #elevationGained()
   private final double elevationGained_edges_m;
   private final double totalElevationGained_m;
   private final double elevationLost_edges_m;
@@ -85,20 +88,22 @@ public class Itinerary implements ItinerarySortKey {
   /* SANDBOX EXPERIMENTAL PROPERTIES */
 
   private final Float accessibilityScore;
-  private final Emissions emissionsPerPerson;
+  private final Emission emissionPerPerson;
   private final ItineraryFare fare;
 
   Itinerary(ItineraryBuilder builder) {
     this.legs = List.copyOf(builder.legs);
 
-    this.generalizedCost = Objects.requireNonNull(builder.calculateGeneralizedCostWithoutPenalty());
+    // Normalize (round to seconds) to make sure insignificant small differences do not
+    // have an effect when comparing itineraries in the filter-chain and in paging
+    this.generalizedCost = builder.calculateGeneralizedCostWithoutPenalty().normalize();
     this.generalizedCost2 = builder.generalizedCost2;
 
     this.searchWindowAware = builder.searchWindowAware;
     this.transferPriorityCost = builder.transferPriorityCost;
     this.waitTimeOptimizedCost = builder.waitTimeOptimizedCost;
-    this.accessPenalty = Objects.requireNonNull(builder.accessPenalty);
-    this.egressPenalty = Objects.requireNonNull(builder.egressPenalty);
+    this.accessPenalty = builder.accessPenalty.normalize();
+    this.egressPenalty = builder.egressPenalty.normalize();
     this.tooSloped = builder.tooSloped;
     this.maxSlope = builder.maxSlope;
     this.elevationGained_edges_m = builder.elevationGained_m;
@@ -106,10 +111,15 @@ public class Itinerary implements ItinerarySortKey {
     this.arrivedAtDestinationWithRentedVehicle = builder.arrivedAtDestinationWithRentedVehicle;
     this.systemNotices = builder.systemNotices;
     this.accessibilityScore = builder.accessibilityScore;
-    this.emissionsPerPerson = builder.emissionsPerPerson;
+    this.emissionPerPerson = builder.emissionPerPerson;
     this.fare = builder.fare;
 
     // Set aggregated data
+    this.generalizedCostIncludingPenalty = generalizedCost
+      .plus(accessPenalty.cost())
+      .plus(egressPenalty.cost())
+      .normalize();
+
     ItinerariesCalculateLegTotals totals = new ItinerariesCalculateLegTotals(legs);
 
     this.totalDuration = totals.totalDuration;
@@ -146,45 +156,54 @@ public class Itinerary implements ItinerarySortKey {
   }
 
   /**
-   * Time that the trip departs.
+   * Time that the trip departs. The time is normalized(rounded to closest second).
+   * @see #endTime() for details no the normalization.
    */
   public ZonedDateTime startTime() {
-    return firstLeg().getStartTime();
+    return legs().getFirst().startTime();
   }
 
   /**
-   * Time that the trip departs as a Java Instant type.
+   * Time that the trip departs as a Java Instant type. The same normalization as in
+   * {@link #startTime()} applies.
    */
+  @Override
   public Instant startTimeAsInstant() {
-    return firstLeg().getStartTime().toInstant();
+    return startTime().toInstant();
   }
 
   /**
-   * Time that the trip arrives.
+   * Time that the trip arrives. The time is normalized(rounded to closest second). The value is
+   * normalized (rounded to seconds) is required for the paging to work properly. We serialize the
+   * times in the paging-token with a resolution of seconds. When filtering the page-cut, any
+   * millis part could cause duplicates. This also have an effect when sorting itineraries in the
+   * itinerary-filter-chain.
    */
   public ZonedDateTime endTime() {
-    return lastLeg().getEndTime();
+    return legs().getLast().endTime();
   }
 
   /**
-   * Time that the trip arrives as a Java Instant type.
+   * Time that the trip arrives as a Java Instant type. The same normalization as in
+   * {@link #startTime()} applies.
    */
+  @Override
   public Instant endTimeAsInstant() {
-    return lastLeg().getEndTime().toInstant();
+    return endTime().toInstant();
   }
 
   /**
    * Reflects the departureDelay on the first Leg Unit: seconds.
    */
   public int departureDelay() {
-    return firstLeg().getDepartureDelay();
+    return legs().getFirst().departureDelay();
   }
 
   /**
    * Reflects the arrivalDelay on the last Leg Unit: seconds.
    */
   public int arrivalDelay() {
-    return lastLeg().getArrivalDelay();
+    return legs().getLast().arrivalDelay();
   }
 
   /**
@@ -201,8 +220,8 @@ public class Itinerary implements ItinerarySortKey {
     return legs()
       .stream()
       // An unknown distance is -1
-      .filter(l -> l.getDistanceMeters() > 0)
-      .mapToDouble(Leg::getDistanceMeters)
+      .filter(l -> l.distanceMeters() > 0)
+      .mapToDouble(Leg::distanceMeters)
       .sum();
   }
 
@@ -264,7 +283,7 @@ public class Itinerary implements ItinerarySortKey {
   }
 
   public Itinerary withTimeShiftToStartAt(ZonedDateTime afterTime) {
-    Duration duration = Duration.between(firstLeg().getStartTime(), afterTime);
+    Duration duration = Duration.between(legs().getFirst().startTime(), afterTime);
     List<Leg> timeShiftedLegs = legs()
       .stream()
       .map(leg -> leg.withTimeShift(duration))
@@ -342,14 +361,6 @@ public class Itinerary implements ItinerarySortKey {
    */
   public List<Leg> legs() {
     return legs;
-  }
-
-  public Leg firstLeg() {
-    return legs().get(0);
-  }
-
-  public Leg lastLeg() {
-    return legs().get(legs().size() - 1);
   }
 
   public Stream<StreetLeg> streetLegs() {
@@ -459,8 +470,8 @@ public class Itinerary implements ItinerarySortKey {
    * @see org.opentripplanner.routing.algorithm.raptoradapter.router.street.AccessEgressPenaltyDecorator
    */
   @Override
-  public Cost generalizedCostIncludingPenalty() {
-    return generalizedCost.plus(accessPenalty.cost().plus(egressPenalty.cost()));
+  public NormalizedCost generalizedCostIncludingPenalty() {
+    return generalizedCostIncludingPenalty;
   }
 
   /**
@@ -535,43 +546,23 @@ public class Itinerary implements ItinerarySortKey {
     return arrivedAtDestinationWithRentedVehicle;
   }
 
-  /**
-   * Get the index of a leg when you want to reference it in an API response, for example when you
-   * want to say that a fare is valid for legs 2 and 3.
-   * <p>
-   * Return {@link #UNKNOWN} if not found.
-   */
-  public int findLegIndex(Leg leg) {
-    var index = legs.indexOf(leg);
-    // the filter pipeline can also modify the identity of Leg instances. that's why we not only
-    // check that but also the start and end point as a replacement for the identity.
-    if (index > -1) {
-      return index;
-    } else {
-      for (int i = 0; i < legs.size() - 1; i++) {
-        var currentLeg = legs.get(i);
-        if (
-          currentLeg.getFrom().sameLocation(leg.getFrom()) &&
-          currentLeg.getTo().sameLocation(leg.getTo())
-        ) {
-          return i;
-        }
-      }
-      return UNKNOWN;
-    }
-  }
-
-  public List<ScheduledTransitLeg> listScheduledTransitLegs() {
+  public List<TransitLeg> listTransitLegs() {
     return legs()
       .stream()
-      .filter(ScheduledTransitLeg.class::isInstance)
-      .map(ScheduledTransitLeg.class::cast)
+      .filter(TransitLeg.class::isInstance)
+      .map(TransitLeg.class::cast)
       .toList();
   }
 
+  /**
+   * The agregated sum of emission for all legs in the itinerary. This method return a value
+   * (none {@code null}) if the emission can be computed for all transit and car legs. This method
+   * return {@code null} if at least one leg can not be computed.
+   */
+  @Sandbox
   @Nullable
-  public Emissions emissionsPerPerson() {
-    return this.emissionsPerPerson;
+  public Emission emissionPerPerson() {
+    return this.emissionPerPerson;
   }
 
   /**
@@ -614,10 +605,10 @@ public class Itinerary implements ItinerarySortKey {
   @Override
   public String toString() {
     return ToStringBuilder.of(Itinerary.class)
-      .addStr("from", firstLeg().getFrom().toStringShort())
-      .addStr("to", lastLeg().getTo().toStringShort())
-      .addTime("start", firstLeg().getStartTime())
-      .addTime("end", lastLeg().getEndTime())
+      .addStr("from", legs().getFirst().from().toStringShort())
+      .addStr("to", legs().getLast().to().toStringShort())
+      .addTime("start", legs().getFirst().startTime())
+      .addTime("end", legs().getLast().endTime())
       .addNum("nTransfers", numberOfTransfers)
       .addDuration("duration", totalDuration)
       .addDuration("nonTransitTime", totalStreetDuration)
@@ -632,7 +623,7 @@ public class Itinerary implements ItinerarySortKey {
       .addNum("elevationGained", totalElevationGained(), "m")
       .addNum("elevationLost", totalElevationLost(), "m")
       .addCol("legs", legs)
-      .addObj("emissionsPerPerson", emissionsPerPerson)
+      .addObj("emissionPerPerson", emissionPerPerson)
       .addObj("fare", fare)
       .toString();
   }
@@ -665,22 +656,22 @@ public class Itinerary implements ItinerarySortKey {
   public String toStr() {
     // No translater needed, stop indexes are never passed to the builder
     PathStringBuilder buf = new PathStringBuilder(null);
-    buf.stop(firstLeg().getFrom().name.toString());
+    buf.stop(legs().getFirst().from().name.toString());
 
     for (Leg leg : legs) {
       if (leg.isWalkingLeg()) {
-        buf.walk((int) leg.getDuration().toSeconds());
+        buf.walk((int) leg.duration().toSeconds());
       } else if (leg instanceof TransitLeg transitLeg) {
         buf.transit(
-          transitLeg.getMode().name(),
-          transitLeg.getTrip().logName(),
-          transitLeg.getStartTime(),
-          transitLeg.getEndTime()
+          transitLeg.mode().name(),
+          transitLeg.trip().logName(),
+          transitLeg.startTime(),
+          transitLeg.endTime()
         );
       } else if (leg instanceof StreetLeg streetLeg) {
-        buf.street(streetLeg.getMode().name(), leg.getStartTime(), leg.getEndTime());
+        buf.street(streetLeg.getMode().name(), leg.startTime(), leg.endTime());
       }
-      buf.stop(leg.getTo().name.toString());
+      buf.stop(leg.to().name.toString());
     }
 
     // The generalizedCost2 is printed as is, it is a special cost and the scale depends on the

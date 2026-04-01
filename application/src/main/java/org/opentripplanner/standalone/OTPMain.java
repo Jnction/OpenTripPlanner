@@ -8,7 +8,6 @@ import org.geotools.referencing.factory.DeferredAuthorityFactory;
 import org.geotools.util.WeakCollectionCleaner;
 import org.opentripplanner.framework.application.ApplicationShutdownSupport;
 import org.opentripplanner.framework.application.OtpAppException;
-import org.opentripplanner.graph_builder.GraphBuilder;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueSummary;
 import org.opentripplanner.raptor.configure.RaptorConfig;
 import org.opentripplanner.routing.graph.SerializedGraphObject;
@@ -139,30 +138,29 @@ public class OTPMain {
         app.graphOutputDataSource()
       );
 
-      GraphBuilder graphBuilder = app.createGraphBuilder();
-      if (graphBuilder != null) {
-        graphBuilder.run();
-        graphAvailable = true;
-      } else {
-        throw new IllegalStateException("An error occurred while building the graph.");
-      }
+      var graphBuilder = app.createGraphBuilder();
+      graphBuilder.run();
+      graphAvailable = true;
+
       // Store graph and config used to build it, also store router-config for easy deployment
       // with using the embedded router config.
       new SerializedGraphObject(
         app.graph(),
         app.osmInfoGraphBuildRepository(),
+        app.streetDetailsRepository(),
+        app.streetRepository(),
         app.timetableRepository(),
+        app.transferRepository(),
         app.worldEnvelopeRepository(),
         app.vehicleParkingRepository(),
         config.buildConfig(),
         config.routerConfig(),
         DataImportIssueSummary.combine(graphBuilder.issueSummary(), app.dataImportIssueSummary()),
-        app.emissionsDataModel(),
+        app.emissionRepository(),
+        app.empiricalDelayRepository(),
         app.stopConsolidationRepository(),
-        app.streetLimitationParameters()
+        app.fareServiceFactory()
       ).save(app.graphOutputDataSource());
-      // Log size info for the deduplicator
-      LOG.info("Memory optimized {}", app.graph().deduplicator.toString());
     }
 
     if (!graphAvailable) {
@@ -189,9 +187,9 @@ public class OTPMain {
   private static void startOtpWebServer(CommandLineParameters params, ConstructApplication app) {
     // Index graph for travel search
     app.timetableRepository().index();
-    app.graph().index(app.timetableRepository().getSiteRepository());
+    app.transferRepository().index();
+    app.graph().index();
 
-    app.graph().getLinker().setMaxAreaNodes(app.streetLimitationParameters().maxAreaNodes());
     // publishing the config version info make it available to the APIs
     setOtpConfigVersionsOnServerInfo(app);
 

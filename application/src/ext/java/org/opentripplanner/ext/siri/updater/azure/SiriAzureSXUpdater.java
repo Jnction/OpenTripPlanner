@@ -6,14 +6,13 @@ import javax.annotation.Nullable;
 import org.opentripplanner.routing.impl.TransitAlertServiceImpl;
 import org.opentripplanner.routing.services.TransitAlertService;
 import org.opentripplanner.transit.service.TimetableRepository;
-import org.opentripplanner.updater.alert.TransitAlertProvider;
 import org.opentripplanner.updater.alert.siri.SiriAlertsUpdateHandler;
 import org.opentripplanner.updater.spi.WriteToGraphCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.org.siri.siri21.ServiceDelivery;
 
-public class SiriAzureSXUpdater implements TransitAlertProvider, SiriAzureMessageHandler {
+public class SiriAzureSXUpdater implements SiriAzureMessageHandler {
 
   private final Logger LOG = LoggerFactory.getLogger(getClass());
   private final SiriAlertsUpdateHandler updateHandler;
@@ -50,7 +49,6 @@ public class SiriAzureSXUpdater implements TransitAlertProvider, SiriAzureMessag
     }
   }
 
-  @Override
   public TransitAlertService getTransitAlertService() {
     return this.transitAlertService;
   }

@@ -1,21 +1,13 @@
 package org.opentripplanner.routing.graphfinder;
 
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.opentripplanner.astar.model.GraphPath;
-import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.street.model.edge.Edge;
-import org.opentripplanner.street.model.vertex.TransitStopVertex;
-import org.opentripplanner.street.model.vertex.Vertex;
-import org.opentripplanner.street.search.request.StreetSearchRequestMapper;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.transit.model.site.StopLocation;
 
@@ -32,7 +24,7 @@ public class NearbyStop implements Comparable<NearbyStop> {
   public final State state;
 
   public NearbyStop(StopLocation stop, double distance, List<Edge> edges, State state) {
-    this.stop = stop;
+    this.stop = Objects.requireNonNull(stop);
     this.distance = distance;
     this.edges = edges;
     this.state = state;
@@ -61,54 +53,6 @@ public class NearbyStop implements Comparable<NearbyStop> {
   }
 
   /**
-   * Create zero distance NearbyStops given a list of TransitStopVertices
-   */
-  public static List<NearbyStop> nearbyStopsForTransitStopVertices(
-    Set<TransitStopVertex> stopVertices,
-    boolean reverseDirection,
-    RouteRequest routeRequest,
-    StreetRequest streetRequest
-  ) {
-    if (stopVertices.isEmpty()) {
-      return List.of();
-    }
-
-    var streetSearchRequest = StreetSearchRequestMapper.mapToTransferRequest(routeRequest)
-      .withArriveBy(reverseDirection)
-      .withMode(streetRequest.mode())
-      .build();
-
-    return stopVertices
-      .stream()
-      .map(s -> ofZeroDistance(s.getStop(), new State(s, streetSearchRequest)))
-      .toList();
-  }
-
-  /**
-   * Given a list of Vertices, find the TransitStopVertices and create zero distance NearbyStops
-   * for them.
-   */
-  public static List<NearbyStop> nearbyStopsForTransitStopVerticesFiltered(
-    Collection<? extends Vertex> vertices,
-    boolean reverseDirection,
-    RouteRequest routeRequest,
-    StreetRequest streetRequest
-  ) {
-    var transitStops = vertices
-      .stream()
-      .filter(v -> v instanceof TransitStopVertex)
-      .map(v -> (TransitStopVertex) v)
-      .collect(Collectors.toSet());
-
-    return nearbyStopsForTransitStopVertices(
-      transitStops,
-      reverseDirection,
-      routeRequest,
-      streetRequest
-    );
-  }
-
-  /**
    * Return {@code true} if this instance has a lower weight/cost than the given {@code other}.
    * If the state is not set, the distance is used for comparison instead. If the
    * weight/cost/distance is equals (or worse) this method returns {@code false}.
@@ -129,6 +73,13 @@ public class NearbyStop implements Comparable<NearbyStop> {
       return (int) (this.state.getWeight()) - (int) (that.state.getWeight());
     }
     return (int) (this.distance) - (int) (that.distance);
+  }
+
+  /**
+   * Duration it took to reach the stop.
+   */
+  public Duration duration() {
+    return Duration.ofSeconds(state.getElapsedTimeSeconds());
   }
 
   @Override

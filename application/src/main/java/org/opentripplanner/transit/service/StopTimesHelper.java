@@ -2,6 +2,7 @@ package org.opentripplanner.transit.service;
 
 import static org.opentripplanner.transit.service.ArrivalDeparture.ARRIVALS;
 import static org.opentripplanner.transit.service.ArrivalDeparture.DEPARTURES;
+import static org.opentripplanner.utils.time.ServiceDateUtils.calculateRunningDates;
 
 import com.google.common.collect.MinMaxPriorityQueue;
 import java.time.Duration;
@@ -14,17 +15,20 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Queue;
+import javax.annotation.Nullable;
 import org.opentripplanner.model.PickDrop;
 import org.opentripplanner.model.StopTimesInPattern;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.model.TripTimeOnDate;
+import org.opentripplanner.transit.api.request.TripTimeOnDateRequest;
+import org.opentripplanner.transit.model.filter.expr.Matcher;
+import org.opentripplanner.transit.model.filter.transit.TripTimeOnDateMatcherFactory;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.StopLocation;
-import org.opentripplanner.transit.model.timetable.Trip;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.utils.time.ServiceDateUtils;
 
-class StopTimesHelper {
+public class StopTimesHelper {
 
   private final TransitService transitService;
 
@@ -33,30 +37,33 @@ class StopTimesHelper {
   }
 
   /**
-   * Fetch upcoming vehicle departures from a stop. It goes though all patterns passing the stop for
-   * the previous, current and next service date. It uses a priority queue to keep track of the next
-   * departures. The queue is shared between all dates, as services from the previous service date
-   * can visit the stop later than the current service date's services. This happens eg. with
-   * sleeper trains.
+   * Fetch upcoming vehicle departures from a stop. It goes through all patterns passing the stop
+   * for the given time-window `[startTime, startTime+timeRange]`. It uses a priority queue to keep
+   * track of the next departures. The queue is shared between all dates, as services from earlier
+   * service dates can visit the stop later than the current service date's services. This happens
+   * with sleeper trains and multi-day services.
    * <p>
    * TODO: Add frequency based trips
    *
    * @param stop                  Stop object to perform the search for
    * @param startTime             Start time for the search.
    * @param timeRange             Searches forward for timeRange from startTime
-   * @param numberOfDepartures    Number of departures to fetch per pattern
+   * @param numberOfDeparturesPerPattern    Number of departures to fetch per pattern
    * @param arrivalDeparture      Filter by arrivals, departures, or both
    * @param includeCancelledTrips If true, cancelled trips will also be included in result
+   * @param tripTimeOnDateMatcher An optional matcher to filter out trip times
    */
   List<StopTimesInPattern> stopTimesForStop(
     StopLocation stop,
     Instant startTime,
     Duration timeRange,
-    int numberOfDepartures,
+    int numberOfDeparturesPerPattern,
     ArrivalDeparture arrivalDeparture,
-    boolean includeCancelledTrips
+    boolean includeCancelledTrips,
+    Comparator<TripTimeOnDate> sortOrder,
+    @Nullable Matcher<TripTimeOnDate> tripTimeOnDateMatcher
   ) {
-    if (numberOfDepartures <= 0) {
+    if (numberOfDeparturesPerPattern <= 0) {
       return List.of();
     }
 
@@ -71,16 +78,41 @@ class StopTimesHelper {
         pattern,
         startTime,
         timeRange,
-        numberOfDepartures,
+        numberOfDeparturesPerPattern,
         arrivalDeparture,
         includeCancelledTrips,
-        false
+        sortOrder,
+        tripTimeOnDateMatcher
       );
 
       result.addAll(getStopTimesInPattern(pattern, pq));
     }
 
     return result;
+  }
+
+  List<TripTimeOnDate> findTripTimesOnDate(TripTimeOnDateRequest request) {
+    Matcher<TripTimeOnDate> matcher = TripTimeOnDateMatcherFactory.of(request);
+    return request
+      .stopLocations()
+      .stream()
+      .flatMap(stopLocation ->
+        stopTimesForStop(
+          stopLocation,
+          request.time(),
+          request.timeWindow(),
+          request.numberOfDepartures(),
+          request.arrivalDeparture(),
+          true,
+          request.sortOrder(),
+          matcher
+        )
+          .stream()
+          .flatMap(st -> st.times.stream())
+      )
+      .sorted(request.sortOrder())
+      .limit(request.numberOfDepartures())
+      .toList();
   }
 
   /**
@@ -118,7 +150,7 @@ class StopTimesHelper {
             continue;
           }
           for (TripTimes t : tt.getTripTimes()) {
-            if (TripTimesHelper.skipByTripCancellation(t, includeCancellations)) {
+            if (TripTimesHelper.skipByTripCancellationOrDeletion(t, includeCancellations)) {
               continue;
             }
             if (servicesRunning.contains(t.getServiceCode())) {
@@ -144,7 +176,7 @@ class StopTimesHelper {
    * @param pattern              Pattern object to perform the search for
    * @param startTime            Start time for the search.
    * @param timeRange            Searches forward for timeRange from startTime
-   * @param numberOfDepartures   Number of departures to fetch per pattern
+   * @param numberOfDeparturesPerPattern   Number of departures to fetch per pattern
    * @param arrivalDeparture     Filter by arrivals, departures, or both.
    * @param includeCancellations If the result should include those trip times where either the entire
    *                             trip or the stop at the given stop location has been cancelled.
@@ -155,7 +187,7 @@ class StopTimesHelper {
     TripPattern pattern,
     Instant startTime,
     Duration timeRange,
-    int numberOfDepartures,
+    int numberOfDeparturesPerPattern,
     ArrivalDeparture arrivalDeparture,
     boolean includeCancellations
   ) {
@@ -164,10 +196,11 @@ class StopTimesHelper {
       pattern,
       startTime,
       timeRange,
-      numberOfDepartures,
+      numberOfDeparturesPerPattern,
       arrivalDeparture,
       includeCancellations,
-      true
+      TripTimeOnDate.compareByDeparture(),
+      null
     );
 
     return new ArrayList<>(pq);
@@ -193,56 +226,62 @@ class StopTimesHelper {
     TripPattern pattern,
     Instant startTime,
     Duration timeRange,
-    int numberOfDepartures,
+    int numberOfDeparturesPerPattern,
     ArrivalDeparture arrivalDeparture,
     boolean includeCancellations,
-    boolean includeReplaced
+    Comparator<TripTimeOnDate> sortOrder,
+    @Nullable Matcher<TripTimeOnDate> tripTimeOnDateMatcher
   ) {
     ZoneId zoneId = transitService.getTimeZone();
-    LocalDate startDate = startTime.atZone(zoneId).toLocalDate().minusDays(1);
-    LocalDate endDate = startTime.plus(timeRange).atZone(zoneId).toLocalDate();
-
-    // datesUntil is exclusive in the end, so need to add one day
-    List<LocalDate> serviceDates = startDate.datesUntil(endDate.plusDays(1)).toList();
 
     // The bounded priority Q is used to keep a sorted short list of trip times. We can not
     // rely on the trip times to be in order because of real-time updates. This code can
     // probably be optimized, and the trip search in the Raptor search does almost the same
-    // thing. This is no part of a routing request, but is a used frequently in some
+    // thing. This is not part of a routing request, but is a used frequently in some
     // operation like Entur for "departure boards" (apps, widgets, screens on platforms, and
-    // hotel lobbies). Setting the numberOfDepartures and timeRange to a big number for a
+    // hotel lobbies). Setting the numberOfDeparturesPerPattern and timeRange to a big number for a
     // transit hub could result in a DOS attack, but there are probably other more effective
     // ways to do it.
     //
-    // The {@link MinMaxPriorityQueue} is marked beta, but we do not have a god alternative.
-    MinMaxPriorityQueue<TripTimeOnDate> pq = MinMaxPriorityQueue.orderedBy(
-      Comparator.comparing(
-        (TripTimeOnDate tts) -> tts.getServiceDayMidnight() + tts.getRealtimeDeparture()
-      )
-    )
-      .maximumSize(numberOfDepartures)
+    MinMaxPriorityQueue<TripTimeOnDate> pq = MinMaxPriorityQueue.orderedBy(sortOrder)
+      .maximumSize(numberOfDeparturesPerPattern)
       .create();
 
     int timeRangeSeconds = (int) timeRange.toSeconds();
+    int maxTripSpanDays = pattern.getScheduledTimetable().getMaxTripSpanDays();
 
-    // Loop through all possible days
-    for (LocalDate serviceDate : serviceDates) {
+    // The `maxTripSpanDays + 1` is used to "overselect" the running-dates to account for up to
+    // 24h delays. This had a performance overhead of ~25% (Bergen, Norway), so we check if there are delays
+    // in the loop below and remove the extra day if not.
+    var runningDates = calculateRunningDates(startTime, timeRange, zoneId, maxTripSpanDays + 1);
+    var firstDay = runningDates.getFirst();
+
+    for (LocalDate serviceDate : runningDates) {
       Timetable timetable = transitService.findTimetable(pattern, serviceDate);
-      ZonedDateTime midnight = ServiceDateUtils.asStartOfService(serviceDate, zoneId);
+
+      // Skip the first running date if the maxTripSpanDays is the same for the scheduled
+      // and the realtime timetable. We overselected the runing dates in case the realtime
+      // timetable was delayed into the next service-day. Note! If no realtime data exist this
+      // check is true, and the first running date is skiped.
+      if (firstDay == serviceDate && maxTripSpanDays == timetable.getMaxTripSpanDays()) {
+        continue;
+      }
+
+      var serviceDateMidnight = ServiceDateUtils.asStartOfService(serviceDate, zoneId);
       int secondsSinceMidnight = ServiceDateUtils.secondsSinceStartOfService(
-        midnight,
+        serviceDateMidnight,
         ZonedDateTime.ofInstant(startTime, zoneId)
       );
       var servicesRunning = transitService.getServiceCodesRunningForDate(serviceDate);
 
       List<StopLocation> stops = pattern.getStops();
-      for (int stopIndex = 0; stopIndex < stops.size(); stopIndex++) {
-        StopLocation currStop = stops.get(stopIndex);
+      for (int stopPos = 0; stopPos < stops.size(); stopPos++) {
+        StopLocation currStop = stops.get(stopPos);
         if (currStop == stop) {
-          if (skipByPickUpDropOff(pattern, arrivalDeparture, stopIndex)) {
+          if (skipByPickUpDropOff(pattern, arrivalDeparture, stopPos)) {
             continue;
           }
-          if (skipByStopCancellation(pattern, includeCancellations, stopIndex)) {
+          if (skipByStopCancellation(pattern, includeCancellations, stopPos)) {
             continue;
           }
 
@@ -250,23 +289,17 @@ class StopTimesHelper {
             if (!servicesRunning.contains(tripTimes.getServiceCode())) {
               continue;
             }
-            if (TripTimesHelper.skipByTripCancellation(tripTimes, includeCancellations)) {
-              continue;
-            }
-            if (
-              !includeReplaced &&
-              isReplacedByAnotherPattern(tripTimes.getTrip(), serviceDate, pattern, transitService)
-            ) {
+            if (TripTimesHelper.skipByTripCancellationOrDeletion(tripTimes, includeCancellations)) {
               continue;
             }
 
             boolean departureTimeInRange =
-              tripTimes.getDepartureTime(stopIndex) >= secondsSinceMidnight &&
-              tripTimes.getDepartureTime(stopIndex) <= secondsSinceMidnight + timeRangeSeconds;
+              tripTimes.getDepartureTime(stopPos) >= secondsSinceMidnight &&
+              tripTimes.getDepartureTime(stopPos) <= secondsSinceMidnight + timeRangeSeconds;
 
             boolean arrivalTimeInRange =
-              tripTimes.getArrivalTime(stopIndex) >= secondsSinceMidnight &&
-              tripTimes.getArrivalTime(stopIndex) <= secondsSinceMidnight + timeRangeSeconds;
+              tripTimes.getArrivalTime(stopPos) >= secondsSinceMidnight &&
+              tripTimes.getArrivalTime(stopPos) <= secondsSinceMidnight + timeRangeSeconds;
 
             // ARRIVAL: Arrival time has to be within range
             // DEPARTURES: Departure time has to be within range
@@ -275,9 +308,16 @@ class StopTimesHelper {
               (arrivalDeparture != ARRIVALS && departureTimeInRange) ||
               (arrivalDeparture != DEPARTURES && arrivalTimeInRange)
             ) {
-              pq.add(
-                new TripTimeOnDate(tripTimes, stopIndex, pattern, serviceDate, midnight.toInstant())
+              var tripTimeOnDate = new TripTimeOnDate(
+                tripTimes,
+                stopPos,
+                pattern,
+                serviceDate,
+                serviceDateMidnight.toInstant()
               );
+              if (tripTimeOnDateMatcher == null || tripTimeOnDateMatcher.match(tripTimeOnDate)) {
+                pq.add(tripTimeOnDate);
+              }
             }
           }
           // TODO Add back support for frequency entries
@@ -287,26 +327,13 @@ class StopTimesHelper {
     return pq;
   }
 
-  private static boolean isReplacedByAnotherPattern(
-    Trip trip,
-    LocalDate serviceDate,
-    TripPattern pattern,
-    TransitService transitService
-  ) {
-    final TripPattern replacement = transitService.findNewTripPatternForModifiedTrip(
-      trip.getId(),
-      serviceDate
-    );
-    return replacement != null && !replacement.equals(pattern);
-  }
-
   private static boolean skipByPickUpDropOff(
     TripPattern pattern,
     ArrivalDeparture arrivalDeparture,
-    int stopIndex
+    int stopPos
   ) {
-    boolean noPickup = pattern.getBoardType(stopIndex).is(PickDrop.NONE);
-    boolean noDropoff = pattern.getAlightType(stopIndex).is(PickDrop.NONE);
+    boolean noPickup = pattern.getBoardType(stopPos).is(PickDrop.NONE);
+    boolean noDropoff = pattern.getAlightType(stopPos).is(PickDrop.NONE);
 
     if (noPickup && noDropoff) {
       return true;
@@ -323,10 +350,10 @@ class StopTimesHelper {
   private static boolean skipByStopCancellation(
     TripPattern pattern,
     boolean includeCancelled,
-    int stopIndex
+    int stopPos
   ) {
-    boolean pickupCancelled = pattern.getBoardType(stopIndex).is(PickDrop.CANCELLED);
-    boolean dropOffCancelled = pattern.getAlightType(stopIndex).is(PickDrop.CANCELLED);
+    boolean pickupCancelled = pattern.getBoardType(stopPos).is(PickDrop.CANCELLED);
+    boolean dropOffCancelled = pattern.getAlightType(stopPos).is(PickDrop.CANCELLED);
 
     return (pickupCancelled || dropOffCancelled) && !includeCancelled;
   }

@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
 
 /**
  * All OTP Transit entities should extend this class. The purpose of the class is to enforce a
@@ -23,7 +25,8 @@ import java.util.Set;
  * This class also enforce a strong type-safe relationship between entity and builder.
  */
 public abstract class AbstractTransitEntity<
-  E extends AbstractTransitEntity<E, B>, B extends AbstractEntityBuilder<E, B>
+  E extends AbstractTransitEntity<E, B>,
+  B extends AbstractEntityBuilder<E, B>
 >
   implements TransitEntity, TransitObject<E, B>, Serializable {
 
@@ -72,14 +75,14 @@ public abstract class AbstractTransitEntity<
     return buf.toString();
   }
 
-  protected static <T> List<T> listOfNullSafe(List<T> list) {
+  protected static <T> List<T> listOfNullSafe(@Nullable List<T> list) {
     if (list == null || list.isEmpty()) {
       return List.of();
     }
     return List.copyOf(list);
   }
 
-  protected static <T> Set<T> setOfNullSafe(Collection<T> input) {
+  protected static <T> Set<T> setOfNullSafe(@Nullable Collection<T> input) {
     if (input == null || input.isEmpty()) {
       return Set.of();
     }

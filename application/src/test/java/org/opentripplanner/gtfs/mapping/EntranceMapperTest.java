@@ -12,7 +12,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
-import org.opentripplanner.transit.model.basic.Accessibility;
+import org.opentripplanner.core.model.accessibility.Accessibility;
 import org.opentripplanner.transit.model.site.Entrance;
 
 public class EntranceMapperTest {
@@ -39,14 +39,14 @@ public class EntranceMapperTest {
 
   private static final int WHEELCHAIR_BOARDING = 1;
 
-  private static final Accessibility WHEELCHAIR_BOARDING_ENUM = Accessibility.POSSIBLE;
-
   private static final String ZONE_ID = "Zone Id";
 
   private static final Stop STOP = new Stop();
 
-  private final EntranceMapper subject = new EntranceMapper(new TranslationHelper(), stationId ->
-    null
+  private final EntranceMapper subject = new EntranceMapper(
+    new IdFactory("A"),
+    new TranslationHelper(),
+    stationId -> null
   );
 
   static {

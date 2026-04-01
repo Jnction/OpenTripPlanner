@@ -6,6 +6,7 @@ import static org.opentripplanner.transit.speed_test.support.AssertSpeedTestSetu
 import java.util.stream.IntStream;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.standalone.OtpStartupInfo;
+import org.opentripplanner.standalone.config.OtpConfigLoader;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.transit.speed_test.model.timer.SpeedTestTimer;
 import org.opentripplanner.transit.speed_test.options.SpeedTestCmdLineOpts;
@@ -22,9 +23,11 @@ public class TransferCacheTest {
       // Given the following setup
       SpeedTestCmdLineOpts opts = new SpeedTestCmdLineOpts(args);
       var config = SpeedTestConfig.config(opts.rootDir());
+      var routerConfig = new OtpConfigLoader(opts.rootDir()).loadRouterConfig();
       SetupHelper.loadOtpFeatures(opts);
-      var model = SetupHelper.loadGraph(opts.rootDir(), config.graph);
+      var model = SetupHelper.loadGraph(opts.rootDir(), config.graph());
       var timetableRepository = model.timetableRepository();
+      var transferRepository = model.transferRepository();
       var buildConfig = model.buildConfig();
 
       var timer = new SpeedTestTimer();
@@ -32,7 +35,11 @@ public class TransferCacheTest {
 
       // Creating transitLayerForRaptor should be integrated into the TimetableRepository, but for now
       // we do it manually here
-      createRaptorTransitData(timetableRepository, config.transitRoutingParams);
+      createRaptorTransitData(
+        timetableRepository,
+        transferRepository,
+        routerConfig.transitTuningConfig()
+      );
 
       assertTestDateHasData(timetableRepository, config, buildConfig);
 
@@ -54,8 +61,9 @@ public class TransferCacheTest {
     TimetableRepository timetableRepository
   ) {
     IntStream.range(1, 7).forEach(reluctance -> {
-      RouteRequest routeRequest = new RouteRequest();
-      routeRequest.withPreferences(b -> b.withWalk(c -> c.withReluctance(reluctance)));
+      var routeRequest = RouteRequest.of()
+        .withPreferences(b -> b.withWalk(c -> c.withReluctance(reluctance)))
+        .buildDefault();
       timer.recordTimer("transfer_cache_computation", () ->
         timetableRepository.getRaptorTransitData().initTransferCacheForRequest(routeRequest)
       );

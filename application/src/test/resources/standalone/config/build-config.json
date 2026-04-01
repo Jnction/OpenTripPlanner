@@ -39,7 +39,6 @@
   },
   "gtfsDefaults": {
     "stationTransferPreference": "recommended",
-    "removeRepeatedStops": true,
     "discardMinTransferTimes": false,
     "blockBasedInterlining": true,
     "maxInterlineDistance": 200
@@ -76,21 +75,21 @@
       "wheelchairAccessibility": {
         "enabled": true
       }
-    }
+    },
+    { "modes": "BICYCLE" },
+    { "modes": "CAR" }
   ],
   "stopConsolidationFile": "consolidated-stops.csv",
-  "emissions": {
-    "carAvgCo2PerKm": 170,
-    "carAvgOccupancy": 1.3
-  },
   "transferParametersForMode": {
     "CAR": {
       "disableDefaultTransfers": true,
       "carsAllowedStopMaxTransferDuration": "3h"
     },
     "BIKE": {
+      "disableDefaultTransfers": true,
       "maxTransferDuration": "30m",
-      "carsAllowedStopMaxTransferDuration": "3h"
+      "carsAllowedStopMaxTransferDuration": "3h",
+      "bikesAllowedStopMaxTransferDuration": "1h"
     }
   }
 }

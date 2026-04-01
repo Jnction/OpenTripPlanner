@@ -62,6 +62,7 @@ class UnscheduledTripTest {
     static List<List<StopTime>> notUnscheduled() {
       return List.of(
         List.of(),
+        List.of(UNSCHEDULED_STOP),
         List.of(SCHEDULED_STOP),
         List.of(SCHEDULED_STOP, SCHEDULED_STOP),
         List.of(SCHEDULED_STOP, SCHEDULED_STOP, SCHEDULED_STOP),
@@ -80,7 +81,6 @@ class UnscheduledTripTest {
 
     static List<List<StopTime>> unscheduled() {
       return List.of(
-        List.of(UNSCHEDULED_STOP),
         List.of(UNSCHEDULED_STOP, SCHEDULED_STOP),
         List.of(SCHEDULED_STOP, UNSCHEDULED_STOP),
         List.of(UNSCHEDULED_STOP, UNSCHEDULED_STOP),
@@ -98,6 +98,37 @@ class UnscheduledTripTest {
     void isUnscheduled(List<StopTime> stopTimes) {
       assertTrue(isUnscheduledTrip(stopTimes));
     }
+  }
+
+  @Test
+  void testMaxSpanDays() {
+    var stopTimes = List.of(
+      FlexStopTimesForTest.area("10:10", "14:10"),
+      FlexStopTimesForTest.area("11:10", "15:10")
+    );
+    var trip = UnscheduledTrip.of(id("1")).withStopTimes(stopTimes).build();
+
+    assertEquals(0, trip.maxSpanDays());
+  }
+
+  @Test
+  void testMaxSpanDaysOvernight() {
+    var stopTimes = List.of(
+      FlexStopTimesForTest.area("10:10", "14:10"),
+      FlexStopTimesForTest.area("21:10", "26:10")
+    );
+    var trip = UnscheduledTrip.of(id("1")).withStopTimes(stopTimes).build();
+    assertEquals(1, trip.maxSpanDays());
+  }
+
+  @Test
+  void testMaxSpanDaysNextDay() {
+    var stopTimes = List.of(
+      FlexStopTimesForTest.area("24:00", "26:00"),
+      FlexStopTimesForTest.area("24:00", "26:00")
+    );
+    var trip = UnscheduledTrip.of(id("1")).withStopTimes(stopTimes).build();
+    assertEquals(1, trip.maxSpanDays());
   }
 
   @Test
@@ -597,8 +628,8 @@ class UnscheduledTripTest {
         .addObj(
           "expected",
           expectedDescription +
-          ": " +
-          TimeUtils.timeToStrCompact(expectedTime, MISSING_VALUE, "MISSING")
+            ": " +
+            TimeUtils.timeToStrCompact(expectedTime, MISSING_VALUE, "MISSING")
         )
         .addServiceTime("requested", requestedTime)
         .addDurationSec("duration", tripDuration)

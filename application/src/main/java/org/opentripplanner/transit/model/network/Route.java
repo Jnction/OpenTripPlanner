@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.transit.model.basic.SubMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.framework.AbstractTransitEntity;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.framework.LogInfo;
 import org.opentripplanner.transit.model.organization.Agency;
 import org.opentripplanner.transit.model.organization.Branding;
@@ -117,6 +117,10 @@ public final class Route extends AbstractTransitEntity<Route, RouteBuilder> impl
     return branding;
   }
 
+  /**
+   * Returns the NeTEx group of routes or the GTFS networks. Both are ways of grouping several
+   * routes together but the GTFS networks are primarily used for fare calculation.
+   */
   public List<GroupOfRoutes> getGroupsOfRoutes() {
     return groupsOfRoutes;
   }

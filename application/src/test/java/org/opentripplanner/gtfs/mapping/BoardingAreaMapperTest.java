@@ -12,8 +12,8 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
+import org.opentripplanner.core.model.accessibility.Accessibility;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
-import org.opentripplanner.transit.model.basic.Accessibility;
 import org.opentripplanner.transit.model.site.BoardingArea;
 import org.opentripplanner.transit.model.site.RegularStop;
 
@@ -48,6 +48,7 @@ public class BoardingAreaMapperTest {
   private static final Stop STOP = new Stop();
 
   private final BoardingAreaMapper subject = new BoardingAreaMapper(
+    new IdFactory("A"),
     new TranslationHelper(),
     stationId -> PARENT_STOP
   );

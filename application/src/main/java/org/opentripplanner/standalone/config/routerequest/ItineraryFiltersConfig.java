@@ -40,7 +40,7 @@ public class ItineraryFiltersConfig {
         #### Group by similarity filters
 
         The group-by-filter is a bit complex, but should be simple to use. Set `debug=true` and experiment
-        with `searchWindow` and the three group-by parameters(`groupSimilarityKeepOne`,
+        with `searchWindow` and the three group-by parameters (`groupSimilarityKeepOne`,
         `groupSimilarityKeepThree` and `groupedOtherThanSameLegsMaxCostMultiplier`).
 
         The group-by-filter work by grouping itineraries together and then reducing the number of
@@ -122,7 +122,7 @@ public class ItineraryFiltersConfig {
               dropped. The `transitGeneralizedCostLimit` is calculated using the `costLimitFunction` plus a
               *relative cost* for the distance in time between the itineraries. The *relative cost* is the
               `intervalRelaxFactor` multiplied with the interval in seconds. To set the `costLimitFunction` to be
-              _1 hour plus 2 times cost_ use: `3600 + 2.0 x`. To set an absolute value(3000s) use: `3000 + 0x`
+              _1 hour plus 2 times cost_ use: `3600 + 2.0 x`. To set an absolute value (3000s) use: `3000 + 0x`
               """
             )
             .asObject(),
@@ -177,7 +177,7 @@ public class ItineraryFiltersConfig {
           .since(V2_1)
           .summary(
             "Filter routes that consist of bike-rental and walking by the minimum fraction " +
-            "of the bike-rental leg using _distance_."
+              "of the bike-rental leg using _distance_."
           )
           .description(
             """
@@ -194,7 +194,7 @@ public class ItineraryFiltersConfig {
           .since(V2_1)
           .summary(
             "Filter P+R routes that consist of driving and walking by the minimum fraction " +
-            "of the driving using of _time_."
+              "of the driving using of _time_."
           )
           .description(
             """
@@ -211,7 +211,7 @@ public class ItineraryFiltersConfig {
           .since(V2_2)
           .summary(
             "If more than one itinerary begins or ends with same trip, filter out one of those " +
-            "itineraries so that only one remains."
+              "itineraries so that only one remains."
           )
           .description(
             """
@@ -229,11 +229,11 @@ public class ItineraryFiltersConfig {
           .since(V2_2)
           .summary(
             "Set to true if you want to list only the first itinerary  which goes through the " +
-            "same stops and routes."
+              "same stops and routes."
           )
           .description(
             "Itineraries visiting the same set of stops and riding the exact same routes, " +
-            "departing later are removed from the result."
+              "departing later are removed from the result."
           )
           .asBoolean(dft.removeItinerariesWithSameRoutesAndStops())
       )
@@ -243,7 +243,7 @@ public class ItineraryFiltersConfig {
           .since(V2_2)
           .summary(
             "An experimental feature contributed by IBI which adds a sandbox accessibility " +
-            "*score* between 0 and 1 for each leg and itinerary."
+              "*score* between 0 and 1 for each leg and itinerary."
           )
           .description(
             "This can be used by frontend developers to implement a simple traffic light UI."
@@ -302,7 +302,7 @@ public class ItineraryFiltersConfig {
         .summary("The base function used by the filter.")
         .description(
           "This function calculates the threshold for the filter, when the itineraries have " +
-          "exactly the same arrival and departure times."
+            "exactly the same arrival and departure times."
         )
         .asCostLinearFunction(transitGeneralizedCostLimit.costLimitFunction()),
       node

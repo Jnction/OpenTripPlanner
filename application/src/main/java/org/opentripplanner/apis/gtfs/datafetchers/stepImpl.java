@@ -8,8 +8,8 @@ import org.opentripplanner.apis.gtfs.generated.GraphQLDataFetchers;
 import org.opentripplanner.apis.gtfs.generated.GraphQLTypes;
 import org.opentripplanner.apis.gtfs.mapping.DirectionMapper;
 import org.opentripplanner.apis.gtfs.mapping.StreetNoteMapper;
-import org.opentripplanner.model.plan.ElevationProfile.Step;
-import org.opentripplanner.model.plan.WalkStep;
+import org.opentripplanner.model.plan.leg.ElevationProfile.Step;
+import org.opentripplanner.model.plan.walkstep.WalkStep;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
 
 public class stepImpl implements GraphQLDataFetchers.GraphQLStep {
@@ -57,7 +57,15 @@ public class stepImpl implements GraphQLDataFetchers.GraphQLStep {
 
   @Override
   public DataFetcher<Object> feature() {
-    return environment -> getSource(environment).entrance().orElse(null);
+    return environment -> {
+      WalkStep walkStep = getSource(environment);
+      if (walkStep.entrance().isPresent()) {
+        return walkStep.entrance().get();
+      } else if (walkStep.verticalTransportationUse().isPresent()) {
+        return walkStep.verticalTransportationUse().get();
+      }
+      return null;
+    };
   }
 
   @Override

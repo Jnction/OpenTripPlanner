@@ -1,6 +1,8 @@
 package org.opentripplanner.graph_builder;
 
 import static org.opentripplanner.datastore.api.FileType.DEM;
+import static org.opentripplanner.datastore.api.FileType.EMISSION;
+import static org.opentripplanner.datastore.api.FileType.EMPIRICAL_DATA;
 import static org.opentripplanner.datastore.api.FileType.GTFS;
 import static org.opentripplanner.datastore.api.FileType.NETEX;
 import static org.opentripplanner.datastore.api.FileType.OSM;
@@ -9,7 +11,9 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -20,6 +24,8 @@ import org.opentripplanner.datastore.api.CompositeDataSource;
 import org.opentripplanner.datastore.api.DataSource;
 import org.opentripplanner.datastore.api.FileType;
 import org.opentripplanner.datastore.api.OtpBaseDirectory;
+import org.opentripplanner.ext.emission.parameters.EmissionFeedParameters;
+import org.opentripplanner.ext.empiricaldelay.parameters.EmpiricalDelayFeedParameters;
 import org.opentripplanner.framework.application.OtpAppException;
 import org.opentripplanner.graph_builder.model.ConfiguredCompositeDataSource;
 import org.opentripplanner.graph_builder.model.ConfiguredDataSource;
@@ -47,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * OTP startup early, before spending time on loading any data - like the streetGraph.
  */
 @Singleton
-public class GraphBuilderDataSources {
+public class GraphBuilderDataSources implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(GraphBuilderDataSources.class);
   private static final String BULLET_POINT = "- ";
@@ -106,22 +112,32 @@ public class GraphBuilderDataSources {
     return inputData.containsKey(type);
   }
 
-  public Iterable<ConfiguredDataSource<OsmExtractParameters>> getOsmConfiguredDatasource() {
+  public Iterable<ConfiguredDataSource<OsmExtractParameters>> getOsmConfiguredDataSource() {
     return ofStream(OSM).map(this::mapOsmData).toList();
   }
 
-  public Iterable<ConfiguredDataSource<DemExtractParameters>> getDemConfiguredDatasource() {
+  public Iterable<ConfiguredDataSource<DemExtractParameters>> getDemConfiguredDataSource() {
     return ofStream(DEM).map(this::mapDemData).toList();
   }
 
-  public Iterable<ConfiguredCompositeDataSource<GtfsFeedParameters>> getGtfsConfiguredDatasource() {
+  public Iterable<ConfiguredCompositeDataSource<GtfsFeedParameters>> getGtfsConfiguredDataSource() {
     return ofStream(GTFS).map(this::mapGtfsFeed).toList();
   }
 
   public Iterable<
     ConfiguredCompositeDataSource<NetexFeedParameters>
-  > getNetexConfiguredDatasource() {
+  > getNetexConfiguredDataSource() {
     return ofStream(NETEX).map(this::mapNetexFeed).toList();
+  }
+
+  public Iterable<ConfiguredDataSource<EmissionFeedParameters>> getEmissionConfiguredDataSource() {
+    return ofStream(EMISSION).map(this::mapEmissionFeed).toList();
+  }
+
+  public Iterable<
+    ConfiguredCompositeDataSource<EmpiricalDelayFeedParameters>
+  > getEmpiricalDelayConfiguredDataSource() {
+    return ofStream(EMPIRICAL_DATA).map(this::mapEmpiricalDelayFeed).toList();
   }
 
   /**
@@ -137,6 +153,30 @@ public class GraphBuilderDataSources {
 
   public File getCacheDirectory() {
     return cacheDirectory;
+  }
+
+  /**
+   * We close all data sources after the entire graph build is complete. We do this
+   * because a data source (GFTS zip file) might be accessed by more than one graph
+   * builder module. This also allows us to cache remote files(downloaded over http), not
+   * downloading the files more than one time.
+   */
+  @Override
+  public void close() {
+    for (DataSource dataSource : inputData.values()) {
+      try {
+        if (dataSource instanceof Closeable closeable) {
+          closeable.close();
+        }
+      } catch (IOException e) {
+        LOG.error(
+          "Failed to close datasource {}, details: {}",
+          dataSource.path(),
+          e.getLocalizedMessage(),
+          e
+        );
+      }
+    }
   }
 
   /* private methods */
@@ -185,6 +225,28 @@ public class GraphBuilderDataSources {
       .filter(netexFeedConfig -> uriMatch(netexFeedConfig.source(), dataSource.uri()))
       .findFirst()
       .orElse(buildConfig.netexDefaults.copyOf().withSource(dataSource.uri()).build());
+    return new ConfiguredCompositeDataSource<>((CompositeDataSource) dataSource, p);
+  }
+
+  private ConfiguredDataSource<EmissionFeedParameters> mapEmissionFeed(DataSource dataSource) {
+    var p = buildConfig.emission
+      .feeds()
+      .stream()
+      .filter(c -> uriMatch(c.source(), dataSource.uri()))
+      .findFirst()
+      .orElseThrow();
+    return new ConfiguredDataSource<>(dataSource, p);
+  }
+
+  private ConfiguredCompositeDataSource<EmpiricalDelayFeedParameters> mapEmpiricalDelayFeed(
+    DataSource dataSource
+  ) {
+    var p = buildConfig.empiricalDelay
+      .feeds()
+      .stream()
+      .filter(c -> uriMatch(c.source(), dataSource.uri()))
+      .findFirst()
+      .orElseThrow();
     return new ConfiguredCompositeDataSource<>((CompositeDataSource) dataSource, p);
   }
 

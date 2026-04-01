@@ -7,6 +7,7 @@ import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2
 import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_2;
 import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_5;
 import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_7;
+import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_9;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
@@ -19,11 +20,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.core.model.time.LocalDateInterval;
 import org.opentripplanner.datastore.api.OtpDataStoreConfig;
 import org.opentripplanner.ext.dataoverlay.configuration.DataOverlayConfig;
-import org.opentripplanner.ext.emissions.config.EmissionsConfig;
+import org.opentripplanner.ext.datastore.gs.config.GsConfig;
+import org.opentripplanner.ext.edgenaming.EdgeNamerFactory;
+import org.opentripplanner.ext.emission.config.EmissionConfig;
+import org.opentripplanner.ext.emission.parameters.EmissionParameters;
+import org.opentripplanner.ext.empiricaldelay.config.EmpiricalDelayConfig;
+import org.opentripplanner.ext.empiricaldelay.parameters.EmpiricalDelayParameters;
 import org.opentripplanner.ext.fares.FaresConfiguration;
-import org.opentripplanner.framework.geometry.CompactElevationProfile;
 import org.opentripplanner.graph_builder.module.TransferParameters;
 import org.opentripplanner.graph_builder.module.ned.parameter.DemExtractParameters;
 import org.opentripplanner.graph_builder.module.ned.parameter.DemExtractParametersList;
@@ -31,11 +38,8 @@ import org.opentripplanner.graph_builder.module.osm.parameters.OsmExtractParamet
 import org.opentripplanner.graph_builder.module.osm.parameters.OsmExtractParametersList;
 import org.opentripplanner.graph_builder.services.osm.EdgeNamer;
 import org.opentripplanner.gtfs.config.GtfsDefaultParameters;
-import org.opentripplanner.model.calendar.ServiceDateInterval;
 import org.opentripplanner.netex.config.NetexFeedParameters;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.fares.FareServiceFactory;
 import org.opentripplanner.standalone.config.buildconfig.DemConfig;
 import org.opentripplanner.standalone.config.buildconfig.GtfsConfig;
 import org.opentripplanner.standalone.config.buildconfig.IslandPruningConfig;
@@ -48,8 +52,9 @@ import org.opentripplanner.standalone.config.buildconfig.TransitFeedConfig;
 import org.opentripplanner.standalone.config.buildconfig.TransitFeeds;
 import org.opentripplanner.standalone.config.framework.json.NodeAdapter;
 import org.opentripplanner.standalone.config.sandbox.DataOverlayConfigMapper;
+import org.opentripplanner.street.geometry.CompactElevationProfile;
 import org.opentripplanner.street.model.StreetConstants;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.utils.lang.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +132,7 @@ public class BuildConfig implements OtpDataStoreConfig {
   /**
    * A specific fares service to use.
    */
-  public final FareServiceFactory fareServiceFactory;
+  public final JsonNode fareConfig;
 
   private final Pattern netexLocalFilePattern;
 
@@ -136,8 +141,6 @@ public class BuildConfig implements OtpDataStoreConfig {
   private final Pattern osmLocalFilePattern;
 
   private final Pattern demLocalFilePattern;
-
-  private final String gsCredentials;
 
   private final URI streetGraph;
 
@@ -148,7 +151,7 @@ public class BuildConfig implements OtpDataStoreConfig {
   /**
    * A custom OSM namer to use.
    */
-  public final EdgeNamer edgeNamer;
+  public final EdgeNamer.EdgeNamerType edgeNamer;
 
   public final boolean osmCacheDataInMem;
 
@@ -172,10 +175,12 @@ public class BuildConfig implements OtpDataStoreConfig {
   public final Set<String> boardingLocationTags;
   public final DemExtractParametersList dem;
   public final OsmExtractParametersList osm;
-  public final EmissionsConfig emissions;
+  public final EmissionParameters emission;
+  public final EmpiricalDelayParameters empiricalDelay;
   public final TransitFeeds transitFeeds;
   public final boolean staticParkAndRide;
   public final boolean staticBikeParkAndRide;
+  public final boolean includeInclinedEdgeLevelInfo;
   public final double distanceBetweenElevationSamples;
   public final double maxElevationPropagationMeters;
   public final boolean readCachedElevations;
@@ -187,6 +192,7 @@ public class BuildConfig implements OtpDataStoreConfig {
   public final ZoneId transitModelTimeZone;
   private final List<FeedScopedId> transitRouteToStationCentroid;
   public final URI stopConsolidation;
+  private final GsConfig gsConfig;
 
   /**
    * Set all parameters from the given Jackson JSON tree, applying defaults. Supplying
@@ -233,7 +239,7 @@ public class BuildConfig implements OtpDataStoreConfig {
       .summary("The distance between elevation samples in meters.")
       .description(
         "The default is the approximate resolution of 1/3 arc-second NED data. This should not " +
-        "be smaller than the horizontal resolution of the height data used."
+          "be smaller than the horizontal resolution of the height data used."
       )
       .asDouble(CompactElevationProfile.DEFAULT_DISTANCE_BETWEEN_SAMPLES_METERS);
     elevationBucket = S3BucketConfig.fromConfig(root, "elevationBucket");
@@ -242,7 +248,7 @@ public class BuildConfig implements OtpDataStoreConfig {
       .since(V2_0)
       .summary(
         "Embed the Router config in the graph, which allows it to be sent to a server fully " +
-        "configured over the wire."
+          "configured over the wire."
       )
       .asBoolean(true);
     includeEllipsoidToGeoidDifference = root
@@ -250,7 +256,7 @@ public class BuildConfig implements OtpDataStoreConfig {
       .since(V2_0)
       .summary(
         "Include the Ellipsoid to Geoid difference in the calculations of every point along " +
-        "every StreetWithElevationEdge."
+          "every StreetWithElevationEdge."
       )
       .description(
         """
@@ -342,16 +348,23 @@ public class BuildConfig implements OtpDataStoreConfig {
         """
       )
       .asBoolean(true);
-    staticBikeParkAndRide = root
-      .of("staticBikeParkAndRide")
-      .since(V1_5)
-      .summary("Whether we should create bike P+R stations from OSM data.")
-      .asBoolean(false);
     staticParkAndRide = root
       .of("staticParkAndRide")
       .since(V1_5)
       .summary("Whether we should create car P+R stations from OSM data.")
       .asBoolean(true);
+    staticBikeParkAndRide = root
+      .of("staticBikeParkAndRide")
+      .since(V1_5)
+      .summary("Whether we should create bike P+R stations from OSM data.")
+      .asBoolean(false);
+    includeInclinedEdgeLevelInfo = root
+      .of("includeInclinedEdgeLevelInfo")
+      .since(V2_9)
+      .summary(
+        "Whether level info for inclined edges should be stored in the graph for use during runtime."
+      )
+      .asBoolean(false);
     subwayAccessTime = root
       .of("subwayAccessTime")
       .since(V1_5)
@@ -401,7 +414,7 @@ public class BuildConfig implements OtpDataStoreConfig {
           will not be part of the graph. Use an absolute date or a period relative to the date the graph is
           build(BUILD_DAY).
 
-          Use an empty string to make unbounded.
+          To get an effectively unbounded value, use a very large period like `"-P100Y"`.
           """
         )
         .asDateOrRelativePeriod("-P1Y", confZone);
@@ -417,7 +430,7 @@ public class BuildConfig implements OtpDataStoreConfig {
           will not be part of the graph. Use an absolute date or a period relative to the date the graph is
           build(BUILD_DAY).
 
-          Use an empty string to make it unbounded.
+          To get an effectively unbounded value, use a very large period like `"P100Y"`.
           """
         )
         .asDateOrRelativePeriod("P3Y", confZone);
@@ -557,20 +570,6 @@ public class BuildConfig implements OtpDataStoreConfig {
       )
       .asPattern(DEFAULT_DEM_PATTERN);
 
-    gsCredentials = root
-      .of("gsCredentials")
-      .since(V2_0)
-      .summary("Local file system path to Google Cloud Platform service accounts credentials file.")
-      .description(
-        """
-        The credentials is used to access GCS urls. When using GCS from outside of Google Cloud you
-        need to provide a path the the service credentials. Environment variables in the path are
-        resolved.
-
-        This is a path to a file on the local file system, not an URI.
-        """
-      )
-      .asString(null);
     graph = root
       .of("graph")
       .since(V2_0)
@@ -607,8 +606,8 @@ public class BuildConfig implements OtpDataStoreConfig {
     osm = OsmConfig.mapOsmConfig(root, "osm", osmDefaults);
     demDefaults = DemConfig.mapDemDefaultsConfig(root, "demDefaults");
     dem = DemConfig.mapDemConfig(root, "dem", demDefaults);
-    emissions = new EmissionsConfig("emissions", root);
-
+    emission = EmissionConfig.mapEmissionsConfig("emission", root);
+    empiricalDelay = EmpiricalDelayConfig.mapEmissionsConfig("empiricalDelay", root);
     netexDefaults = NetexConfig.mapNetexDefaultParameters(root, "netexDefaults");
     gtfsDefaults = GtfsConfig.mapGtfsDefaultParameters(root, "gtfsDefaults");
     transitFeeds = TransitFeedConfig.mapTransitFeeds(
@@ -619,11 +618,13 @@ public class BuildConfig implements OtpDataStoreConfig {
     );
 
     // List of complex parameters
-    fareServiceFactory = FaresConfiguration.fromConfig(root, "fares");
-    edgeNamer = EdgeNamer.EdgeNamerFactory.fromConfig(root, "osmNaming");
+    fareConfig = FaresConfiguration.fromConfig(root, "fares");
+    edgeNamer = EdgeNamerFactory.fromConfig(root, "osmNaming");
     dataOverlay = DataOverlayConfigMapper.map(root, "dataOverlay");
 
     transferRequests = TransferRequestConfig.map(root, "transferRequests");
+
+    gsConfig = GsConfig.fromConfig(root, "gsConfig");
 
     if (logUnusedParams && LOG.isWarnEnabled()) {
       root.logAllWarnings(LOG::warn);
@@ -636,8 +637,8 @@ public class BuildConfig implements OtpDataStoreConfig {
   }
 
   @Override
-  public String gsCredentials() {
-    return gsCredentials;
+  public GsConfig gsParameters() {
+    return gsConfig;
   }
 
   @Override
@@ -658,6 +659,16 @@ public class BuildConfig implements OtpDataStoreConfig {
   @Override
   public List<URI> netexFiles() {
     return transitFeeds.netexFiles();
+  }
+
+  @Override
+  public List<URI> emissionFiles() {
+    return emission.emissionFiles();
+  }
+
+  @Override
+  public List<URI> empiricalDelayFiles() {
+    return empiricalDelay.listFiles();
   }
 
   @Override
@@ -707,8 +718,8 @@ public class BuildConfig implements OtpDataStoreConfig {
     return root.isEmpty() ? "" : root.toJson();
   }
 
-  public ServiceDateInterval getTransitServicePeriod() {
-    return new ServiceDateInterval(transitServiceStart, transitServiceEnd);
+  public LocalDateInterval getTransitServicePeriod() {
+    return new LocalDateInterval(transitServiceStart, transitServiceEnd);
   }
 
   public List<FeedScopedId> transitRouteToStationCentroid() {

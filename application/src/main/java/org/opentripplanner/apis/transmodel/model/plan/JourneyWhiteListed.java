@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-import org.opentripplanner.apis.transmodel.mapping.TransitIdMapper;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.support.GqlUtil;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.TripTimeOnDate;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.timetable.Trip;
 
@@ -22,9 +22,9 @@ public class JourneyWhiteListed {
     .name("InputWhiteListed")
     .description(
       "Filter trips by only allowing lines involving certain " +
-      "elements. If both lines and authorities are specified, only one must be valid " +
-      "for each line to be used. If a line is both banned and whitelisted, it will " +
-      "be counted as banned."
+        "elements. If both lines and authorities are specified, only one must be valid " +
+        "for each line to be used. If a line is both banned and whitelisted, it will " +
+        "be counted as banned."
     )
     .field(newIdListInputField("lines", "Set of ids for lines that should be used"))
     .field(newIdListInputField("authorities", "Set of ids for authorities that should be used"))
@@ -39,16 +39,14 @@ public class JourneyWhiteListed {
   public final Set<FeedScopedId> authorityIds;
   public final Set<FeedScopedId> lineIds;
 
-  public JourneyWhiteListed(DataFetchingEnvironment environment) {
+  public JourneyWhiteListed(DataFetchingEnvironment environment, FeedScopedIdMapper idMapper) {
     Map<String, List<String>> whiteList = environment.getArgument("whiteListed");
     if (whiteList == null) {
       this.authorityIds = Set.of();
       this.lineIds = Set.of();
     } else {
-      this.authorityIds = Set.copyOf(
-        TransitIdMapper.mapIDsToDomainNullSafe(whiteList.get("authorities"))
-      );
-      this.lineIds = Set.copyOf(TransitIdMapper.mapIDsToDomainNullSafe(whiteList.get("lines")));
+      this.authorityIds = Set.copyOf(idMapper.parseListNullSafe(whiteList.get("authorities")));
+      this.lineIds = Set.copyOf(idMapper.parseListNullSafe(whiteList.get("lines")));
     }
   }
 

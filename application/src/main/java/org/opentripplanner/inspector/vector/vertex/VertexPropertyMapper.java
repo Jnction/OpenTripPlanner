@@ -29,18 +29,26 @@ public class VertexPropertyMapper extends PropertyMapper<Vertex> {
       kv("class", input.getClass().getSimpleName()),
       kv("label", input.getLabel().toString())
     );
-    List<KeyValue> properties =
-      switch (input) {
-        case BarrierVertex v -> List.of(kv("permission", v.getBarrierPermissions().toString()));
-        case VehicleRentalPlaceVertex v -> List.of(kv("rentalId", v.getStation()));
-        case VehicleParkingEntranceVertex v -> List.of(
-          kv("parkingId", v.getVehicleParking().getId()),
-          kColl("spacesFor", spacesFor(v.getVehicleParking())),
-          kColl("traversalPermission", traversalPermissions(v.getParkingEntrance()))
-        );
-        default -> List.of();
-      };
-    return ListUtils.combine(baseProps, properties);
+    List<KeyValue> properties = switch (input) {
+      case BarrierVertex v -> List.of(kv("permission", v.getBarrierPermissions().toString()));
+      case VehicleRentalPlaceVertex v -> List.of(kv("rentalId", v.getStation()));
+      case VehicleParkingEntranceVertex v -> List.of(
+        kv("parkingId", v.getVehicleParking().getId()),
+        kColl("spacesFor", spacesFor(v.getVehicleParking())),
+        kColl("traversalPermission", traversalPermissions(v.getParkingEntrance()))
+      );
+      default -> List.of();
+    };
+
+    return ListUtils.combine(baseProps, properties, areaStops(input));
+  }
+
+  private List<KeyValue> areaStops(Vertex input) {
+    if (input.areaStops().isEmpty()) {
+      return List.of();
+    } else {
+      return List.of(kv("areaStops", input.areaStops()));
+    }
   }
 
   private Set<TraverseMode> spacesFor(VehicleParking vehicleParking) {

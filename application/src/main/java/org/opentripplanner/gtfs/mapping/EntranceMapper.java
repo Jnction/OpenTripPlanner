@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.transit.model.site.Entrance;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.utils.collection.MapUtils;
@@ -14,15 +14,18 @@ import org.opentripplanner.utils.collection.MapUtils;
  */
 class EntranceMapper {
 
+  private final IdFactory idFactory;
   private final Map<org.onebusaway.gtfs.model.Stop, Entrance> mappedEntrances = new HashMap<>();
 
   private final TranslationHelper translationHelper;
   private final Function<FeedScopedId, Station> stationLookUp;
 
   EntranceMapper(
+    IdFactory idFactory,
     TranslationHelper translationHelper,
     Function<FeedScopedId, Station> stationLookUp
   ) {
+    this.idFactory = idFactory;
     this.translationHelper = translationHelper;
     this.stationLookUp = stationLookUp;
   }
@@ -40,13 +43,13 @@ class EntranceMapper {
     if (gtfsStop.getLocationType() != org.onebusaway.gtfs.model.Stop.LOCATION_TYPE_ENTRANCE_EXIT) {
       throw new IllegalArgumentException(
         "Expected type " +
-        org.onebusaway.gtfs.model.Stop.LOCATION_TYPE_ENTRANCE_EXIT +
-        ", but got " +
-        gtfsStop.getLocationType()
+          org.onebusaway.gtfs.model.Stop.LOCATION_TYPE_ENTRANCE_EXIT +
+          ", but got " +
+          gtfsStop.getLocationType()
       );
     }
 
-    StopMappingWrapper base = new StopMappingWrapper(gtfsStop);
+    StopMappingWrapper base = new StopMappingWrapper(idFactory, gtfsStop);
 
     var builder = Entrance.of(base.getId())
       .withCode(base.getCode())

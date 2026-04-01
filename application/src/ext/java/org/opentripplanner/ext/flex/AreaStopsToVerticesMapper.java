@@ -5,10 +5,11 @@ import com.google.common.collect.ImmutableMultimap;
 import jakarta.inject.Inject;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Point;
-import org.opentripplanner.framework.geometry.GeometryUtils;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.graph_builder.model.GraphBuilderModule;
-import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.graph.index.StreetIndex;
+import org.opentripplanner.street.geometry.GeometryUtils;
+import org.opentripplanner.street.graph.Graph;
 import org.opentripplanner.street.model.vertex.StreetVertex;
 import org.opentripplanner.transit.model.site.AreaStop;
 import org.opentripplanner.transit.service.TimetableRepository;
@@ -17,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Iterates over all area stops in the stop  and adds them to vertices that are suitable for
+ * Iterates over all area stops in the stop and adds them to vertices that are suitable for
  * boarding flex trips.
  */
 public class AreaStopsToVerticesMapper implements GraphBuilderModule {
@@ -40,8 +41,6 @@ public class AreaStopsToVerticesMapper implements GraphBuilderModule {
       return;
     }
 
-    StreetIndex streetIndex = graph.getStreetIndexSafe(timetableRepository.getSiteRepository());
-
     ProgressTracker progress = ProgressTracker.track(
       "Add flex locations to street vertices",
       1,
@@ -54,17 +53,18 @@ public class AreaStopsToVerticesMapper implements GraphBuilderModule {
       .listAreaStops()
       .parallelStream()
       .flatMap(areaStop -> {
-        var matchedVertices = matchingVerticesForStop(streetIndex, areaStop);
+        var matchedVertices = matchingVerticesForStop(graph, areaStop);
         // Keep lambda! A method-ref would cause incorrect class and line number to be logged
         progress.step(m -> LOG.info(m));
         return matchedVertices;
       });
 
-    ImmutableMultimap<StreetVertex, AreaStop> mappedResults = results.collect(
-      ImmutableListMultimap.<MatchResult, StreetVertex, AreaStop>flatteningToImmutableListMultimap(
-        MatchResult::vertex,
-        mr -> Stream.of(mr.stop())
-      )
+    ImmutableMultimap<StreetVertex, FeedScopedId> mappedResults = results.collect(
+      ImmutableListMultimap.<
+          MatchResult,
+          StreetVertex,
+          FeedScopedId
+        >flatteningToImmutableListMultimap(MatchResult::vertex, mr -> Stream.of(mr.stop().getId()))
     );
 
     mappedResults
@@ -76,12 +76,10 @@ public class AreaStopsToVerticesMapper implements GraphBuilderModule {
     LOG.info(progress.completeMessage());
   }
 
-  private static Stream<MatchResult> matchingVerticesForStop(
-    StreetIndex streetIndex,
-    AreaStop areaStop
-  ) {
-    return streetIndex
-      .getVerticesForEnvelope(areaStop.getGeometry().getEnvelopeInternal())
+  private static Stream<MatchResult> matchingVerticesForStop(Graph graph, AreaStop areaStop) {
+    var geom = PreparedGeometryFactory.prepare(areaStop.getGeometry());
+    return graph
+      .findVertices(areaStop.getGeometry().getEnvelopeInternal())
       .stream()
       .filter(StreetVertex.class::isInstance)
       .map(StreetVertex.class::cast)
@@ -89,7 +87,7 @@ public class AreaStopsToVerticesMapper implements GraphBuilderModule {
       .filter(vertx -> {
         // The street index overselects, so need to check for exact geometry inclusion
         Point p = GeometryUtils.getGeometryFactory().createPoint(vertx.getCoordinate());
-        return areaStop.getGeometry().intersects(p);
+        return geom.intersects(p);
       })
       .map(vertx -> new MatchResult(vertx, areaStop));
   }

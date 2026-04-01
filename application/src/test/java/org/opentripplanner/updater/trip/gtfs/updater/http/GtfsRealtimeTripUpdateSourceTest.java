@@ -5,9 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.framework.io.HttpHeaders;
 import org.opentripplanner.test.support.ResourceLoader;
-import org.opentripplanner.updater.spi.HttpHeaders;
 import org.opentripplanner.updater.trip.gtfs.BackwardsDelayPropagationType;
+import org.opentripplanner.updater.trip.gtfs.ForwardsDelayPropagationType;
 
 public class GtfsRealtimeTripUpdateSourceTest {
 
@@ -18,6 +19,7 @@ public class GtfsRealtimeTripUpdateSourceTest {
         "rt",
         Duration.ofSeconds(10),
         false,
+        ForwardsDelayPropagationType.DEFAULT,
         BackwardsDelayPropagationType.ALWAYS,
         "rt",
         ResourceLoader.of(this).url("septa.pbf").toString(),

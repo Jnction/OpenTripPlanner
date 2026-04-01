@@ -1,10 +1,15 @@
 package org.opentripplanner.ext.geocoder;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.core.model.id.FeedScopedId;
 
 /**
  * A result of a fuzzy stop cluster geocoding search. A cluster is defined as a group of stops that
@@ -24,7 +29,10 @@ record StopCluster(Location primary, Collection<Location> secondaries) {
   /**
    * Easily serializable version of an agency
    */
-  public record Agency(FeedScopedId id, String name) {}
+  public record Agency(
+    @JsonSerialize(using = FeedScopedIdSerializer.class) FeedScopedId id,
+    String name
+  ) {}
 
   /**
    * Easily serializable version of a feed publisher
@@ -37,7 +45,7 @@ record StopCluster(Location primary, Collection<Location> secondaries) {
   }
 
   public record Location(
-    FeedScopedId id,
+    @JsonSerialize(using = FeedScopedIdSerializer.class) FeedScopedId id,
     @Nullable String code,
     LocationType type,
     String name,
@@ -53,6 +61,15 @@ record StopCluster(Location primary, Collection<Location> secondaries) {
       Objects.requireNonNull(coordinate);
       Objects.requireNonNull(modes);
       Objects.requireNonNull(agencies);
+    }
+  }
+
+  private static class FeedScopedIdSerializer extends JsonSerializer<FeedScopedId> {
+
+    @Override
+    public void serialize(FeedScopedId value, JsonGenerator gen, SerializerProvider provider)
+      throws IOException {
+      gen.writeString(value.toString());
     }
   }
 }

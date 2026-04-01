@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import org.opentripplanner.routing.api.request.RequestModes;
 import org.opentripplanner.routing.api.request.RequestModesBuilder;
-import org.opentripplanner.routing.api.request.StreetMode;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
 
 /**
@@ -36,7 +36,10 @@ public class QualifiedModeSet implements Serializable {
   }
 
   public List<TransitMode> getTransitModes() {
-    return qModes.stream().flatMap(qMode -> qMode.mode.getTransitModes().stream()).toList();
+    return qModes
+      .stream()
+      .flatMap(qMode -> qMode.mode.getTransitModes().stream())
+      .toList();
   }
 
   public RequestModes getRequestModes() {
@@ -83,6 +86,7 @@ public class QualifiedModeSet implements Serializable {
         case BICYCLE -> {
           if (requestMode.qualifiers.contains(Qualifier.RENT)) {
             mBuilder.withAllStreetModes(StreetMode.BIKE_RENTAL);
+            mBuilder.withTransferMode(StreetMode.WALK);
           } else if (requestMode.qualifiers.contains(Qualifier.PARK)) {
             mBuilder.withAccessMode(StreetMode.BIKE_TO_PARK);
             mBuilder.withEgressMode(StreetMode.WALK);
@@ -104,6 +108,7 @@ public class QualifiedModeSet implements Serializable {
         case CAR -> {
           if (requestMode.qualifiers.contains(Qualifier.RENT)) {
             mBuilder.withAllStreetModes(StreetMode.CAR_RENTAL);
+            mBuilder.withTransferMode(StreetMode.WALK);
           } else if (requestMode.qualifiers.contains(Qualifier.PARK)) {
             mBuilder.withAccessMode(StreetMode.CAR_TO_PARK);
             mBuilder.withTransferMode(StreetMode.WALK);

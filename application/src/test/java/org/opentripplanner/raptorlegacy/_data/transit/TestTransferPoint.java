@@ -1,6 +1,6 @@
 package org.opentripplanner.raptorlegacy._data.transit;
 
-import org.opentripplanner.model.transfer.TransferPoint;
+import org.opentripplanner.transfer.constrained.model.TransferPoint;
 import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 /**
@@ -44,7 +44,7 @@ public class TestTransferPoint implements TransferPoint {
 
   @Override
   public String toString() {
-    return ToStringBuilder.of()
+    return ToStringBuilder.ofEmbeddedType()
       .addNum("stop", stop)
       .addObj("trip", schedule.pattern().debugInfo())
       .toString();

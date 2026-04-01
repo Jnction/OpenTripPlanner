@@ -4,12 +4,11 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opentripplanner.framework.geometry.GeometryUtils;
 import org.opentripplanner.inspector.vector.LayerBuilder;
 import org.opentripplanner.inspector.vector.LayerParameters;
 import org.opentripplanner.service.vehiclerental.VehicleRentalService;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace;
-import org.opentripplanner.street.model.vertex.Vertex;
+import org.opentripplanner.street.geometry.GeometryUtils;
 
 /**
  * Selects all rental places.
@@ -32,8 +31,9 @@ public class RentalLayerBuilder extends LayerBuilder<VehicleRentalPlace> {
       .getVehicleRentalPlacesForEnvelope(env)
       .stream()
       .map(place -> {
-        Geometry geometry = GeometryUtils.getGeometryFactory()
-          .createPoint(new Coordinate(place.getLongitude(), place.getLatitude()));
+        Geometry geometry = GeometryUtils.getGeometryFactory().createPoint(
+          new Coordinate(place.longitude(), place.latitude())
+        );
         geometry.setUserData(place);
         return geometry;
       })

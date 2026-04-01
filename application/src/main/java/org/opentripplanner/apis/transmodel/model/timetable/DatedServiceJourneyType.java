@@ -13,6 +13,7 @@ import graphql.schema.GraphQLType;
 import graphql.schema.GraphQLTypeReference;
 import java.util.List;
 import java.util.Optional;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.model.EnumTypes;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelDirectives;
 import org.opentripplanner.apis.transmodel.model.framework.TransmodelScalars;
@@ -30,16 +31,24 @@ public class DatedServiceJourneyType {
   private static final String NAME = "DatedServiceJourney";
   public static final GraphQLTypeReference REF = new GraphQLTypeReference(NAME);
 
-  public static GraphQLObjectType create(
+  private final FeedScopedIdMapper idMapper;
+
+  public DatedServiceJourneyType(FeedScopedIdMapper idMapper) {
+    this.idMapper = idMapper;
+  }
+
+  public GraphQLObjectType create(
     GraphQLOutputType serviceJourneyType,
     GraphQLOutputType journeyPatternType,
     GraphQLType estimatedCallType,
-    GraphQLType quayType
+    GraphQLType quayType,
+    GraphQLOutputType replacedByType,
+    GraphQLOutputType replacementForType
   ) {
     return GraphQLObjectType.newObject()
       .name(NAME)
       .description("A planned journey on a specific day")
-      .field(GqlUtil.newTransitIdField())
+      .field(GqlUtil.newTransitIdField(idMapper))
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
           .name("operatingDay")
@@ -71,8 +80,33 @@ public class DatedServiceJourneyType {
         GraphQLFieldDefinition.newFieldDefinition()
           .name("replacementFor")
           .description("List of the dated service journeys this dated service journeys replaces")
+          .deprecate("Use replacementForRelation")
           .type(new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(REF))))
           .dataFetcher(environment -> tripOnServiceDate(environment).getReplacementFor())
+      )
+      .field(
+        GraphQLFieldDefinition.newFieldDefinition()
+          .name("replacementForRelation")
+          .description(
+            "Dated service journeys this dated service journey replaces with full replacement information"
+          )
+          .type(new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(replacementForType))))
+          .dataFetcher(environment ->
+            GqlUtil.getTransitService(environment)
+              .getReplacementHelper()
+              .getReplacementFor(tripOnServiceDate(environment))
+          )
+      )
+      .field(
+        GraphQLFieldDefinition.newFieldDefinition()
+          .name("replacedByRelation")
+          .description("Dated service journeys this dated service journey is replaced by")
+          .type(new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(replacedByType))))
+          .dataFetcher(environment ->
+            GqlUtil.getTransitService(environment)
+              .getReplacementHelper()
+              .getReplacedBy(tripOnServiceDate(environment))
+          )
       )
       .field(
         GraphQLFieldDefinition.newFieldDefinition()
@@ -136,12 +170,12 @@ public class DatedServiceJourneyType {
           .withDirective(TransmodelDirectives.TIMING_DATA)
           .description(
             "Returns scheduled passingTimes for this dated service journey, " +
-            "updated with real-time-updates (if available). "
+              "updated with real-time-updates (if available). "
           )
           .dataFetcher(environment -> {
             TripOnServiceDate tripOnServiceDate = tripOnServiceDate(environment);
             return GqlUtil.getTransitService(environment)
-              .getTripTimeOnDates(tripOnServiceDate.getTrip(), tripOnServiceDate.getServiceDate())
+              .findTripTimesOnDate(tripOnServiceDate.getTrip(), tripOnServiceDate.getServiceDate())
               .orElse(List.of());
           })
           .build()

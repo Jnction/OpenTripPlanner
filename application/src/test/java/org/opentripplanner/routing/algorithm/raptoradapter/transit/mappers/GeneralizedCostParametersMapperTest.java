@@ -10,11 +10,11 @@ import com.google.common.collect.Multimap;
 import java.util.BitSet;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.raptorlegacy._data.transit.TestRoute;
 import org.opentripplanner.raptorlegacy._data.transit.TestTransitData;
 import org.opentripplanner.raptorlegacy._data.transit.TestTripPattern;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 class GeneralizedCostParametersMapperTest {
 
@@ -40,12 +40,15 @@ class GeneralizedCostParametersMapperTest {
 
   @Test
   public void shouldExtractRoutesFromAgencies() {
-    var routingRequest = new RouteRequest();
-    routingRequest.journey().transit().setUnpreferredAgencies(List.of(unpreferredAgency));
+    var routingRequest = RouteRequest.of()
+      .withJourney(jb -> jb.withTransit(b -> b.withUnpreferredAgencies(List.of(unpreferredAgency))))
+      .buildDefault();
 
     BitSet unpreferredPatterns = GeneralizedCostParametersMapper.map(
       routingRequest,
-      data.getPatterns()
+      data.getPatterns(),
+      p -> p.route().getId(),
+      p -> p.route().getAgency().getId()
     ).unpreferredPatterns();
 
     for (var pattern : data.getPatterns()) {
@@ -58,12 +61,20 @@ class GeneralizedCostParametersMapperTest {
 
   @Test
   public void dealWithEmptyList() {
-    var routingRequest = new RouteRequest();
-    routingRequest.journey().transit().setUnpreferredAgencies(List.of(agencyWithNoRoutes));
+    var routingRequest = RouteRequest.of()
+      .withJourney(jb ->
+        jb.withTransit(b -> b.withUnpreferredAgencies(List.of(agencyWithNoRoutes)))
+      )
+      .buildDefault();
 
     assertEquals(
       new BitSet(),
-      GeneralizedCostParametersMapper.map(routingRequest, data.getPatterns()).unpreferredPatterns()
+      GeneralizedCostParametersMapper.map(
+        routingRequest,
+        data.getPatterns(),
+        p -> p.route().getId(),
+        p -> p.route().getAgency().getId()
+      ).unpreferredPatterns()
     );
   }
 

@@ -1,8 +1,9 @@
 package org.opentripplanner.routing.api.request;
 
-import static org.opentripplanner.routing.api.request.StreetMode.NOT_SET;
+import static org.opentripplanner.street.model.StreetMode.NOT_SET;
 
 import java.util.Objects;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 public class RequestModes {
@@ -72,8 +73,12 @@ public class RequestModes {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     RequestModes that = (RequestModes) o;
 
@@ -98,10 +103,10 @@ public class RequestModes {
   @Override
   public String toString() {
     return ToStringBuilder.of(RequestModes.class)
-      .addEnum("accessMode", accessMode)
-      .addEnum("egressMode", egressMode)
-      .addEnum("directMode", directMode)
-      .addEnum("transferMode", transferMode)
+      .addEnum("access", accessMode)
+      .addEnum("egress", egressMode)
+      .addEnum("direct", directMode)
+      .addEnum("transfer", transferMode)
       .toString();
   }
 }

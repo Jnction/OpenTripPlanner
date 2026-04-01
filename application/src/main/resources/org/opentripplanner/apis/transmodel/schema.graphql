@@ -2,11 +2,22 @@ schema {
   query: QueryType
 }
 
+"This directive allows results to be deferred during execution"
+directive @defer(
+    "Deferred behaviour is controlled by this argument"
+    if: Boolean! = true,
+    "A unique label that represents the fragment being deferred"
+    label: String
+  ) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
 "Marks the field, argument, input field or enum value as deprecated"
 directive @deprecated(
     "The reason for the deprecation"
-    reason: String = "No longer supported"
+    reason: String! = "No longer supported"
   ) on FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM_VALUE | INPUT_FIELD_DEFINITION
+
+"This directive disables error propagation when a non nullable field returns null for the given operation."
+directive @experimental_disableErrorPropagation on QUERY | MUTATION | SUBSCRIPTION
 
 "Directs the executor to include this field or fragment only when the `if` argument is true"
 directive @include(
@@ -132,7 +143,7 @@ type BookingArrangement {
 type Branding {
   "Description of branding."
   description: String
-  id: ID
+  id: ID!
   "URL to an image be used for branding"
   image: String
   "Full name to be used for branding."
@@ -172,8 +183,12 @@ type DatedServiceJourney {
     "Only fetch the last n quays on the service journey"
     last: Int
   ): [Quay!]!
+  "Dated service journeys this dated service journey is replaced by"
+  replacedByRelation: [ReplacedByRelation!]!
   "List of the dated service journeys this dated service journeys replaces"
-  replacementFor: [DatedServiceJourney!]!
+  replacementFor: [DatedServiceJourney!]! @deprecated(reason : "Use replacementForRelation")
+  "Dated service journeys this dated service journey replaces with full replacement information"
+  replacementForRelation: [ReplacementForRelation!]!
   "The service journey this Dated Service Journey is based on"
   serviceJourney: ServiceJourney!
   "Alterations specified on the Trip in the planned data"
@@ -199,7 +214,21 @@ type ElevationProfileStep {
   elevation: Float
 }
 
-"List of visits to quays as part of vehicle journeys. Updated with real time information where available"
+"Emission information for a trip-pattern or legs."
+type Emission {
+  "The average CO₂ emission per passenger in grams."
+  co2: Float
+}
+
+"The empirical delay indicates how late a service journey is based on historic data."
+type EmpiricalDelay {
+  "The median/50% percentile. This value is in the middle of the distribution."
+  p50: Duration
+  "The 90% percentile. 90% of the values in the distribution is better and 10% is more delayed."
+  p90: Duration
+}
+
+"List of calls on quays as part of vehicle journeys. Updated with real time information where available"
 type EstimatedCall {
   "Actual time of arrival at quay. Updated from real time information if available."
   actualArrivalTime: DateTime
@@ -217,10 +246,14 @@ type EstimatedCall {
   date: Date!
   datedServiceJourney: DatedServiceJourney
   destinationDisplay: DestinationDisplay
-  "Expected time of arrival at quay. Updated with real time information if available. Will be null if an actualArrivalTime exists"
+  "The typical delay for this trip on this day for this stop based on historical data."
+  empiricalDelay: EmpiricalDelay
+  "Expected time of arrival at quay. Updated with real time information if available."
   expectedArrivalTime: DateTime!
-  "Expected time of departure from quay. Updated with real time information if available. Will be null if an actualDepartureTime exists"
+  "Expected time of departure from quay. Updated with real time information if available."
   expectedDepartureTime: DateTime!
+  "Whether this call is an extra call introduced by real-time data"
+  extraCall: Boolean!
   "Whether vehicle may be alighted at quay."
   forAlighting: Boolean!
   "Whether vehicle may be boarded at quay."
@@ -236,6 +269,8 @@ type EstimatedCall {
   "Whether vehicle will only stop on request."
   requestStop: Boolean!
   serviceJourney: ServiceJourney!
+  "Estimated calls for the ServiceJourney on this date."
+  serviceJourneyEstimatedCalls: SJEstimatedCalls!
   "Get all relevant situations for this EstimatedCall."
   situations: [PtSituationElement!]! @timingData
   stopPositionInPattern: Int!
@@ -315,6 +350,8 @@ type Leg {
   includes both the start and end coordinate.
   """
   elevationProfile: [ElevationProfileStep]!
+  "The emission per person"
+  emission: Emission
   "The expected, real-time adjusted date and time this leg ends."
   expectedEndTime: DateTime!
   "The expected, real-time adjusted date and time this leg starts."
@@ -325,7 +362,11 @@ type Leg {
   fromPlace: Place!
   "Generalized cost or weight of the leg. Used for debugging."
   generalizedCost: Int
-  "An identifier for the leg, which can be used to re-fetch transit leg information."
+  """
+  An identifier for the leg, which can be used to re-fetch transit leg information. The
+  identifier is valid for a maximum of 2 years, but sometimes it will fail after a few hours.
+  We do not recommend storing IDs for a long time.
+  """
   id: ID
   interchangeFrom: Interchange
   interchangeTo: Interchange
@@ -394,6 +435,12 @@ type Line {
   "Groups of lines that line is a part of."
   groupOfLines: [GroupOfLines]!
   id: ID!
+  """
+  Is this a replacement Line? In NeTEx/SIRI-sourced data this can be set by either
+  a replacement submode, or a replacement link in a DatedServiceJourney. Only true
+  for GTFS-sourced data if set by the extended GTFS type.
+  """
+  isReplacement: Boolean!
   journeyPatterns: [JourneyPattern]
   name: String
   notices: [Notice!]!
@@ -402,6 +449,8 @@ type Line {
   "Publicly announced code for line, differentiating it from other lines for the same operator."
   publicCode: String
   quays: [Quay]!
+  "Are there replacement DatedServiceJourneys for this Line?"
+  replacementsExist: Boolean!
   serviceJourneys: [ServiceJourney]!
   "Get all situations active for the line."
   situations: [PtSituationElement!]!
@@ -492,6 +541,8 @@ type Place {
   rentalVehicle: RentalVehicle
   "Type of vertex. (Normal, Bike sharing station, Bike P+R, Transit quay) Mostly used for better localization of bike sharing and P+R station names"
   vertexType: VertexType
+  "This defines if the place is a requested via location, and what kind it is. If the value is `null`, this place is not a via location."
+  viaLocationType: ViaLocationType
 }
 
 type PlaceAtDistance {
@@ -502,6 +553,8 @@ type PlaceAtDistance {
 
 "A list of coordinates encoded as a polyline string (see http://code.google.com/apis/maps/documentation/polylinealgorithm.html)"
 type PointsOnLink {
+  "The distance in meters."
+  distance: Int
   "The number of points in the string"
   length: Int
   "The encoded points of the polyline. Be aware that the string could contain escape characters that need to be accounted for. (https://www.freeformatter.com/javascript-escape.html)"
@@ -777,6 +830,8 @@ type QueryType {
     "MultiModalMode for query. To control whether multi modal parent stop places, their mono modal children or both are included in the response. Does not affect mono modal stop places that do not belong to a multi modal stop place."
     multiModalMode: MultiModalMode = parent
   ): [StopPlace]! @timingData
+  "Get information about the transit data available in the system."
+  transitInfo: TransitInfo!
   "Input type for executing a travel search for a trip between two locations. Returns trip patterns describing suggested alternatives for the trip."
   trip(
     "Time and cost penalty on access/egress modes."
@@ -790,9 +845,11 @@ type QueryType {
     "Parameters for indicating authorities, lines or quays not be used in the trip patterns"
     banned: InputBanned,
     "The set of characteristics that the user wants to optimise for during bicycle searches -- defaults to safe"
-    bicycleOptimisationMethod: BicycleOptimisationMethod = safe,
+    bicycleOptimisationMethod: BicycleOptimisationMethod @deprecated(reason : "Use bikePreferences.optimisationMethod instead"),
+    "Bicycle routing preferences. If not provided, default values from the server configuration will be used. Deprecated top-level bike fields (bikeSpeed, bicycleOptimisationMethod, triangleFactors) take precedence if explicitly provided."
+    bikePreferences: BikePreferencesInput,
     "The maximum bike speed along streets, in meters per second"
-    bikeSpeed: Float = 5.0,
+    bikeSpeed: Float @deprecated(reason : "Use bikePreferences.speed instead"),
     "The boardSlack is the minimum extra time to board a public transport vehicle. This is the same as the 'minimumTransferTime', except that this also applies to to the first transit leg in the trip. This is the default value used, if not overridden by the 'boardSlackList'."
     boardSlackDefault: Int = 0,
     "List of boardSlack for a given set of modes. Defaults: []"
@@ -802,7 +859,7 @@ type QueryType {
     Normally this is when the search is performed (now), plus a small grace period to
     complete the booking. Services which must be booked before this time is excluded. The
     `latestBookingTime` and `minimumBookingPeriod` in `BookingArrangement` (flexible
-    services only) is used to enforce this. If this parameter is _not set_, no booking-time
+    services only) are used to enforce this. If this parameter is _not set_, no booking-time
     restrictions are applied - all journeys are listed.
     """
     bookingTime: DateTime,
@@ -862,29 +919,33 @@ type QueryType {
     THIS IS STILL AN EXPERIMENTAL FEATURE - IT MAY CHANGE WITHOUT ANY NOTICE!
     """
     relaxTransitGroupPriority: RelaxCostInput = null,
+    "Scooter routing preferences. If not provided, default values from the server configuration will be used."
+    scooterPreferences: ScooterPreferencesInput,
     """
     The length of the search-window in minutes. This parameter is optional.
     
-    The search-window is defined as the duration between the earliest-departure-time(EDT) and
-    the latest-departure-time(LDT). OTP will search for all itineraries in this departure
-    window. If `arriveBy=true` the `dateTime` parameter is the latest-arrival-time, so OTP
-    will dynamically calculate the EDT. Using a short search-window is faster than using a
-    longer one, but the search duration is not linear. Using a "too" short search-window will
-    waste resources server side, while using a search-window that is too long will be slow.
+    The search-window is defined as the duration between the earliest-departure-time (EDT)
+    and the latest-departure-time (LDT). OTP will search for all itineraries in this
+    departure window. If `arriveBy=true` the `dateTime` parameter is the
+    latest-arrival-time, so OTP will dynamically calculate the EDT. Using a short
+    search-window is faster than using a longer one, but the search duration is not linear.
+    Using a "too" short search-window will waste resources server side, while using a
+    search-window that is too long will be slow.
     
-    OTP will dynamically calculate a reasonable value for the search-window, if not provided. The
-    calculation comes with a significant overhead (10-20% extra). Whether you should use the
-    dynamic calculated value or pass in a value depends on your use-case. For a travel planner
-    in a small geographical area, with a dense network of public transportation, a fixed value
-    between 40 minutes and 2 hours makes sense. To find the appropriate search-window, adjust it
-    so that the number of itineraries on average is around the wanted `numTripPatterns`. Make
-    sure you set the `numTripPatterns` to a high number while testing. For a country wide area like
-    Norway, using the dynamic search-window is the best.
+    OTP will dynamically calculate a reasonable value for the search-window, if not
+    provided. The calculation comes with a significant overhead (10-20% extra). Whether
+    you should use the dynamic calculated value or pass in a value depends on your use-case.
+    For a travel planner in a small geographical area, with a dense network of public
+    transportation, a fixed value between 40 minutes and 2 hours makes sense. To find the
+    appropriate search-window, adjust it so that the number of itineraries on average is
+    around the wanted `numTripPatterns`. Make sure you set the `numTripPatterns` to a high
+    number while testing. For a country wide area like Norway, using the dynamic
+    search-window is the best.
     
-    When paginating, the search-window is calculated using the `numTripPatterns` in the original
-    search together with statistics from the search for the last page. This behaviour is
-    configured server side, and can not be overridden from the client. The paging may even
-    exceed the maximum value.
+    When paginating, the search-window is calculated using the `numTripPatterns` in the
+    original search together with statistics from the search for the last page. This
+    behaviour is configured server side, and can not be overridden from the client. The
+    paging may even exceed the maximum value.
     
     The search-window used is returned to the response metadata as `searchWindowUsed`.
     This can be used by the client to calculate the when the next page start/end.
@@ -897,7 +958,7 @@ type QueryType {
     """
     searchWindow: Int,
     """
-    Search for the best trip options within a time window. If `true` two TripPatterns are considered optimal if one is better on arrival time(earliest wins) and the other is better on departure time(latest wins).In combination with `arriveBy` this parameter cover the following 3 use cases:
+    Search for the best trip options within a time window. If `true` two TripPatterns are considered optimal if one is better on arrival time(earliest wins) and the other is better on departure time (latest wins).In combination with `arriveBy` this parameter cover the following 3 use cases:
     
     
       - Traveler want to find the best alternative within a time window. Set     `timetableView=true` and `arriveBy=false`. This is the default, and if     the intention of the traveler is unknown it gives the best result,     because it includes the two next use-cases. This option also work well     with paging. Setting the `arriveBy=true`, covers the same use-case, but     the input time is interpreted as latest-arrival-time, and not     earliest-departure-time.
@@ -916,7 +977,7 @@ type QueryType {
     "An expected transfer time (in seconds) that specifies the amount of time that must pass between exiting one public transport vehicle and boarding another. This time is in addition to time it might take to walk between stops."
     transferSlack: Int = 120,
     "When setting the BicycleOptimisationMethod to 'triangle', use these values to tell the routing engine how important each of the factors is compared to the others. All values should add up to 1."
-    triangleFactors: TriangleFactors,
+    triangleFactors: TriangleFactors @deprecated(reason : "Use bikePreferences.triangleFactors or scooterPreferences.triangleFactors instead"),
     "Whether or not bike rental availability information will be used to plan bike rental trips."
     useBikeRentalAvailabilityInformation: Boolean = false,
     """
@@ -950,16 +1011,33 @@ type QueryType {
     """
     The length of the search-window. This parameter is optional.
     
-    The search-window is defined as the duration between the earliest-departure-time(EDT) and the latest-departure-time(LDT). OTP will search for all itineraries in this departure window. If `arriveBy=true` the `dateTime` parameter is the latest-arrival-time, so OTP will dynamically calculate the EDT. Using a short search-window is faster than using a longer one, but the search duration is not linear. Using a "too" short search-window will waste resources server side, while using a search-window that is too long will be slow.
+    The search-window is defined as the duration between the earliest-departure-time (EDT)
+    and the latest-departure-time (LDT). OTP will search for all itineraries in this
+    departure window. If `arriveBy=true` the `dateTime` parameter is the
+    latest-arrival-time, so OTP will dynamically calculate the EDT. Using a short
+    search-window is faster than using a longer one, but the search duration is not linear.
+    Using a "too" short search-window will waste resources server side, while using a
+    search-window that is too long will be slow.
     
-    OTP will dynamically calculate a reasonable value for the search-window, if not provided. The calculation comes with a significant overhead (10-20% extra). Whether you should use the dynamic calculated value or pass in a value depends on your use-case. For a travel planner in a small geographical area, with a dense network of public transportation, a fixed value between 40 minutes and 2 hours makes sense. To find the appropriate search-window, adjust it so that the number of itineraries on average is around the wanted `numItineraries`. Make sure you set the `numItineraries` to a high number while testing. For a country wide area like Norway, using the dynamic search-window is the best.
+    OTP will dynamically calculate a reasonable value for the search-window, if not
+    provided. The calculation comes with a significant overhead (10-20% extra). Whether you
+    should use the dynamic calculated value or pass in a value depends on your use-case.
+    For a travel planner in a small geographical area, with a dense network of public
+    transportation, a fixed value between 40 minutes and 2 hours makes sense. To find the
+    appropriate search-window, adjust it so that the number of itineraries on average is
+    around the wanted `numItineraries`. Make sure you set the `numItineraries` to a high
+    number while testing. For a country wide area like Norway, using the dynamic
+    search-window is the best.
     
-    When paginating, the search-window is calculated using the `numItineraries` in the original search together with statistics from the search for the last page. This behaviour is configured server side, and can not be overridden from the client.
+    When paginating, the search-window is calculated using the `numItineraries` in the
+    original search together with statistics from the search for the last page. This
+    behaviour is configured server side, and can not be overridden from the client.
     
-    The search-window used is returned to the response metadata as `searchWindowUsed` for debugging purposes.
+    The search-window used is returned to the response metadata as `searchWindowUsed` for
+    debugging purposes.
     """
     searchWindow: Duration!,
-    "The requests for the individual segments of the search. The first segment is from the start location(`from`) to the first entry in the `via` locations list and the last is from the last entry in the `via` locations list to the end location(`to`). Note that the list must have length of exactly one greater than the `via` field."
+    "The requests for the individual segments of the search. The first segment is from the start location (`from`) to the first entry in the `via` locations list and the last is from the last entry in the `via` locations list to the end location (`to`). Note that the list must have length of exactly one greater than the `via` field."
     segments: [ViaSegmentInput!],
     "The destination location"
     to: Location!,
@@ -985,6 +1063,24 @@ type RentalVehicleType {
   name: String
   propulsionType: String!
   vehicleTypeId: String!
+}
+
+"""
+Relation for indicating the DatedServiceJourney which is replacing an older one. Exists as a
+place to put additional information on the replacement when we get SIRI 2.1 support.
+"""
+type ReplacedByRelation {
+  "The replacing DatedServiceJourney."
+  datedServiceJourney: DatedServiceJourney
+}
+
+"""
+Relation for indicating the DatedServiceJourney which is replaced by a newer one. Exists as a
+place to put additional information on the replacement when we get SIRI 2.1 support.
+"""
+type ReplacementForRelation {
+  "The replaced DatedServiceJourney."
+  datedServiceJourney: DatedServiceJourney
 }
 
 "Description of the reason, why the planner did not return any results"
@@ -1040,12 +1136,14 @@ type RoutingParameters {
   disableRemainingWeightHeuristic: Boolean
   "What is the cost of boarding a elevator?"
   elevatorBoardCost: Int
-  "How long does it take to get on an elevator, on average."
+  "How long it takes to get on an elevator, on average."
   elevatorBoardTime: Int
   "What is the cost of travelling one floor on an elevator?"
-  elevatorHopCost: Int
-  "How long does it take to advance one floor on an elevator?"
+  elevatorHopCost: Int @deprecated(reason : "Use elevatorReluctance to set cost instead.")
+  "How long it takes to advance one floor on an elevator, on average."
   elevatorHopTime: Int
+  "A multiplier to specify how bad using an elevator is."
+  elevatorReluctance: Float
   "Whether to apply the ellipsoid->geoid offset to all elevations in the response."
   geoIdElevation: Boolean
   "When true, real-time updates are ignored during this search."
@@ -1071,7 +1169,7 @@ type RoutingParameters {
   reverseOptimizeOnTheFly: Boolean @deprecated(reason : "NOT IN USE IN OTP2.")
   "Whether the planner should return intermediate stops lists for transit legs."
   showIntermediateStops: Boolean @deprecated(reason : "This parameter is always enabled")
-  "Used instead of walkReluctance for stairs."
+  "A multiplier to specify how bad walking on stairs is, compared to walking on flat ground, on top of the walk reluctance."
   stairsReluctance: Float
   "An extra penalty added on transfers (i.e. all boardings except the first one)."
   transferPenalty: Int
@@ -1089,6 +1187,24 @@ type RoutingParameters {
   walkSpeed: Float
   "Whether the trip must be wheelchair accessible."
   wheelChairAccessible: Boolean
+}
+
+"List of visits to quays as part of a vehicle journey, relative to the current quay and for a given date. Includes real-time updates"
+type SJEstimatedCalls {
+  "The first call in this service journey"
+  first: EstimatedCall!
+  "The last call in this service journey"
+  last: EstimatedCall!
+  "The list of subsequent calls in this service journey after the current call"
+  next(
+    "Number of subsequent calls to return. The default value (null) returns all subsequent calls"
+    count: Int
+  ): [EstimatedCall!]!
+  "The list of previous calls in this service journey before the current call"
+  previous(
+    "Number of previous calls to return. The default value (null) returns all previous calls"
+    count: Int
+  ): [EstimatedCall!]!
 }
 
 """
@@ -1110,6 +1226,8 @@ type ServerInfo {
     Note: The input data can be in several time zones, but OTP internally operates on a single one.
   """
   internalTransitModelTimeZone: String
+  "Number of CPU cores on the OTP server"
+  numberOfCores: Int
   "The 'configVersion' of the otp-config.json file."
   otpConfigVersion: String
   "The otp-serialization-version-id used to check graphs for compatibility with current version of OTP."
@@ -1128,13 +1246,26 @@ type ServiceJourney {
   "Booking arrangements for flexible services."
   bookingArrangements: BookingArrangement @deprecated(reason : "BookingArrangements are defined per stop, and can be found under `passingTimes` or `estimatedCalls`")
   directionType: DirectionType
-  "Returns scheduled passingTimes for this ServiceJourney for a given date, updated with real-time-updates (if available). NB! This takes a date as argument (default=today) and returns estimatedCalls for that date and should only be used if the date is known when creating the request. For fetching estimatedCalls for a given trip.leg, use leg.serviceJourneyEstimatedCalls instead."
+  """
+  Returns scheduled passingTimes for this ServiceJourney for a given date, updated with real-time-updates (if available).
+  NB! This takes a date as argument (default=today) and returns estimatedCalls for that date and should only be used if the date is
+  known when creating the request. For fetching estimatedCalls for a given trip.leg, use leg.serviceJourneyEstimatedCalls instead.
+  """
   estimatedCalls(
     "Date to get estimated calls for. Defaults to today."
     date: Date
   ): [EstimatedCall!]! @timingData
   id: ID!
-  "JourneyPattern for the service journey, according to scheduled data. If the ServiceJourney is not included in the scheduled data, null is returned."
+  """
+  Is this a replacement ServiceJourney? In NeTEx/SIRI-sourced data this can be set by
+  either a replacement submode, or a replacement link in a DatedServiceJourney. Only
+  true for GTFS-sourced data if set by the extended GTFS type.
+  """
+  isReplacement: Boolean!
+  """
+  JourneyPattern for the service journey, according to scheduled data. If the
+  ServiceJourney is not included in the scheduled data, null is returned.
+  """
   journeyPattern: JourneyPattern
   line: Line!
   notices: [Notice!]!
@@ -1147,13 +1278,18 @@ type ServiceJourney {
   privateCode: String
   "Publicly announced code for service journey, differentiating it from other service journeys for the same line."
   publicCode: String
-  "Quays visited by service journey, according to scheduled data. If the ServiceJourney is not included in the scheduled data, an empty list is returned."
+  """
+  Quays visited by service journey, according to scheduled data. If the
+  ServiceJourney is not included in the scheduled data, an empty list is returned.
+  """
   quays(
     "Only fetch the first n quays on the service journey"
     first: Int,
     "Only fetch the last n quays on the service journey"
     last: Int
   ): [Quay!]!
+  "Are there replacement DatedServiceJourneys for this ServiceJourney?"
+  replacementsExist: Boolean!
   serviceAlteration: ServiceAlteration @deprecated(reason : "The service journey alteration will be moved out of SJ and grouped together with the SJ and date. In Netex this new type is called DatedServiceJourney. We will create artificial DSJs for the old SJs.")
   "Get all situations active for the service journey."
   situations: [PtSituationElement!]!
@@ -1262,7 +1398,7 @@ type TimePenaltyWithCost {
   """
   The time-penalty is applied to either the access-legs and/or egress-legs. Both access
   and egress may contain more than one leg; Hence, the penalty is not a field on leg. The
-  `appliedTo` describe witch part of the itinerary that this instance applies to.
+  `appliedTo` describe which part of the itinerary that this instance applies to.
   """
   appliedTo: String
   """
@@ -1276,7 +1412,7 @@ type TimePenaltyWithCost {
   generalizedCostDelta: Int
   """
   The time-penalty added to the actual time/duration when comparing the itinerary with
-  other itineraries. This is used to decide witch is the best option, but is not visible
+  other itineraries. This is used to decide which is the best option, but is not visible
   - the actual departure and arrival-times are not modified.
   """
   timePenalty: String
@@ -1306,6 +1442,12 @@ type TimetabledPassingTime {
   serviceJourney: ServiceJourney!
   "Whether this is a timing point or not. Boarding and alighting is not allowed at timing points."
   timingPoint: Boolean!
+}
+
+"Information about the transit data available in the system."
+type TransitInfo {
+  "The validity period for the transit data currently loaded in the system."
+  validityPeriod: ValidityPeriod
 }
 
 "Used to specify board and alight slack for a given modes."
@@ -1358,6 +1500,12 @@ type TripPattern {
   distance: Float
   "Duration of the trip, in seconds."
   duration: Long
+  """
+  The total emission per person. The total emission is only available if all transit
+  and car leg emissions can be calculated. If only a partial result is obtained, this
+  will be null.
+  """
+  emission: Emission
   "Time that the trip arrives."
   endTime: DateTime @deprecated(reason : "Replaced with expectedEndTime")
   "The expected, real-time adjusted date and time the trip ends."
@@ -1372,7 +1520,7 @@ type TripPattern {
   legs: [Leg!]!
   "Time that the trip departs."
   startTime: DateTime @deprecated(reason : "Replaced with expectedStartTime")
-  "How far the user has to walk, bike and/or drive in meters. It includes all street(none transit) modes."
+  "How far the user has to walk, bike and/or drive in meters. It includes all street (none transit) modes."
   streetDistance: Float
   "Get all system notices."
   systemNotices: [SystemNotice!]!
@@ -1397,12 +1545,40 @@ type TripPattern {
 
 "Trips search metadata."
 type TripSearchData {
-  "This is the suggested search time for the \"next page\" or time window. Insert it together with the 'searchWindowUsed' in the request to get a new set of trips following in the time-window AFTER the current search."
+  "This will not be available after March 2026!"
   nextDateTime: DateTime @deprecated(reason : "Use pageCursor instead")
-  "This is the suggested search time for the \"previous page\" or time-window. Insert it together with the 'searchWindowUsed' in the request to get a new set of trips preceding in the time-window BEFORE the current search."
+  "The end-time of the search-window/page for trip departure times. See `pageDepartureTimeStart`"
+  pageDepartureTimeEnd: DateTime
+  """
+  The start-time of the search-window/page for trip departure times.
+  
+  The search-window/page start and end time describe the time-window the search is
+  performed in. All results in the window is expected to be inside the given window. When
+  navigating to the next/previous window the new window might overlap.
+  
+  **Merging results from multiple searches**
+  
+  Trips from separate searches (multiple OTP calls or other search engines) can be merged
+  into the current page/result set if the following conditions are met:
+  - The page is empty and the candidate trip departure time is between
+    `pageDepartureTimeStart` and `pageDepartureTimeEnd`, or
+  - The candidate trip sorts before the last trip in the current page(if trips exists).
+  
+  If the trip sorts after the last trip, it should be merged into the next page instead.
+  Note that the sort order is diffrent for arrive-by and depart-after search. The sort
+  vector is:
+  - Depart-after: _departure-time_ → _generalized-cost_ → _number-of-transfers_ → _arrival-time_
+  - Arrive-by: _arrival-time_ → _generalized-cost_ → _number-of-transfers_ → _departure-time_
+  
+  **Special case for arrive-by searches:** For the first request (no paging cursor used)
+  with `arriveBy=true`, the `pageDepartureTimeEnd` can be ignored - trips departing after
+  this time can still be merged into the current page.
+  """
+  pageDepartureTimeStart: DateTime
+  "This will not be available after March 2026!"
   prevDateTime: DateTime @deprecated(reason : "Use pageCursor instead")
   "This is the time window used by the raptor search. The input searchWindow is an optional parameter and is dynamically assigned if not set. OTP might override the value if it is too small or too large. When paging OTP adjusts it to the appropriate size, depending on the number of itineraries found in the current search window. The scaling of the search window ensures faster paging and limits resource usage. The unit is minutes."
-  searchWindowUsed: Int!
+  searchWindowUsed: Int! @deprecated(reason : "This not needed for debugging, and is misleading if the window is cropped.")
 }
 
 type ValidityPeriod {
@@ -1614,6 +1790,7 @@ enum Mode {
   bus
   cableway
   car
+  carpool
   coach
   foot
   funicular
@@ -1622,6 +1799,7 @@ enum Mode {
   monorail
   rail
   scooter
+  snowAndIce
   taxi
   tram
   trolleybus
@@ -1813,6 +1991,8 @@ enum StreetMode {
   car_pickup
   "Walk to a car rental point along the road, drive to a drop-off point along the road, and walk the rest of the way. This can include car rentals at fixed locations or free-floating services."
   car_rental
+  "Share a car ride with a driver and other passengers going in the same direction."
+  carpool
   "Walk to an eligible pickup area for flexible transportation, ride to an eligible drop-off area and then walk the rest of the way."
   flexible
   "Walk only"
@@ -1953,11 +2133,31 @@ enum TransportSubmode {
   waterTaxi
 }
 
+"Optimization methods for vehicle routing (bicycle, scooter, etc.)."
+enum VehicleOptimisationMethod {
+  "Prefer flat terrain"
+  flat
+  "Prefer faster routes"
+  quick
+  "Prefer safer routes"
+  safe
+  "Custom optimization using triangle factors"
+  triangle
+}
+
 enum VertexType {
   bikePark
   bikeShare
   normal
   transit
+}
+
+"Categorization for via locations."
+enum ViaLocationType {
+  "The via stop location must be visited as part of a transit trip as at the boarding stop, the intermediate stop, or the alighting stop."
+  passThrough
+  "The location is visited physically by boarding or alighting a transit trip at a given stop, or by traveling via requested coordinate location as part of a access, transfer, egress or direct segment. Intermediate stops visited on-board do not count."
+  visit
 }
 
 enum WheelchairBoarding {
@@ -1988,9 +2188,9 @@ Example: `2017-04-23T18:25:43+02:00` or `2017-04-23T16:25:43Z`
 scalar DateTime
 
 """
-A double function `f(t)` is used to calculate a value based on a variable(t). The variable can
+A double function `f(t)` is used to calculate a value based on a variable (t). The variable can
 be the duration/time or cost for a leg or section of a path/itinerary. The function
-`f(t) = a + bt` has a constant(a) and a coefficient(b) that will be used in OTP to compute
+`f(t) = a + bt` has a constant (a) and a coefficient (b) that will be used in OTP to compute
 `f(t)`.
 
 Format: `a + b t`. Example: `30m + 2.0 t`. The constant `a` accept both whole numbers and
@@ -2010,6 +2210,18 @@ scalar Long
 
 "Time using the format: `HH:MM:SS`. Example: `18:25:43`"
 scalar Time
+
+"Bicycle routing preferences."
+input BikePreferencesInput {
+  "The set of characteristics that the user wants to optimize for during bicycle routing."
+  optimisationMethod: VehicleOptimisationMethod = safe
+  "A measure of how bad biking is compared to being in transit for equal periods of time. Higher values make routing prefer other modes over biking."
+  reluctance: Float = 2.0
+  "The maximum bike speed along streets, in meters per second."
+  speed: Float = 5.0
+  "When using optimisationMethod 'triangle', these values tell the routing engine how important each factor is compared to the others. All values should add up to 1."
+  triangleFactors: TriangleFactors
+}
 
 "Filter trips by disallowing lines involving certain elements. If both lines and authorities are specified, only one must be valid for each line to be banned. If a line is both banned and whitelisted, it will be counted as banned."
 input InputBanned {
@@ -2132,7 +2344,7 @@ input PenaltyForStreetMode {
 
 """
 A relax-cost is used to increase the limit when comparing one cost to another cost.
-This is used to include more results into the result. A `ratio=2.0` means a path(itinerary)
+This is used to include more results into the result. A `ratio=2.0` means a path (itinerary)
 with twice as high cost as another one, is accepted. A `constant=$300` means a "fixed"
 constant is added to the limit. A `{ratio=1.0, constant=0}` is said to be the NORMAL relaxed
 cost - the limit is the same as the cost used to calculate the limit. The NORMAL is usually
@@ -2144,6 +2356,18 @@ input RelaxCostInput {
   constant: Cost = "0s"
   "The factor to multiply with the 'other cost'. Minimum value is 1.0."
   ratio: Float = 1.0
+}
+
+"Scooter routing preferences."
+input ScooterPreferencesInput {
+  "The set of characteristics that the user wants to optimize for during scooter routing."
+  optimisationMethod: VehicleOptimisationMethod = safe
+  "A measure of how bad scooter travel is compared to being in transit for equal periods of time. Higher values make routing prefer other modes over scooter."
+  reluctance: Float = 2.0
+  "The maximum scooter speed along streets, in meters per second."
+  speed: Float = 5.0
+  "When using optimisationMethod 'triangle', these values tell the routing engine how important each factor is compared to the others. All values should add up to 1."
+  triangleFactors: TriangleFactors
 }
 
 "A combination of street mode and corresponding duration"
@@ -2234,7 +2458,7 @@ A via-location is used to specifying a location as an intermediate place the rou
 route through. The via-location is either a pass-through-location or a visit-via-location.
 """
 input TripViaLocationInput @oneOf {
-  "Board, alight or pass-through(on-board) at the stop location."
+  "Board, alight or pass-through (on-board) at the stop location."
   passThrough: TripPassThroughViaLocationInput
   "Board or alight at a stop location or visit a coordinate."
   visit: TripVisitViaLocationInput
@@ -2243,7 +2467,7 @@ input TripViaLocationInput @oneOf {
 """
 A visit-via-location is a physical visit to one of the stop locations or coordinates listed. An
 on-board visit does not count, the traveler must alight or board at the given stop for it to to
-be accepted. To visit a coordinate, the traveler must walk(bike or drive) to the closest point
+be accepted. To visit a coordinate, the traveler must walk (bike or drive) to the closest point
 in the street network from a stop and back to another stop to join the transit network.
 """
 input TripVisitViaLocationInput {

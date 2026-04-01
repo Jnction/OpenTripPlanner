@@ -8,10 +8,10 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.opentripplanner.ext.ridehailing.model.ArrivalTime;
-import org.opentripplanner.framework.geometry.WgsCoordinate;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.RoutingAccessEgress;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
+import org.opentripplanner.street.geometry.WgsCoordinate;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.transit.model.framework.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,7 +119,7 @@ public class RideHailingAccessShifter {
     try {
       var service = services.get(0);
       var arrivalTimeOpt = service
-        .arrivalTimes(new WgsCoordinate(req.from().getCoordinate()), req.wheelchair())
+        .arrivalTimes(new WgsCoordinate(req.from().getCoordinate()), req.journey().wheelchair())
         .stream()
         .min(Comparator.comparing(ArrivalTime::duration));
 

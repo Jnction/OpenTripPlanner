@@ -1,8 +1,8 @@
 package org.opentripplanner.transit.model.timetable;
 
 import java.util.List;
+import org.opentripplanner.core.framework.deduplicator.DeduplicatorService;
 import org.opentripplanner.model.StopTime;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 
 /**
  * The responsibility of this class is to create TripTimes based on StopTimes. The
@@ -18,13 +18,11 @@ public class TripTimesFactory {
    * non-interpolated stoptimes should already be marked at timepoints by a previous filtering
    * step.
    */
-  public static RealTimeTripTimes tripTimes(
+  public static ScheduledTripTimes tripTimes(
     Trip trip,
     List<StopTime> stopTimes,
-    Deduplicator deduplicator
+    DeduplicatorService deduplicator
   ) {
-    return new RealTimeTripTimes(
-      StopTimeToScheduledTripTimesMapper.map(trip, stopTimes, deduplicator)
-    );
+    return StopTimeToScheduledTripTimesMapper.map(trip, stopTimes, deduplicator);
   }
 }

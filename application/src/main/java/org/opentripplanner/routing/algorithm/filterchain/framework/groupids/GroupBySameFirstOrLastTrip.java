@@ -3,10 +3,10 @@ package org.opentripplanner.routing.algorithm.filterchain.framework.groupids;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.routing.algorithm.filterchain.framework.spi.GroupId;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 /**
  * This class creates a group identifier for an itinerary based on first or last trip. Two itineraries
@@ -57,13 +57,13 @@ public class GroupBySameFirstOrLastTrip implements GroupId<GroupBySameFirstOrLas
   }
 
   private static boolean isTheSame(Leg a, Leg b) {
-    final FeedScopedId idA = a.getTrip() != null ? a.getTrip().getId() : null;
-    final FeedScopedId idB = b.getTrip() != null ? b.getTrip().getId() : null;
+    final FeedScopedId idA = a.trip() != null ? a.trip().getId() : null;
+    final FeedScopedId idB = b.trip() != null ? b.trip().getId() : null;
 
     if (!Objects.equals(idA, idB)) {
       return false;
     }
 
-    return Objects.equals(a.getServiceDate(), b.getServiceDate());
+    return Objects.equals(a.serviceDate(), b.serviceDate());
   }
 }

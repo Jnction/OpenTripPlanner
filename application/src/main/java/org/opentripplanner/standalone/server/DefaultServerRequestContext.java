@@ -3,11 +3,19 @@ package org.opentripplanner.standalone.server;
 import graphql.schema.GraphQLSchema;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
-import java.util.Locale;
 import javax.annotation.Nullable;
+import org.opentripplanner.apis.gtfs.GtfsApiParameters;
+import org.opentripplanner.apis.gtfs.configure.GtfsSchema;
+import org.opentripplanner.apis.transmodel.TransmodelAPIParameters;
+import org.opentripplanner.apis.transmodel.configure.TransmodelSchema;
 import org.opentripplanner.astar.spi.TraverseVisitor;
+import org.opentripplanner.ext.carpooling.CarpoolingService;
+import org.opentripplanner.ext.dataoverlay.configuration.DataOverlayParameterBindings;
+import org.opentripplanner.ext.empiricaldelay.EmpiricalDelayService;
 import org.opentripplanner.ext.flex.FlexParameters;
 import org.opentripplanner.ext.geocoder.LuceneIndex;
+import org.opentripplanner.ext.ojp.parameters.OjpApiParameters;
+import org.opentripplanner.ext.ojp.parameters.TriasApiParameters;
 import org.opentripplanner.ext.ridehailing.RideHailingService;
 import org.opentripplanner.ext.sorlandsbanen.SorlandsbanenNorwayService;
 import org.opentripplanner.ext.stopconsolidation.StopConsolidationService;
@@ -18,10 +26,12 @@ import org.opentripplanner.routing.algorithm.raptoradapter.transit.TransitTuning
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripSchedule;
 import org.opentripplanner.routing.api.RoutingService;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.fares.FareService;
+import org.opentripplanner.routing.linking.LinkingContextFactory;
 import org.opentripplanner.routing.service.DefaultRoutingService;
 import org.opentripplanner.routing.via.ViaCoordinateTransferFactory;
 import org.opentripplanner.service.realtimevehicles.RealtimeVehicleService;
+import org.opentripplanner.service.streetdetails.StreetDetailsService;
 import org.opentripplanner.service.vehicleparking.VehicleParkingService;
 import org.opentripplanner.service.vehiclerental.VehicleRentalService;
 import org.opentripplanner.service.worldenvelope.WorldEnvelopeService;
@@ -30,7 +40,10 @@ import org.opentripplanner.standalone.api.OtpServerRequestContext;
 import org.opentripplanner.standalone.config.DebugUiConfig;
 import org.opentripplanner.standalone.config.routerconfig.TransitRoutingConfig;
 import org.opentripplanner.standalone.config.routerconfig.VectorTileConfig;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.linking.VertexLinker;
 import org.opentripplanner.street.service.StreetLimitationParametersService;
+import org.opentripplanner.transfer.regular.RegularTransferService;
 import org.opentripplanner.transit.service.TransitService;
 
 @HttpRequestScoped
@@ -40,14 +53,17 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
   //                  All 3 sections is sorted alphabetically.
 
   private final DebugUiConfig debugUiConfig;
+  private final FareService fareService;
   private final FlexParameters flexParameters;
   private final Graph graph;
+  private final LinkingContextFactory linkingContextFactory;
   private final MeterRegistry meterRegistry;
   private final RaptorConfig<TripSchedule> raptorConfig;
   private final RealtimeVehicleService realtimeVehicleService;
   private final List<RideHailingService> rideHailingServices;
   private final RouteRequest routeRequestDefaults;
   private final StreetLimitationParametersService streetLimitationParametersService;
+  private final RegularTransferService transferService;
   private final TransitRoutingConfig transitRoutingConfig;
   private final TransitService transitService;
   private final VectorTileConfig vectorTileConfig;
@@ -59,13 +75,27 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
   /* Optional fields */
 
   @Nullable
-  private final ItineraryDecorator emissionsItineraryDecorator;
+  private final CarpoolingService carpoolingService;
+
+  @Nullable
+  private final DataOverlayParameterBindings dataOverlayParameterBindings;
+
+  @Nullable
+  private final ItineraryDecorator emissionItineraryDecorator;
+
+  private final StreetDetailsService streetDetailsService;
+
+  @Nullable
+  private final EmpiricalDelayService empiricalDelayService;
 
   @Nullable
   private final LuceneIndex luceneIndex;
 
   @Nullable
-  private final GraphQLSchema schema;
+  private final GraphQLSchema gtfsSchema;
+
+  @Nullable
+  private final GraphQLSchema transmodelSchema;
 
   @Nullable
   private final SorlandsbanenNorwayService sorlandsbanenService;
@@ -75,6 +105,16 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
 
   @Nullable
   private final TraverseVisitor traverseVisitor;
+
+  private final TriasApiParameters triasApiParameters;
+
+  private final OjpApiParameters ojpApiParameters;
+
+  private final GtfsApiParameters gtfsApiParameters;
+
+  private final TransmodelAPIParameters transmodelAPIParameters;
+
+  private final VertexLinker vertexLinker;
 
   /* Lazy initialized fields */
 
@@ -87,52 +127,78 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
   public DefaultServerRequestContext(
     // Keep the same order as in the field declaration
     DebugUiConfig debugUiConfig,
+    FareService fareService,
     FlexParameters flexParameters,
     Graph graph,
+    LinkingContextFactory linkingContextFactory,
     MeterRegistry meterRegistry,
+    OjpApiParameters ojpApiParameters,
     RaptorConfig<TripSchedule> raptorConfig,
     RealtimeVehicleService realtimeVehicleService,
     List<RideHailingService> rideHailingServices,
     RouteRequest routeRequestDefaults,
     StreetLimitationParametersService streetLimitationParametersService,
+    RegularTransferService transferService,
     TransitRoutingConfig transitRoutingConfig,
     TransitService transitService,
+    TriasApiParameters triasApiParameters,
+    GtfsApiParameters gtfsApiParameters,
     VectorTileConfig vectorTileConfig,
     VehicleParkingService vehicleParkingService,
     VehicleRentalService vehicleRentalService,
+    VertexLinker vertexLinker,
     ViaCoordinateTransferFactory viaTransferResolver,
     WorldEnvelopeService worldEnvelopeService,
-    @Nullable ItineraryDecorator emissionsItineraryDecorator,
+    @Nullable CarpoolingService carpoolingService,
+    @Nullable DataOverlayParameterBindings dataOverlayParameterBindings,
+    @Nullable ItineraryDecorator emissionItineraryDecorator,
+    StreetDetailsService streetDetailsService,
+    @Nullable EmpiricalDelayService empiricalDelayService,
     @Nullable LuceneIndex luceneIndex,
-    @Nullable GraphQLSchema schema,
+    @Nullable @GtfsSchema GraphQLSchema gtfsSchema,
+    @Nullable @TransmodelSchema GraphQLSchema transmodelSchema,
     @Nullable SorlandsbanenNorwayService sorlandsbanenService,
     @Nullable StopConsolidationService stopConsolidationService,
-    @Nullable TraverseVisitor traverseVisitor
+    @Nullable TraverseVisitor traverseVisitor,
+    TransmodelAPIParameters transmodelAPIParameters
   ) {
     this.debugUiConfig = debugUiConfig;
     this.flexParameters = flexParameters;
+    this.fareService = fareService;
     this.graph = graph;
+    this.linkingContextFactory = linkingContextFactory;
     this.meterRegistry = meterRegistry;
+    this.ojpApiParameters = ojpApiParameters;
     this.raptorConfig = raptorConfig;
     this.realtimeVehicleService = realtimeVehicleService;
     this.rideHailingServices = rideHailingServices;
     this.routeRequestDefaults = routeRequestDefaults;
     this.streetLimitationParametersService = streetLimitationParametersService;
+    this.transferService = transferService;
     this.transitRoutingConfig = transitRoutingConfig;
     this.transitService = transitService;
+    this.transmodelSchema = transmodelSchema;
+    this.triasApiParameters = triasApiParameters;
+    this.gtfsApiParameters = gtfsApiParameters;
     this.vectorTileConfig = vectorTileConfig;
     this.vehicleParkingService = vehicleParkingService;
     this.vehicleRentalService = vehicleRentalService;
+    this.vertexLinker = vertexLinker;
     this.viaTransferResolver = viaTransferResolver;
     this.worldEnvelopeService = worldEnvelopeService;
 
     // Optional fields
-    this.emissionsItineraryDecorator = emissionsItineraryDecorator;
+    this.carpoolingService = carpoolingService;
+    this.dataOverlayParameterBindings = dataOverlayParameterBindings;
+    this.emissionItineraryDecorator = emissionItineraryDecorator;
+    this.streetDetailsService = streetDetailsService;
+    this.empiricalDelayService = empiricalDelayService;
     this.luceneIndex = luceneIndex;
-    this.schema = schema;
+    this.gtfsSchema = gtfsSchema;
     this.sorlandsbanenService = sorlandsbanenService;
     this.stopConsolidationService = stopConsolidationService;
     this.traverseVisitor = traverseVisitor;
+    this.transmodelAPIParameters = transmodelAPIParameters;
   }
 
   @Override
@@ -142,19 +208,7 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
 
   @Override
   public RouteRequest defaultRouteRequest() {
-    // Lazy initialize request-scoped request to avoid doing this when not needed
-    if (defaultRouteRequestWithTimeSet == null) {
-      defaultRouteRequestWithTimeSet = routeRequestDefaults.copyWithDateTimeNow();
-    }
-    return defaultRouteRequestWithTimeSet;
-  }
-
-  /**
-   * Return the default routing request locale(without cloning the request).
-   */
-  @Override
-  public Locale defaultLocale() {
-    return routeRequestDefaults.locale();
+    return routeRequestDefaults;
   }
 
   @Override
@@ -175,6 +229,11 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
   @Override
   public RoutingService routingService() {
     return new DefaultRoutingService(this);
+  }
+
+  @Override
+  public RegularTransferService transferService() {
+    return transferService;
   }
 
   @Override
@@ -214,8 +273,14 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
 
   @Nullable
   @Override
-  public GraphQLSchema schema() {
-    return schema;
+  public GraphQLSchema gtfsSchema() {
+    return gtfsSchema;
+  }
+
+  @Nullable
+  @Override
+  public GraphQLSchema transmodelSchema() {
+    return transmodelSchema;
   }
 
   @Override
@@ -253,6 +318,38 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
     return viaTransferResolver;
   }
 
+  @Override
+  public TriasApiParameters triasApiParameters() {
+    return triasApiParameters;
+  }
+
+  @Override
+  public OjpApiParameters ojpApiParameters() {
+    return ojpApiParameters;
+  }
+
+  @Override
+  public GtfsApiParameters gtfsApiParameters() {
+    return gtfsApiParameters;
+  }
+
+  @Override
+  public TransmodelAPIParameters transmodelAPIParameters() {
+    return transmodelAPIParameters;
+  }
+
+  @Nullable
+  @Override
+  public CarpoolingService carpoolingService() {
+    return carpoolingService;
+  }
+
+  @Nullable
+  @Override
+  public DataOverlayParameterBindings dataOverlayParameterBindings() {
+    return dataOverlayParameterBindings;
+  }
+
   @Nullable
   @Override
   public LuceneIndex lucenceIndex() {
@@ -260,12 +357,37 @@ public class DefaultServerRequestContext implements OtpServerRequestContext {
   }
 
   @Override
-  public ItineraryDecorator emissionsItineraryDecorator() {
-    return emissionsItineraryDecorator;
+  public ItineraryDecorator emissionItineraryDecorator() {
+    return emissionItineraryDecorator;
+  }
+
+  @Override
+  public StreetDetailsService streetDetailsService() {
+    return streetDetailsService;
+  }
+
+  @Override
+  public EmpiricalDelayService empiricalDelayService() {
+    return empiricalDelayService;
   }
 
   @Nullable
   public SorlandsbanenNorwayService sorlandsbanenService() {
     return sorlandsbanenService;
+  }
+
+  @Override
+  public FareService fareService() {
+    return fareService;
+  }
+
+  @Override
+  public VertexLinker vertexLinker() {
+    return vertexLinker;
+  }
+
+  @Override
+  public LinkingContextFactory linkingContextFactory() {
+    return linkingContextFactory;
   }
 }

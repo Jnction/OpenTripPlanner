@@ -2,10 +2,10 @@ package org.opentripplanner.routing.algorithm.filterchain.framework.groupids;
 
 import java.util.List;
 import java.util.stream.Stream;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.routing.algorithm.filterchain.framework.spi.GroupId;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 /**
  * This creates a group identifier based on each transit leg's origin and destination stations/stops
@@ -26,9 +26,9 @@ public class GroupBySameRoutesAndStops implements GroupId<GroupBySameRoutesAndSt
       .filter(Leg::isTransitLeg)
       .flatMap(leg ->
         Stream.of(
-          leg.getFrom().stop.getStationOrStopId(),
-          leg.getRoute().getId(),
-          leg.getTo().stop.getStationOrStopId()
+          leg.from().stop.getStationOrStopId(),
+          leg.route().getId(),
+          leg.to().stop.getStationOrStopId()
         )
       )
       .toList();

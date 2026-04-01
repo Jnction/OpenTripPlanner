@@ -22,7 +22,7 @@ import org.opentripplanner.raptor.spi.RaptorTransitDataProvider;
  * Land Use Sketch Planning Using Interactive Accessibility Methods on Combined Schedule and
  * Headway-Based Networks.” Transportation Research Record 2653 (2017). doi:10.3141/2653-06.
  * <p>
- * <a href="http://research.microsoft.com/pubs/156567/raptor_alenex.pdf">
+ * <a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2012/01/raptor_alenex.pdf">
  *   Delling, Daniel, Thomas Pajor, and Renato Werneck. “Round-Based Public Transit Routing”,
  *   January 1, 2012.
  * </a>.
@@ -124,24 +124,26 @@ public final class RangeRaptor<T extends RaptorTripSchedule> implements RaptorRo
    */
   private void runRaptorForMinute(int iterationDepartureTime) {
     setupIteration(iterationDepartureTime);
-    worker.findAccessOnStreetForRound();
+    worker.applyStreetStopAccess();
+    worker.applyOnBoardTripAccess(iterationDepartureTime);
 
     while (hasMoreRounds()) {
       lifeCycle.prepareForNextRound(roundTracker.nextRound());
 
       // NB since we have transfer limiting not bothering to cut off search when there are no
       // more transfers as that will be rare and complicates the code
-      worker.findTransitForRound();
+      worker.routeTransit();
+      worker.routeTransitUsingOnBoardTripAccess();
       lifeCycle.transitsForRoundComplete();
 
-      worker.findAccessOnBoardForRound();
+      worker.applyOnBoardStopAccess();
 
-      worker.findTransfersForRound();
+      worker.applyTransfers();
       lifeCycle.transfersForRoundComplete();
 
       lifeCycle.roundComplete(worker.isDestinationReachedInCurrentRound());
 
-      worker.findAccessOnStreetForRound();
+      worker.applyStreetStopAccess();
     }
 
     // This state is repeatedly modified as the outer loop progresses over departure minutes.

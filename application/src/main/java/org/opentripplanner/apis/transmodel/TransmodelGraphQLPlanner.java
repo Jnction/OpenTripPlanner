@@ -5,16 +5,15 @@ import graphql.schema.DataFetchingEnvironment;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.opentripplanner.api.model.transit.FeedScopedIdMapper;
 import org.opentripplanner.apis.transmodel.mapping.TripRequestMapper;
 import org.opentripplanner.apis.transmodel.mapping.ViaRequestMapper;
 import org.opentripplanner.apis.transmodel.model.PlanResponse;
 import org.opentripplanner.routing.algorithm.mapping.TripPlanMapper;
-import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.RouteViaRequest;
+import org.opentripplanner.routing.api.request.RouteRequestBuilder;
 import org.opentripplanner.routing.api.response.RoutingResponse;
 import org.opentripplanner.routing.api.response.ViaRoutingResponse;
 import org.opentripplanner.routing.error.RoutingValidationException;
-import org.opentripplanner.standalone.api.OtpServerRequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,27 +21,38 @@ public class TransmodelGraphQLPlanner {
 
   private static final Logger LOG = LoggerFactory.getLogger(TransmodelGraphQLPlanner.class);
 
+  private final TripRequestMapper tripRequestMapper;
+  private final ViaRequestMapper viaRequestMapper;
+
+  public TransmodelGraphQLPlanner(FeedScopedIdMapper idMapper) {
+    this.tripRequestMapper = new TripRequestMapper(idMapper);
+    this.viaRequestMapper = new ViaRequestMapper(idMapper);
+  }
+
   public DataFetcherResult<PlanResponse> plan(DataFetchingEnvironment environment) {
-    PlanResponse response = new PlanResponse();
     TransmodelRequestContext ctx = environment.getContext();
-    OtpServerRequestContext serverContext = ctx.getServerContext();
-    RouteRequest request = null;
+    Locale locale;
+    PlanResponse response;
+    RouteRequestBuilder requestBuilder = tripRequestMapper.createRequestBuilder(environment);
     try {
-      request = TripRequestMapper.createRequest(environment);
+      var request = requestBuilder.buildRequest();
       RoutingResponse res = ctx.getRoutingService().route(request);
-
-      response.plan = res.getTripPlan();
-      response.metadata = res.getMetadata();
-      response.messages = res.getRoutingErrors();
-      response.debugOutput = res.getDebugTimingAggregator().finishedRendering();
-      response.previousPageCursor = res.getPreviousPageCursor();
-      response.nextPageCursor = res.getNextPageCursor();
+      response = PlanResponse.of()
+        .withPlan(res.getTripPlan())
+        .withMetadata(res.getMetadata())
+        .withMessages(res.getRoutingErrors())
+        .withDebugOutput(res.getDebugTimingAggregator().finishedRendering())
+        .withPreviousPageCursor(res.getPreviousPageCursor())
+        .withNextPageCursor(res.getNextPageCursor())
+        .build();
+      locale = request.preferences().locale();
     } catch (RoutingValidationException e) {
-      response.plan = TripPlanMapper.mapTripPlan(request, List.of());
-      response.messages.addAll(e.getRoutingErrors());
+      response = PlanResponse.of()
+        .withPlan(TripPlanMapper.mapEmptyTripPlan(requestBuilder))
+        .withMessages(e.getRoutingErrors())
+        .build();
+      locale = defaultLocale(ctx);
     }
-
-    Locale locale = request == null ? serverContext.defaultLocale() : request.locale();
     return DataFetcherResult.<PlanResponse>newResult()
       .data(response)
       .localContext(Map.of("locale", locale))
@@ -52,19 +62,22 @@ public class TransmodelGraphQLPlanner {
   public DataFetcherResult<ViaRoutingResponse> planVia(DataFetchingEnvironment environment) {
     ViaRoutingResponse response;
     TransmodelRequestContext ctx = environment.getContext();
-    RouteViaRequest request = null;
+    Locale locale;
     try {
-      request = ViaRequestMapper.createRouteViaRequest(environment);
+      var request = viaRequestMapper.createRouteViaRequest(environment);
       response = ctx.getRoutingService().route(request);
+      locale = request.locale();
     } catch (RoutingValidationException e) {
       response = new ViaRoutingResponse(Map.of(), List.of(), e.getRoutingErrors());
+      locale = defaultLocale(ctx);
     }
-
-    Locale defaultLocale = ctx.getServerContext().defaultLocale();
-    Locale locale = request == null ? defaultLocale : request.locale();
     return DataFetcherResult.<ViaRoutingResponse>newResult()
       .data(response)
       .localContext(Map.of("locale", locale))
       .build();
+  }
+
+  private static Locale defaultLocale(TransmodelRequestContext ctx) {
+    return ctx.getServerContext().defaultRouteRequest().preferences().locale();
   }
 }

@@ -8,7 +8,7 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.opentripplanner.ext.debugrastertiles.TileRenderer.TileRenderContext;
 import org.opentripplanner.ext.debugrastertiles.api.resource.DebugRasterTileResource;
 import org.opentripplanner.routing.api.request.preference.WheelchairPreferences;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.street.graph.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +60,9 @@ public class TileRendererManager {
     context.graph = graph;
 
     TileRenderer renderer = renderers.get(layer);
-    if (renderer == null) throw new IllegalArgumentException("Unknown layer: " + layer);
+    if (renderer == null) {
+      throw new IllegalArgumentException("Unknown layer: " + layer);
+    }
 
     // The best place for caching tiles may be here
     BufferedImage image = new BufferedImage(
@@ -88,14 +90,5 @@ public class TileRendererManager {
     renderer.renderTile(context);
     LOG.debug("Rendered tile at {} in {} ms", mapTile.bbox(), System.currentTimeMillis() - start);
     return image;
-  }
-
-  /**
-   * Gets all renderers
-   * <p>
-   * Used to return list of renderers to client. Could be also used to show legend.
-   */
-  public Map<String, TileRenderer> getRenderers() {
-    return renderers;
   }
 }

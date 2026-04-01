@@ -7,17 +7,19 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.opentripplanner.astar.spi.SkipEdgeStrategy;
 import org.opentripplanner.astar.spi.TraverseVisitor;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.framework.application.OTPRequestTimeoutException;
 import org.opentripplanner.model.GenericLocation;
-import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.linking.LinkingContextFactory;
+import org.opentripplanner.routing.linking.LinkingContextRequest;
+import org.opentripplanner.street.linking.TemporaryVerticesContainer;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.search.StreetSearchBuilder;
-import org.opentripplanner.street.search.TemporaryVerticesContainer;
+import org.opentripplanner.street.search.request.StreetSearchRequest;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.DominanceFunctions;
 import org.opentripplanner.transit.model.basic.TransitMode;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.service.TransitService;
 
 /**
@@ -26,15 +28,17 @@ import org.opentripplanner.transit.service.TransitService;
  */
 public class StreetGraphFinder implements GraphFinder {
 
-  private final Graph graph;
+  private final LinkingContextFactory linkingContextFactory;
+  private final StopResolver stopResolver;
 
-  public StreetGraphFinder(Graph graph) {
-    this.graph = graph;
+  public StreetGraphFinder(LinkingContextFactory linkingContextFactory, StopResolver stopResolver) {
+    this.linkingContextFactory = linkingContextFactory;
+    this.stopResolver = stopResolver;
   }
 
   @Override
   public List<NearbyStop> findClosestStops(Coordinate coordinate, double radiusMeters) {
-    StopFinderTraverseVisitor visitor = new StopFinderTraverseVisitor(radiusMeters);
+    StopFinderTraverseVisitor visitor = new StopFinderTraverseVisitor(stopResolver, radiusMeters);
     findClosestUsingStreets(
       coordinate.getY(),
       coordinate.getX(),
@@ -84,29 +88,28 @@ public class StreetGraphFinder implements GraphFinder {
     TraverseVisitor<State, Edge> visitor,
     SkipEdgeStrategy<State, Edge> skipEdgeStrategy
   ) {
-    // Make a normal OTP routing request so we can traverse edges and use GenericAStar
-    // TODO make a function that builds normal routing requests from profile requests
-    RouteRequest rr = new RouteRequest();
-    rr.setFrom(new GenericLocation(null, null, lat, lon));
-    rr.withPreferences(pref -> pref.withWalk(it -> it.withSpeed(1)));
-    rr.setNumItineraries(1);
     // RR dateTime defaults to currentTime.
     // If elapsed time is not capped, searches are very slow.
-    try (
-      var temporaryVertices = new TemporaryVerticesContainer(
-        graph,
-        rr.from(),
-        rr.to(),
-        StreetMode.WALK,
-        StreetMode.WALK
-      )
-    ) {
+    try (var temporaryVerticesContainer = new TemporaryVerticesContainer()) {
+      var from = GenericLocation.fromCoordinate(lat, lon);
+      var linkingRequest = LinkingContextRequest.of()
+        .withFrom(from)
+        .withDirectMode(StreetMode.WALK)
+        .build();
+      var linkerContext = linkingContextFactory.create(temporaryVerticesContainer, linkingRequest);
+      // Make a normal OTP routing request so we can traverse edges and use GenericAStar
+      // TODO make a function that builds normal routing requests from profile requests
+      // TODO: This is incorrect, the configured defaults are not used.
+      var request = StreetSearchRequest.of()
+        .withWalk(it -> it.withSpeed(1))
+        .build();
       StreetSearchBuilder.of()
-        .setSkipEdgeStrategy(skipEdgeStrategy)
-        .setTraverseVisitor(visitor)
-        .setDominanceFunction(new DominanceFunctions.LeastWalk())
-        .setRequest(rr)
-        .setVerticesContainer(temporaryVertices)
+        .withPreStartHook(OTPRequestTimeoutException::checkForTimeout)
+        .withSkipEdgeStrategy(skipEdgeStrategy)
+        .withTraverseVisitor(visitor)
+        .withDominanceFunction(new DominanceFunctions.LeastWalk())
+        .withRequest(request)
+        .withFrom(linkerContext.findVertices(from))
         .getShortestPathTree();
     }
   }

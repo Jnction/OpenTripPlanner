@@ -31,7 +31,7 @@ public class ItineraryFare {
    * <p>
    * Note: LinkedHashMultimap keeps the insertion order
    */
-  private final Multimap<Leg, FareProductUse> legProducts = LinkedHashMultimap.create();
+  private final Multimap<Leg, FareOffer> legProducts = LinkedHashMultimap.create();
 
   public static ItineraryFare empty() {
     return new ItineraryFare();
@@ -47,7 +47,7 @@ public class ItineraryFare {
   /**
    * Get those fare products that are valid for a subset of legs but not the entire itinerary.
    */
-  public Multimap<Leg, FareProductUse> getLegProducts() {
+  public Multimap<Leg, FareOffer> getLegProducts() {
     return ImmutableMultimap.copyOf(legProducts);
   }
 
@@ -65,8 +65,12 @@ public class ItineraryFare {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ItineraryFare fare1 = (ItineraryFare) o;
     return (
       Objects.equals(itineraryProducts, fare1.itineraryProducts) &&
@@ -85,21 +89,11 @@ public class ItineraryFare {
   /**
    * Add a single fare product for a single leg.
    */
-  public void addFareProduct(Leg leg, FareProduct fareProduct) {
-    this.legProducts.put(
-        leg,
-        new FareProductUse(fareProduct.uniqueInstanceId(leg.getStartTime()), fareProduct)
-      );
+  public void addFareProduct(Leg leg, FareOffer offer) {
+    this.legProducts.put(leg, offer);
   }
 
-  /**
-   * Add several fare products to a leg.
-   */
-  public void addFareProduct(Leg leg, Collection<FareProduct> fareProduct) {
-    fareProduct.forEach(fp -> addFareProduct(leg, fp));
-  }
-
-  public void addFareProductUses(Multimap<Leg, FareProductUse> fareProducts) {
+  public void addFareProductUses(Multimap<Leg, FareOffer> fareProducts) {
     legProducts.putAll(fareProducts);
   }
 

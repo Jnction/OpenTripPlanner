@@ -3,45 +3,57 @@ package org.opentripplanner.updater.trip.gtfs;
 import static com.google.transit.realtime.GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.opentripplanner.updater.spi.UpdateError.UpdateErrorType.INVALID_ARRIVAL_TIME;
-import static org.opentripplanner.updater.spi.UpdateError.UpdateErrorType.INVALID_DEPARTURE_TIME;
-import static org.opentripplanner.updater.spi.UpdateError.UpdateErrorType.INVALID_STOP_SEQUENCE;
-import static org.opentripplanner.updater.spi.UpdateError.UpdateErrorType.NEGATIVE_DWELL_TIME;
-import static org.opentripplanner.updater.spi.UpdateError.UpdateErrorType.TRIP_NOT_FOUND_IN_PATTERN;
+import static org.opentripplanner.updater.spi.UpdateErrorType.INVALID_ARRIVAL_TIME;
+import static org.opentripplanner.updater.spi.UpdateErrorType.INVALID_DEPARTURE_TIME;
+import static org.opentripplanner.updater.spi.UpdateErrorType.INVALID_STOP_SEQUENCE;
+import static org.opentripplanner.updater.spi.UpdateErrorType.NEGATIVE_DWELL_TIME;
+import static org.opentripplanner.updater.spi.UpdateErrorType.NEGATIVE_HOP_TIME;
+import static org.opentripplanner.updater.spi.UpdateErrorType.TRIP_NOT_FOUND_IN_PATTERN;
+import static org.opentripplanner.updater.spi.UpdateResultAssertions.assertFailure;
 
+import com.google.transit.realtime.GtfsRealtime;
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate;
 import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeEvent;
 import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.Month;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.TestOtpModel;
 import org.opentripplanner._support.time.ZoneIds;
-import org.opentripplanner.model.Timetable;
-import org.opentripplanner.model.TripTimesPatch;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
-import org.opentripplanner.transit.model.framework.Result;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.model.PickDrop;
+import org.opentripplanner.transit.model.framework.Deduplicator;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.timetable.RealTimeState;
+import org.opentripplanner.transit.model.timetable.Timetable;
+import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.service.TimetableRepository;
-import org.opentripplanner.updater.spi.UpdateError;
+import org.opentripplanner.updater.spi.UpdateErrorType;
 import org.opentripplanner.updater.trip.TripUpdateBuilder;
+import org.opentripplanner.updater.trip.gtfs.model.TripUpdate;
+import org.opentripplanner.utils.time.TimeUtils;
 
 public class TripTimesUpdaterTest {
 
   private static final ZoneId TIME_ZONE = ZoneIds.NEW_YORK;
+  public static final TripTimesUpdater TRIP_TIMES_UPDATER = new TripTimesUpdater(
+    TIME_ZONE,
+    new Deduplicator()
+  );
   private static final LocalDate SERVICE_DATE = LocalDate.of(2009, 8, 7);
+  private static final Supplier<LocalDate> NOW = () -> SERVICE_DATE;
+
   private static final String TRIP_ID = "1.1";
   private static final String TRIP_ID_WITH_MORE_STOPS = "19.1";
   private static Map<FeedScopedId, TripPattern> patternIndex;
@@ -69,542 +81,662 @@ public class TripTimesUpdaterTest {
   @Test
   public void tripNotFoundInPattern() {
     // non-existing trip
-    var tripDescriptorBuilder = tripDescriptorBuilder("b");
+    var nonExistingTripId = "b";
+    var tripUpdate = new TripUpdateBuilder(nonExistingTripId, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addNoDataStop(0)
+      .build();
 
-    TripUpdate.Builder tripUpdateBuilder;
-    StopTimeUpdate.Builder stopTimeUpdateBuilder;
-
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(0);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.NO_DATA);
-    var tripUpdate = tripUpdateBuilder.build();
-
-    Result<TripTimesPatch, UpdateError> result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
-      timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
-      BackwardsDelayPropagationType.REQUIRED_NO_DATA
+    var r = assertFailure(TRIP_NOT_FOUND_IN_PATTERN, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
     );
-    assertTrue(result.isFailure());
-
-    result.ifFailure(r -> {
-      assertEquals(new FeedScopedId(feedId, "b"), r.tripId());
-      assertEquals(TRIP_NOT_FOUND_IN_PATTERN, r.errorType());
-    });
+    assertEquals(new FeedScopedId(feedId, nonExistingTripId), r.tripId());
   }
 
   @Test
   public void badData() {
-    TripUpdate tripUpdate;
-    TripUpdate.Builder tripUpdateBuilder;
-    StopTimeUpdate.Builder stopTimeUpdateBuilder;
-
     // update trip with bad data
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(0);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SKIPPED);
-    tripUpdate = tripUpdateBuilder.build();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
-      timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
-      BackwardsDelayPropagationType.REQUIRED_NO_DATA
-    );
-    assertTrue(result.isFailure());
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addSkippedStop(0)
+      .build();
 
-    result.ifFailure(e -> assertEquals(INVALID_STOP_SEQUENCE, e.errorType()));
+    assertFailure(INVALID_STOP_SEQUENCE, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
+    );
   }
 
   @Test
   public void nonIncreasingTimes() {
     // update trip with non-increasing data
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    var tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    var stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setTime(
-      LocalDateTime.of(2009, Month.AUGUST, 7, 0, 10, 1, 0).atZone(ZoneIds.NEW_YORK).toEpochSecond()
-    );
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setTime(
-      LocalDateTime.of(2009, Month.AUGUST, 7, 0, 10, 0, 0).atZone(TIME_ZONE).toEpochSecond()
-    );
-    var tripUpdate = tripUpdateBuilder.build();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
-      timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
-      BackwardsDelayPropagationType.REQUIRED_NO_DATA
-    );
-    assertTrue(result.isFailure());
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addStopTimeWithArrivalAndDeparture(2, "00:10:01", "00:10:00")
+      .build();
 
-    result.ifFailure(e -> assertEquals(NEGATIVE_DWELL_TIME, e.errorType()));
+    assertFailure(NEGATIVE_DWELL_TIME, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
+    );
   }
 
   @Test
   public void update() {
-    // update trip
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
+    var timetable = TripTimesUpdaterTest.timetable;
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:00:00",
+      "00:00:00",
+      "00:10:00",
+      "00:10:00",
+      "00:20:00",
+      "00:20:00"
+    );
 
-    var tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(1);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    var stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setTime(
-      LocalDateTime.of(2009, Month.AUGUST, 7, 0, 2, 0, 0).atZone(ZoneIds.NEW_YORK).toEpochSecond()
-    );
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setTime(
-      LocalDateTime.of(2009, Month.AUGUST.getValue() - 1 + 1, 7, 0, 2, 0, 0)
-        .atZone(ZoneId.of("America/New_York"))
-        .toEpochSecond()
-    );
-    var tripUpdate = tripUpdateBuilder.build();
-    assertEquals(20 * 60, timetable.getTripTimes(tripId).getArrivalTime(2));
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    // update trip
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addStopTime(1, "00:02:00")
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
-
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
-      assertEquals(20 * 60 + 120, timetable.getTripTimes(tripId).getArrivalTime(2));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:02:00",
+      "00:02:00",
+      "00:12:00",
+      "00:12:00",
+      "00:22:00",
+      "00:22:00"
+    );
 
     // update trip arrival time incorrectly
-    tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(1);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(0);
-    tripUpdate = tripUpdateBuilder.build();
-    result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(1)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(0).build())
+          .build()
+      )
+      .build();
+
+    p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
-
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
-    });
+    updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:00:00",
+      "00:00:00",
+      "00:10:00",
+      "00:10:00",
+      "00:20:00",
+      "00:20:00"
+    );
 
     // update trip arrival time only
-    tripDescriptorBuilder = TripDescriptor.newBuilder();
-    tripDescriptorBuilder.setTripId(TRIP_ID);
-    tripDescriptorBuilder.setScheduleRelationship(SCHEDULED);
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(1);
-    tripUpdate = tripUpdateBuilder.build();
+    tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(2)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(1).build())
+          .build()
+      )
+      .build();
 
-    result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
-
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
-    });
+    updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:00:00",
+      "00:00:00",
+      "00:10:01",
+      "00:10:01",
+      "00:20:01",
+      "00:20:01"
+    );
 
     // update trip departure time only
-    tripDescriptorBuilder = tripDescriptorBuilder();
-    tripDescriptorBuilder.setTripId(TRIP_ID);
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setDelay(120);
-    tripUpdate = tripUpdateBuilder.build();
-    result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(2)
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(120).build())
+          .build()
+      )
+      .build();
+
+    p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
-
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
-    });
+    updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:00:00",
+      "00:00:00",
+      "00:10:00",
+      "00:12:00",
+      "00:22:00",
+      "00:22:00"
+    );
 
     // update trip using stop id
-    tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopId("B");
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setDelay(120);
-    tripUpdate = tripUpdateBuilder.build();
-    result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopId("B")
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(180).build())
+          .build()
+      )
+      .build();
+
+    p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
-
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
-    });
+    updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    timetable = timetable.copyOf().addOrUpdateTripTimes(updatedTripTimes).build();
+    assertTimetable(
+      timetable.getTripTimes(tripId),
+      "00:00:00",
+      "00:00:00",
+      "00:10:00",
+      "00:13:00",
+      "00:23:00",
+      "00:23:00"
+    );
   }
 
   @Test
   public void fixIncoherentTimes() {
     // update trip arrival time at first stop and make departure time incoherent at second stop
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    var tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    var stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(1);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    var stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(0);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(1);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setDelay(-1);
-    var tripUpdate = tripUpdateBuilder.build();
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(1)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(900).build())
+          .build()
+      )
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(2)
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(-1).build())
+          .build()
+      )
+      .build();
 
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    assertFailure(NEGATIVE_HOP_TIME, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
+    );
+  }
+
+  @Test
+  public void testUpdateWithNoForwardPropagationWhenItIsRequired() {
+    // update trip arrival time at first stop and make departure time incoherent at second stop
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(1)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
+
+    assertFailure(INVALID_ARRIVAL_TIME, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.NONE,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
+    );
+  }
+
+  @Test
+  public void testUpdateWithNoForwardPropagationWithCompleteData() {
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addDelayedStopTime(1, 15, 20)
+      .addDelayedStopTime(2, 25, 30)
+      .addDelayedStopTime(3, 35, 40)
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.NONE,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
-    assertTrue(result.isFailure());
+
+    var tripTimes = p.tripTimes();
+    assertEquals(15, tripTimes.getArrivalDelay(0));
+    assertEquals(20, tripTimes.getDepartureDelay(0));
+    assertEquals(25, tripTimes.getArrivalDelay(1));
+    assertEquals(30, tripTimes.getDepartureDelay(1));
+    assertEquals(35, tripTimes.getArrivalDelay(2));
+    assertEquals(40, tripTimes.getDepartureDelay(2));
   }
 
   @Test
   public void testUpdateWithNoData() {
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addNoDataStop(1)
+      .addSkippedStop(2)
+      .addNoDataStop(3)
+      .build();
 
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(1);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.NO_DATA);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(1);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SKIPPED);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(2);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.NO_DATA);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(result.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(RealTimeState.UPDATED, updatedTripTimes.getRealTimeState());
+    assertTrue(updatedTripTimes.isNoDataStop(0));
+    assertFalse(updatedTripTimes.isNoDataStop(1));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertFalse(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.isNoDataStop(2));
+    var updatedPickup = p.updatedPickup();
+    var updatedDropoff = p.updatedDropoff();
+    assertIterableEquals(Map.of(1, PickDrop.CANCELLED).entrySet(), updatedPickup.entrySet());
+    assertIterableEquals(Map.of(1, PickDrop.CANCELLED).entrySet(), updatedDropoff.entrySet());
+  }
 
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(RealTimeState.UPDATED, updatedTripTimes.getRealTimeState());
-      assertTrue(updatedTripTimes.isNoDataStop(0));
-      assertFalse(updatedTripTimes.isNoDataStop(1));
-      assertTrue(updatedTripTimes.isCancelledStop(1));
-      assertFalse(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.isNoDataStop(2));
-      var skippedStops = p.getSkippedStopIndices();
-      assertEquals(1, skippedStops.size());
-      assertEquals(1, skippedStops.get(0));
-    });
+  @Test
+  public void testUpdateWithUnchangedTripAndStopProperties() {
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE, "foo", null)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(1)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(0).build())
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(0).build())
+          .setStopTimeProperties(
+            StopTimeUpdate.StopTimeProperties.newBuilder()
+              .setStopHeadsign("foo")
+              .setAssignedStopId("A")
+              .build()
+          )
+          .build()
+      )
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(2)
+          .setStopTimeProperties(
+            StopTimeUpdate.StopTimeProperties.newBuilder()
+              .setDropOffType(StopTimeUpdate.StopTimeProperties.DropOffPickupType.REGULAR)
+              .setPickupType(StopTimeUpdate.StopTimeProperties.DropOffPickupType.REGULAR)
+              .build()
+          )
+          .build()
+      )
+      .addDelayedStopTime(3, 0)
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+      timetable,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
+      BackwardsDelayPropagationType.REQUIRED_NO_DATA
+    );
+
+    assertTrue(p.updatedDropoff().isEmpty(), "dropoffs are not modified");
+    assertTrue(p.updatedPickup().isEmpty(), "pickups are not modified");
+    assertTrue(p.replacedStopIndices().isEmpty(), "stop indices are not modified");
+    assertEquals("foo", p.tripTimes().getHeadsign(0).toString(), "headsigns [1] are not modified");
+    assertEquals("foo", p.tripTimes().getHeadsign(1).toString(), "headsigns [2] are not modified");
+    assertEquals("foo", p.tripTimes().getHeadsign(2).toString(), "headsigns [3] are not modified");
+  }
+
+  @Test
+  public void testUpdateWithTripAndStopProperties() {
+    var tripUpdate = new TripUpdateBuilder(
+      TRIP_ID,
+      SERVICE_DATE,
+      SCHEDULED,
+      TIME_ZONE,
+      "new trip headsign",
+      null
+    )
+      .addDelayedStopTime(1, 0, "new stop headsign")
+      .addSkippedStop(2)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(0).build())
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(0).build())
+          .setStopTimeProperties(
+            StopTimeUpdate.StopTimeProperties.newBuilder()
+              .setPickupType(StopTimeUpdate.StopTimeProperties.DropOffPickupType.NONE)
+              .setDropOffType(
+                StopTimeUpdate.StopTimeProperties.DropOffPickupType.COORDINATE_WITH_DRIVER
+              )
+              .build()
+          )
+          .build()
+      )
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+      timetable,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
+      BackwardsDelayPropagationType.REQUIRED_NO_DATA
+    );
+
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(RealTimeState.UPDATED, updatedTripTimes.getRealTimeState());
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertFalse(updatedTripTimes.isCancelledStop(2));
+    assertEquals(I18NString.of("new stop headsign"), updatedTripTimes.getHeadsign(0));
+    assertEquals(I18NString.of("new trip headsign"), updatedTripTimes.getHeadsign(1));
+    assertEquals(I18NString.of("new trip headsign"), updatedTripTimes.getHeadsign(2));
+    var updatedPickup = p.updatedPickup();
+    var updatedDropoff = p.updatedDropoff();
+    assertEquals(Map.of(1, PickDrop.CANCELLED, 2, PickDrop.NONE), updatedPickup);
+    assertEquals(Map.of(1, PickDrop.CANCELLED, 2, PickDrop.COORDINATE_WITH_DRIVER), updatedDropoff);
   }
 
   @Test
   public void testUpdateWithAlwaysDelayPropagationFromSecondStop() {
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addDelayedStopTime(2, 10, 10)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
 
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(10);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setDelay(10);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(1);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(15);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.ALWAYS
     );
 
-    assertTrue(result.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(10, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(10, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(10, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(10, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(15, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(15, updatedTripTimes.getDepartureDelay(2));
 
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(10, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(10, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(10, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(10, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(15, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(15, updatedTripTimes.getDepartureDelay(2));
-
-      // ALWAYS propagation type shouldn't set NO_DATA flags
-      assertFalse(updatedTripTimes.isNoDataStop(0));
-      assertFalse(updatedTripTimes.isNoDataStop(1));
-      assertFalse(updatedTripTimes.isNoDataStop(2));
-    });
+    // ALWAYS propagation type shouldn't set NO_DATA flags
+    assertFalse(updatedTripTimes.isNoDataStop(0));
+    assertFalse(updatedTripTimes.isNoDataStop(1));
+    assertFalse(updatedTripTimes.isNoDataStop(2));
   }
 
   @Test
   public void testUpdateWithAlwaysDelayPropagationFromThirdStop() {
-    TripDescriptor.Builder tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(15);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
 
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.ALWAYS
     );
 
-    assertTrue(result.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(15, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(15, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(15, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(15, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(15, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(15, updatedTripTimes.getDepartureDelay(2));
+  }
 
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(15, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(15, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(15, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(15, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(15, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(15, updatedTripTimes.getDepartureDelay(2));
-    });
+  @Test
+  public void testUpdateWithNoBackwardPropagationWhenItIsNotRequired() {
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(1)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+      timetable,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
+      BackwardsDelayPropagationType.NONE
+    );
+
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(15, updatedTripTimes.getArrivalDelay(0));
+    assertFalse(updatedTripTimes.isNoDataStop(0));
+  }
+
+  @Test
+  public void testUpdateWithNoBackwardPropagationWhenItIsRequired() {
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
+
+    assertFailure(INVALID_ARRIVAL_TIME, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.NONE
+      )
+    );
   }
 
   @Test
   public void testUpdateWithRequiredNoDataDelayPropagationWhenItsNotRequired() {
-    TripDescriptor.Builder tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(-100);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(-100).build())
+          .build()
+      )
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(0, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(0, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(-100, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(-100, updatedTripTimes.getDepartureDelay(2));
+    assertTrue(updatedTripTimes.getDepartureTime(1) < updatedTripTimes.getArrivalTime(2));
 
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(0, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(0, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(-100, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(-100, updatedTripTimes.getDepartureDelay(2));
-      assertTrue(updatedTripTimes.getDepartureTime(1) < updatedTripTimes.getArrivalTime(2));
-
-      // REQUIRED_NO_DATA propagation type should always set NO_DATA flags'
-      // on stops at the beginning with no estimates
-      assertTrue(updatedTripTimes.isNoDataStop(0));
-      assertTrue(updatedTripTimes.isNoDataStop(1));
-      assertFalse(updatedTripTimes.isNoDataStop(2));
-    });
+    // REQUIRED_NO_DATA propagation type should always set NO_DATA flags'
+    // on stops at the beginning with no estimates
+    assertTrue(updatedTripTimes.isNoDataStop(0));
+    assertTrue(updatedTripTimes.isNoDataStop(1));
+    assertFalse(updatedTripTimes.isNoDataStop(2));
   }
 
   @Test
   public void testUpdateWithRequiredNoDataDelayPropagationWhenItsRequired() {
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(-700);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(-700).build())
+          .build()
+      )
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(0, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(-100, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(-100, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(-700, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(-700, updatedTripTimes.getDepartureDelay(2));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
 
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(2));
-      assertTrue(updatedTripTimes.getDepartureTime(1) < updatedTripTimes.getArrivalTime(2));
-
-      // REQUIRED_NO_DATA propagation type should always set NO_DATA flags'
-      // on stops at the beginning with no estimates
-      assertTrue(updatedTripTimes.isNoDataStop(0));
-      assertTrue(updatedTripTimes.isNoDataStop(1));
-      assertFalse(updatedTripTimes.isNoDataStop(2));
-    });
+    // REQUIRED_NO_DATA propagation type should always set NO_DATA flags'
+    // on stops at the beginning with no estimates
+    assertTrue(updatedTripTimes.isNoDataStop(0));
+    assertTrue(updatedTripTimes.isNoDataStop(1));
+    assertFalse(updatedTripTimes.isNoDataStop(2));
   }
 
   @Test
   public void testUpdateWithRequiredNoDataDelayPropagationOnArrivalTime() {
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    TripUpdate.Builder tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(2);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getDepartureBuilder();
-    stopTimeEventBuilder.setDelay(-700);
-    stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(1);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(15);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(2)
+          .setDeparture(StopTimeEvent.newBuilder().setDelay(-700).build())
+          .build()
+      )
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(15).build())
+          .build()
+      )
+      .build();
+
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
-    // if arrival time is not defined but departure time is not and the arrival time is greater
-    // than to departure time on a stop, we should not try to fix it by default because the spec
-    // only allows you to drop all estimates for a stop when it's passed according to schedule
-    assertTrue(result.isFailure());
-
-    result.ifFailure(err -> {
-      assertEquals(err.errorType(), NEGATIVE_DWELL_TIME);
-    });
+    // the spec does not require you to supply both arrival and departure on a StopTimeUpdate
+    // it says:
+    // either arrival or departure must be provided within a StopTimeUpdate - both fields cannot be
+    // empty
+    // therefore the processing should succeed even if only one of them is given
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(15, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(15, updatedTripTimes.getDepartureDelay(2));
   }
 
   @Test
   public void testUpdateWithRequiredDelayPropagationWhenItsRequired() {
-    var tripDescriptorBuilder = tripDescriptorBuilder(TRIP_ID);
-    var tripUpdateBuilder = TripUpdate.newBuilder();
-    tripUpdateBuilder.setTrip(tripDescriptorBuilder);
-    StopTimeUpdate.Builder stopTimeUpdateBuilder = tripUpdateBuilder.addStopTimeUpdateBuilder(0);
-    stopTimeUpdateBuilder.setStopSequence(3);
-    stopTimeUpdateBuilder.setScheduleRelationship(StopTimeUpdate.ScheduleRelationship.SCHEDULED);
-    StopTimeEvent.Builder stopTimeEventBuilder = stopTimeUpdateBuilder.getArrivalBuilder();
-    stopTimeEventBuilder.setDelay(-700);
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    var tripUpdate = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE)
+      .addRawStopTime(
+        StopTimeUpdate.newBuilder()
+          .setStopSequence(3)
+          .setArrival(StopTimeEvent.newBuilder().setDelay(-700).build())
+          .build()
+      )
+      .build();
 
-    var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED
     );
 
-    assertTrue(result.isSuccess());
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(0, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(-100, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(-100, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(-700, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(-700, updatedTripTimes.getDepartureDelay(2));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
 
-    result.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(2));
-      assertTrue(updatedTripTimes.getDepartureTime(1) < updatedTripTimes.getArrivalTime(2));
-
-      // REQUIRED propagation type should never set NO_DATA flags'
-      // on stops at the beginning with no estimates
-      assertFalse(updatedTripTimes.isNoDataStop(0));
-      assertFalse(updatedTripTimes.isNoDataStop(1));
-      assertFalse(updatedTripTimes.isNoDataStop(2));
-    });
+    // REQUIRED propagation type should never set NO_DATA flags'
+    // on stops at the beginning with no estimates
+    assertFalse(updatedTripTimes.isNoDataStop(0));
+    assertFalse(updatedTripTimes.isNoDataStop(1));
+    assertFalse(updatedTripTimes.isNoDataStop(2));
   }
 
   /**
-   * Test TripUpdate with 1 stop cancellation and the regular stop times after the cancelled stop is
+   * Test GtfsRealtime.TripUpdate with 1 stop cancellation and the regular stop times after the cancelled stop is
    * earlier than the scheduled time at the cancelled stop.
    * Scheduled: 0, 600, 1200
    * Test case: 0, cancelled, 400
@@ -622,35 +754,30 @@ public class TripTimesUpdaterTest {
       .addSkippedStop(2)
       .addDelayedStopTime(3, -800, -800);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(0, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(-800, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(-800, updatedTripTimes.getDepartureDelay(2));
-      assertFalse(updatedTripTimes.isCancelledStop(0));
-      assertTrue(updatedTripTimes.isCancelledStop(1));
-      assertFalse(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(0, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(-800, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(-800, updatedTripTimes.getDepartureDelay(2));
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertFalse(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
   }
 
   /**
-   * Test TripUpdate with 1 stop cancellation and the regular stop times before the cancelled stop is
+   * Test GtfsRealtime.TripUpdate with 1 stop cancellation and the regular stop times before the cancelled stop is
    * later than the scheduled time at the cancelled stop.
    * Scheduled: 0, 600, 1200
    * Test case: 1000, cancelled, 1200
@@ -668,35 +795,30 @@ public class TripTimesUpdaterTest {
       .addSkippedStop(2)
       .addDelayedStopTime(3, 0, 0);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(1000, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(1000, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(0, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(2));
-      assertFalse(updatedTripTimes.isCancelledStop(0));
-      assertTrue(updatedTripTimes.isCancelledStop(1));
-      assertFalse(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(1000, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(1000, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(0, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(2));
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertFalse(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
   }
 
   /**
-   * Test TripUpdate with 1 stop cancellation and the regular stop times are non-increasing.
+   * Test GtfsRealtime.TripUpdate with 1 stop cancellation and the regular stop times are non-increasing.
    * Scheduled: 0, 600, 1200
    * Test case: 1000, cancelled, 800
    * Expect errors, since the stop times are not increasing.
@@ -713,25 +835,20 @@ public class TripTimesUpdaterTest {
       .addSkippedStop(2)
       .addDelayedStopTime(3, -400, -400);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
-      timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
-      BackwardsDelayPropagationType.REQUIRED_NO_DATA
+    assertFailure(NEGATIVE_HOP_TIME, () ->
+      TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+        timetable,
+        new TripUpdate(feedId, tripUpdate, NOW),
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      )
     );
-
-    assertTrue(patch.isFailure());
-
-    patch.ifFailure(p -> {
-      assertEquals(UpdateError.UpdateErrorType.NEGATIVE_HOP_TIME, p.errorType());
-    });
   }
 
   /**
-   * Test TripUpdate with 1 stop cancellation at the beginning of the route and running early.
+   * Test GtfsRealtime.TripUpdate with 1 stop cancellation at the beginning of the route and running early.
    * Scheduled: 0, 600, 1200
    * Test case: cancelled, -100, 1200
    * Expect no errors and the stop times are increasing.
@@ -748,35 +865,30 @@ public class TripTimesUpdaterTest {
       .addDelayedStopTime(2, -700, -700)
       .addDelayedStopTime(3, 0, 0);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(-700, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(-700, updatedTripTimes.getDepartureDelay(1));
-      assertEquals(0, updatedTripTimes.getArrivalDelay(2));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(2));
-      assertTrue(updatedTripTimes.isCancelledStop(0));
-      assertFalse(updatedTripTimes.isCancelledStop(1));
-      assertFalse(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(-700, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(-700, updatedTripTimes.getDepartureDelay(1));
+    assertEquals(0, updatedTripTimes.getArrivalDelay(2));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(2));
+    assertTrue(updatedTripTimes.isCancelledStop(0));
+    assertFalse(updatedTripTimes.isCancelledStop(1));
+    assertFalse(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
   }
 
   /**
-   * Test TripUpdate with 1 stop cancellation at the end of the route and running late.
+   * Test GtfsRealtime.TripUpdate with 1 stop cancellation at the end of the route and running late.
    * Scheduled: 0, 600, 1200
    * Test case: 0, 1300, cancelled
    * Expect no errors and the stop times are increasing.
@@ -793,35 +905,30 @@ public class TripTimesUpdaterTest {
       .addDelayedStopTime(2, 700, 700)
       .addSkippedStop(3);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       timetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(0, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(0, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(700, updatedTripTimes.getArrivalDelay(1));
-      assertEquals(700, updatedTripTimes.getDepartureDelay(1));
-      assertFalse(updatedTripTimes.isCancelledStop(0));
-      assertFalse(updatedTripTimes.isCancelledStop(1));
-      assertTrue(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(0, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(0, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(700, updatedTripTimes.getArrivalDelay(1));
+    assertEquals(700, updatedTripTimes.getDepartureDelay(1));
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertFalse(updatedTripTimes.isCancelledStop(1));
+    assertTrue(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
   }
 
   /**
-   * Test TripUpdate with multiple stop cancelled together.
+   * Test GtfsRealtime.TripUpdate with multiple stop cancelled together.
    * Scheduled: 0, 0, 600, 1200, 1800, 2400, 3000, 3600
    * Test case: 600, cancelled, cancelled, cancelled, cancelled, cancelled, cancelled, 2400
    * Expect no errors and the stop times are increasing.
@@ -843,48 +950,43 @@ public class TripTimesUpdaterTest {
       .addSkippedStop(7)
       .addDelayedStopTime(8, -1200, -1200);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
     var scheduledTimetable = patternIndex
       .get(new FeedScopedId(feedId, TRIP_ID_WITH_MORE_STOPS))
       .getScheduledTimetable();
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       scheduledTimetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(600, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(600, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(-1200, updatedTripTimes.getArrivalDelay(7));
-      assertEquals(-1200, updatedTripTimes.getDepartureDelay(7));
-      assertFalse(updatedTripTimes.isCancelledStop(0));
-      assertTrue(updatedTripTimes.isCancelledStop(1));
-      assertTrue(updatedTripTimes.isCancelledStop(2));
-      assertTrue(updatedTripTimes.isCancelledStop(3));
-      assertTrue(updatedTripTimes.isCancelledStop(4));
-      assertTrue(updatedTripTimes.isCancelledStop(5));
-      assertTrue(updatedTripTimes.isCancelledStop(6));
-      assertFalse(updatedTripTimes.isCancelledStop(7));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-      assertTrue(updatedTripTimes.getDepartureTime(2) <= updatedTripTimes.getArrivalTime(3));
-      assertTrue(updatedTripTimes.getDepartureTime(3) <= updatedTripTimes.getArrivalTime(4));
-      assertTrue(updatedTripTimes.getDepartureTime(4) <= updatedTripTimes.getArrivalTime(5));
-      assertTrue(updatedTripTimes.getDepartureTime(5) <= updatedTripTimes.getArrivalTime(6));
-      assertTrue(updatedTripTimes.getDepartureTime(6) <= updatedTripTimes.getArrivalTime(7));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(600, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(600, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(-1200, updatedTripTimes.getArrivalDelay(7));
+    assertEquals(-1200, updatedTripTimes.getDepartureDelay(7));
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertTrue(updatedTripTimes.isCancelledStop(2));
+    assertTrue(updatedTripTimes.isCancelledStop(3));
+    assertTrue(updatedTripTimes.isCancelledStop(4));
+    assertTrue(updatedTripTimes.isCancelledStop(5));
+    assertTrue(updatedTripTimes.isCancelledStop(6));
+    assertFalse(updatedTripTimes.isCancelledStop(7));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
+    assertTrue(updatedTripTimes.getDepartureTime(2) <= updatedTripTimes.getArrivalTime(3));
+    assertTrue(updatedTripTimes.getDepartureTime(3) <= updatedTripTimes.getArrivalTime(4));
+    assertTrue(updatedTripTimes.getDepartureTime(4) <= updatedTripTimes.getArrivalTime(5));
+    assertTrue(updatedTripTimes.getDepartureTime(5) <= updatedTripTimes.getArrivalTime(6));
+    assertTrue(updatedTripTimes.getDepartureTime(6) <= updatedTripTimes.getArrivalTime(7));
   }
 
   /**
-   * Test TripUpdate with multiple separate stop cancellations.
+   * Test GtfsRealtime.TripUpdate with multiple separate stop cancellations.
    * Scheduled: 0, 0, 600, 1200, 1800, 2400, 3000, 3600
    * Test case: 600, cancelled, cancelled, 700, 2300, cancelled, cancelled, 2400
    * Expect no errors and the stop times are increasing.
@@ -906,49 +1008,44 @@ public class TripTimesUpdaterTest {
       .addSkippedStop(7)
       .addDelayedStopTime(8, -1200, -1200);
 
-    TripUpdate tripUpdate = tripUpdateBuilder.build();
+    GtfsRealtime.TripUpdate tripUpdate = tripUpdateBuilder.build();
 
     var scheduledTimetable = patternIndex
       .get(new FeedScopedId(feedId, TRIP_ID_WITH_MORE_STOPS))
       .getScheduledTimetable();
 
-    var patch = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
+    var p = TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
       scheduledTimetable,
-      tripUpdate,
-      TIME_ZONE,
-      SERVICE_DATE,
+      new TripUpdate(feedId, tripUpdate, NOW),
+      ForwardsDelayPropagationType.DEFAULT,
       BackwardsDelayPropagationType.REQUIRED_NO_DATA
     );
 
-    assertTrue(patch.isSuccess());
-
-    patch.ifSuccess(p -> {
-      var updatedTripTimes = p.getTripTimes();
-      assertNotNull(updatedTripTimes);
-      assertEquals(600, updatedTripTimes.getArrivalDelay(0));
-      assertEquals(600, updatedTripTimes.getDepartureDelay(0));
-      assertEquals(-500, updatedTripTimes.getArrivalDelay(3));
-      assertEquals(-500, updatedTripTimes.getDepartureDelay(3));
-      assertEquals(500, updatedTripTimes.getArrivalDelay(4));
-      assertEquals(500, updatedTripTimes.getDepartureDelay(4));
-      assertEquals(-1200, updatedTripTimes.getArrivalDelay(7));
-      assertEquals(-1200, updatedTripTimes.getDepartureDelay(7));
-      assertFalse(updatedTripTimes.isCancelledStop(0));
-      assertTrue(updatedTripTimes.isCancelledStop(1));
-      assertTrue(updatedTripTimes.isCancelledStop(2));
-      assertFalse(updatedTripTimes.isCancelledStop(3));
-      assertFalse(updatedTripTimes.isCancelledStop(4));
-      assertTrue(updatedTripTimes.isCancelledStop(5));
-      assertTrue(updatedTripTimes.isCancelledStop(6));
-      assertFalse(updatedTripTimes.isCancelledStop(7));
-      assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
-      assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
-      assertTrue(updatedTripTimes.getDepartureTime(2) <= updatedTripTimes.getArrivalTime(3));
-      assertTrue(updatedTripTimes.getDepartureTime(3) <= updatedTripTimes.getArrivalTime(4));
-      assertTrue(updatedTripTimes.getDepartureTime(4) <= updatedTripTimes.getArrivalTime(5));
-      assertTrue(updatedTripTimes.getDepartureTime(5) <= updatedTripTimes.getArrivalTime(6));
-      assertTrue(updatedTripTimes.getDepartureTime(6) <= updatedTripTimes.getArrivalTime(7));
-    });
+    var updatedTripTimes = p.tripTimes();
+    assertNotNull(updatedTripTimes);
+    assertEquals(600, updatedTripTimes.getArrivalDelay(0));
+    assertEquals(600, updatedTripTimes.getDepartureDelay(0));
+    assertEquals(-500, updatedTripTimes.getArrivalDelay(3));
+    assertEquals(-500, updatedTripTimes.getDepartureDelay(3));
+    assertEquals(500, updatedTripTimes.getArrivalDelay(4));
+    assertEquals(500, updatedTripTimes.getDepartureDelay(4));
+    assertEquals(-1200, updatedTripTimes.getArrivalDelay(7));
+    assertEquals(-1200, updatedTripTimes.getDepartureDelay(7));
+    assertFalse(updatedTripTimes.isCancelledStop(0));
+    assertTrue(updatedTripTimes.isCancelledStop(1));
+    assertTrue(updatedTripTimes.isCancelledStop(2));
+    assertFalse(updatedTripTimes.isCancelledStop(3));
+    assertFalse(updatedTripTimes.isCancelledStop(4));
+    assertTrue(updatedTripTimes.isCancelledStop(5));
+    assertTrue(updatedTripTimes.isCancelledStop(6));
+    assertFalse(updatedTripTimes.isCancelledStop(7));
+    assertTrue(updatedTripTimes.getDepartureTime(0) <= updatedTripTimes.getArrivalTime(1));
+    assertTrue(updatedTripTimes.getDepartureTime(1) <= updatedTripTimes.getArrivalTime(2));
+    assertTrue(updatedTripTimes.getDepartureTime(2) <= updatedTripTimes.getArrivalTime(3));
+    assertTrue(updatedTripTimes.getDepartureTime(3) <= updatedTripTimes.getArrivalTime(4));
+    assertTrue(updatedTripTimes.getDepartureTime(4) <= updatedTripTimes.getArrivalTime(5));
+    assertTrue(updatedTripTimes.getDepartureTime(5) <= updatedTripTimes.getArrivalTime(6));
+    assertTrue(updatedTripTimes.getDepartureTime(6) <= updatedTripTimes.getArrivalTime(7));
   }
 
   @Nested
@@ -966,27 +1063,21 @@ public class TripTimesUpdaterTest {
 
     private static void testInvalidStopTime(
       BiConsumer<StopTimeUpdate.Builder, StopTimeEvent> setEmptyEvent,
-      UpdateError.UpdateErrorType expectedError
+      UpdateErrorType expectedError
     ) {
       var builder = new TripUpdateBuilder(TRIP_ID, SERVICE_DATE, SCHEDULED, TIME_ZONE);
       builder.addRawStopTime(emptyStopTime(1, setEmptyEvent));
       builder.addRawStopTime(emptyStopTime(2, setEmptyEvent));
-      TripUpdate tripUpdate = builder.build();
+      GtfsRealtime.TripUpdate tripUpdate = builder.build();
 
-      var result = TripTimesUpdater.createUpdatedTripTimesFromGTFSRT(
-        timetable,
-        tripUpdate,
-        TIME_ZONE,
-        SERVICE_DATE,
-        BackwardsDelayPropagationType.REQUIRED_NO_DATA
+      assertFailure(expectedError, () ->
+        TRIP_TIMES_UPDATER.createUpdatedTripTimesFromGtfsRt(
+          timetable,
+          new TripUpdate(feedId, tripUpdate, NOW),
+          ForwardsDelayPropagationType.DEFAULT,
+          BackwardsDelayPropagationType.REQUIRED_NO_DATA
+        )
       );
-
-      assertTrue(result.isFailure());
-
-      result.ifFailure(p -> {
-        assertEquals(expectedError, p.errorType());
-        assertEquals(0, p.stopIndex());
-      });
     }
 
     private static StopTimeUpdate emptyStopTime(
@@ -1012,5 +1103,15 @@ public class TripTimesUpdaterTest {
     var tripDescriptorBuilder = tripDescriptorBuilder();
     tripDescriptorBuilder.setTripId(tripId);
     return tripDescriptorBuilder;
+  }
+
+  private void assertTimetable(TripTimes tripTimes, String... expectedTimes) {
+    var actualTimes = new String[tripTimes.getNumStops() * 2];
+    for (int i = 0; i < tripTimes.getNumStops(); i++) {
+      actualTimes[i * 2] = TimeUtils.timeToStrLong(tripTimes.getArrivalTime(i));
+      actualTimes[i * 2 + 1] = TimeUtils.timeToStrLong(tripTimes.getDepartureTime(i));
+    }
+
+    assertEquals(String.join(" ", expectedTimes), String.join(" ", actualTimes));
   }
 }

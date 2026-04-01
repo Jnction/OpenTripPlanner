@@ -2,18 +2,19 @@ package org.opentripplanner.ext.flex.trip;
 
 import static org.opentripplanner.model.StopTime.MISSING_VALUE;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.flex.flexpathcalculator.FlexPathCalculator;
 import org.opentripplanner.ext.flex.flexpathcalculator.TimePenaltyCalculator;
 import org.opentripplanner.model.PickDrop;
 import org.opentripplanner.model.StopTime;
 import org.opentripplanner.routing.api.request.framework.TimePenalty;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.framework.TransitBuilder;
 import org.opentripplanner.transit.model.site.GroupStop;
 import org.opentripplanner.transit.model.site.StopLocation;
@@ -36,12 +37,11 @@ import org.opentripplanner.utils.time.DurationUtils;
  */
 public class UnscheduledTrip extends FlexTrip<UnscheduledTrip, UnscheduledTripBuilder> {
 
-  private static final Set<Integer> N_STOPS = Set.of(1, 2);
-
   private final StopTimeWindow[] stopTimes;
 
   private final BookingInfo[] dropOffBookingInfos;
   private final BookingInfo[] pickupBookingInfos;
+  private final long maxSpanDays;
 
   private final TimePenalty timePenalty;
 
@@ -63,6 +63,13 @@ public class UnscheduledTrip extends FlexTrip<UnscheduledTrip, UnscheduledTripBu
       this.pickupBookingInfos[i] = stopTimes.get(i).getPickupBookingInfo();
     }
     this.timePenalty = Objects.requireNonNull(builder.timePenalty());
+
+    var latestArrivalTime = Arrays.stream(this.stopTimes)
+      .mapToInt(StopTimeWindow::end)
+      .max()
+      .orElse(0);
+    this.maxSpanDays = Duration.ofSeconds(latestArrivalTime).toDays();
+
     DurationUtils.requireNonNegative(timePenalty.constant());
     DoubleUtils.requireInRange(timePenalty.coefficient(), 0.05d, Double.MAX_VALUE);
   }
@@ -79,11 +86,12 @@ public class UnscheduledTrip extends FlexTrip<UnscheduledTrip, UnscheduledTripBu
    *  - One or more stop times with a flexible time window but no fixed stop in between them
    */
   public static boolean isUnscheduledTrip(List<StopTime> stopTimes) {
-    if (stopTimes.isEmpty()) {
+    if (stopTimes.size() < 2) {
       return false;
     } else if (stopTimes.stream().anyMatch(StopTime::combinesContinuousStoppingWithFlexWindow)) {
       return false;
-    } else if (N_STOPS.contains(stopTimes.size())) {
+      // special case: one fixed stop and a flexible window
+    } else if (stopTimes.size() == 2) {
       return stopTimes.stream().anyMatch(StopTime::hasFlexWindow);
     } else {
       return stopTimes.stream().allMatch(StopTime::hasFlexWindow);
@@ -144,6 +152,11 @@ public class UnscheduledTrip extends FlexTrip<UnscheduledTrip, UnscheduledTripBu
   @Override
   public int latestArrivalTime(int stopIndex) {
     return stopTimes[stopIndex].end();
+  }
+
+  @Override
+  public long maxSpanDays() {
+    return maxSpanDays;
   }
 
   @Override

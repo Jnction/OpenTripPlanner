@@ -8,9 +8,10 @@ import graphql.execution.AbortExecutionException;
 import graphql.execution.instrumentation.ChainedInstrumentation;
 import graphql.execution.instrumentation.Instrumentation;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -30,13 +31,14 @@ class GtfsGraphQLIndex {
     int maxResolves,
     int timeoutMs,
     Locale locale,
-    GraphQLRequestContext requestContext
+    GraphQLRequestContext requestContext,
+    Iterable<Tag> tracingTags
   ) {
     Instrumentation instrumentation = new MaxQueryComplexityInstrumentation(maxResolves);
 
     if (OTPFeature.ActuatorAPI.isOn()) {
       instrumentation = new ChainedInstrumentation(
-        new MicrometerGraphQLInstrumentation(Metrics.globalRegistry, List.of()),
+        new MicrometerGraphQLInstrumentation(Metrics.globalRegistry, tracingTags),
         instrumentation
       );
     }
@@ -71,7 +73,8 @@ class GtfsGraphQLIndex {
     int maxResolves,
     int timeoutMs,
     Locale locale,
-    GraphQLRequestContext requestContext
+    GraphQLRequestContext requestContext,
+    Iterable<Tag> tracingTags
   ) {
     ExecutionResult executionResult = getGraphQLExecutionResult(
       query,
@@ -80,11 +83,13 @@ class GtfsGraphQLIndex {
       maxResolves,
       timeoutMs,
       locale,
-      requestContext
+      requestContext,
+      tracingTags
     );
 
     return Response.status(Response.Status.OK)
-      .entity(GraphQLResponseSerializer.serialize(executionResult))
+      .entity(GraphQLResponseSerializer.serializeAsStream(executionResult))
+      .type(MediaType.APPLICATION_JSON_TYPE)
       .build();
   }
 }

@@ -4,10 +4,9 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.opentripplanner.routing.api.request.StreetMode.NOT_SET;
-import static org.opentripplanner.routing.api.request.StreetMode.WALK;
 import static org.opentripplanner.standalone.configure.ConstructApplication.createRaptorTransitData;
-import static org.opentripplanner.updater.trip.gtfs.BackwardsDelayPropagationType.REQUIRED_NO_DATA;
+import static org.opentripplanner.street.model.StreetMode.NOT_SET;
+import static org.opentripplanner.street.model.StreetMode.WALK;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -23,27 +22,30 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.opentripplanner.api.common.LocationStringParser;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.core.model.time.LocalDateInterval;
+import org.opentripplanner.ext.fares.service.gtfs.v1.DefaultFareService;
 import org.opentripplanner.gtfs.graphbuilder.GtfsBundle;
+import org.opentripplanner.gtfs.graphbuilder.GtfsBundleTestFactory;
 import org.opentripplanner.gtfs.graphbuilder.GtfsModule;
-import org.opentripplanner.model.TimetableSnapshot;
-import org.opentripplanner.model.calendar.ServiceDateInterval;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.mappers.RealTimeRaptorTransitDataUpdater;
 import org.opentripplanner.routing.api.request.RequestModes;
-import org.opentripplanner.routing.api.request.RequestModesBuilder;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.request.filter.SelectRequest;
 import org.opentripplanner.routing.api.request.request.filter.TransitFilterRequest;
 import org.opentripplanner.routing.api.response.RoutingResponse;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.impl.TransitAlertServiceImpl;
 import org.opentripplanner.standalone.api.OtpServerRequestContext;
 import org.opentripplanner.standalone.config.RouterConfig;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.transfer.regular.TransferRepository;
+import org.opentripplanner.transfer.regular.TransferServiceTestFactory;
 import org.opentripplanner.transit.model.basic.MainAndSubMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
 import org.opentripplanner.transit.model.framework.Deduplicator;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.transit.model.timetable.TimetableSnapshot;
 import org.opentripplanner.transit.service.SiteRepository;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.updater.DefaultRealTimeUpdateContext;
@@ -52,6 +54,8 @@ import org.opentripplanner.updater.TimetableSnapshotParameters;
 import org.opentripplanner.updater.alert.gtfs.AlertsUpdateHandler;
 import org.opentripplanner.updater.trip.TimetableSnapshotManager;
 import org.opentripplanner.updater.trip.UpdateIncrementality;
+import org.opentripplanner.updater.trip.gtfs.BackwardsDelayPropagationType;
+import org.opentripplanner.updater.trip.gtfs.ForwardsDelayPropagationType;
 import org.opentripplanner.updater.trip.gtfs.GtfsRealTimeTripUpdateAdapter;
 
 /** Common base class for many test classes which need to load a GTFS feed in preparation for tests. */
@@ -87,53 +91,53 @@ public abstract class GtfsTest {
     }
 
     // Init request
-    RouteRequest routingRequest = new RouteRequest();
+    var builder = RouteRequest.of()
+      .withNumItineraries(1)
+      .withArriveBy(dateTime < 0)
+      .withDateTime(Instant.ofEpochSecond(Math.abs(dateTime)));
 
-    routingRequest.setNumItineraries(1);
-
-    routingRequest.setArriveBy(dateTime < 0);
-    routingRequest.setDateTime(Instant.ofEpochSecond(Math.abs(dateTime)));
     if (fromVertex != null && !fromVertex.isEmpty()) {
-      routingRequest.setFrom(
-        LocationStringParser.getGenericLocation(null, FEED_ID + ":" + fromVertex)
-      );
+      builder.withFrom(LocationStringParser.getGenericLocation(null, FEED_ID + ":" + fromVertex));
     }
     if (toVertex != null && !toVertex.isEmpty()) {
-      routingRequest.setTo(LocationStringParser.getGenericLocation(null, FEED_ID + ":" + toVertex));
+      builder.withTo(LocationStringParser.getGenericLocation(null, FEED_ID + ":" + toVertex));
     }
     if (onTripId != null && !onTripId.isEmpty()) {
       // TODO VIA - set different on-board request
       //routingRequest.startingTransitTripId = (new FeedScopedId(FEED_ID, onTripId));
     }
-    routingRequest.setWheelchair(wheelchairAccessible);
+    builder.withJourney(journeyBuilder -> {
+      journeyBuilder.withWheelchair(wheelchairAccessible);
 
-    RequestModesBuilder requestModesBuilder = RequestModes.of()
-      .withDirectMode(NOT_SET)
-      .withAccessMode(WALK)
-      .withTransferMode(WALK)
-      .withEgressMode(WALK);
-    routingRequest.journey().setModes(requestModesBuilder.build());
+      var requestModesBuilder = RequestModes.of()
+        .withDirectMode(NOT_SET)
+        .withAccessMode(WALK)
+        .withTransferMode(WALK)
+        .withEgressMode(WALK);
 
-    var filterRequestBuilder = TransitFilterRequest.of();
-    if (preferredMode != null) {
-      filterRequestBuilder.addSelect(
-        SelectRequest.of().addTransportMode(new MainAndSubMode(preferredMode, null)).build()
-      );
-    } else {
-      filterRequestBuilder.addSelect(
-        SelectRequest.of().withTransportModes(MainAndSubMode.all()).build()
-      );
-    }
+      journeyBuilder.withModes(requestModesBuilder.build());
 
-    if (excludedRoute != null && !excludedRoute.isEmpty()) {
-      List<FeedScopedId> routeIds = List.of(new FeedScopedId(FEED_ID, excludedRoute));
-      filterRequestBuilder.addNot(SelectRequest.of().withRoutes(routeIds).build());
-    }
+      var filterRequestBuilder = TransitFilterRequest.of();
+      if (preferredMode != null) {
+        filterRequestBuilder.addSelect(
+          SelectRequest.of().addTransportMode(new MainAndSubMode(preferredMode, null)).build()
+        );
+      } else {
+        filterRequestBuilder.addSelect(
+          SelectRequest.of().withTransportModes(MainAndSubMode.all()).build()
+        );
+      }
 
-    routingRequest.journey().transit().setFilters(List.of(filterRequestBuilder.build()));
+      if (excludedRoute != null && !excludedRoute.isEmpty()) {
+        List<FeedScopedId> routeIds = List.of(new FeedScopedId(FEED_ID, excludedRoute));
+        filterRequestBuilder.addNot(SelectRequest.of().withRoutes(routeIds).build());
+      }
+
+      journeyBuilder.withTransit(b -> b.withFilters(List.of(filterRequestBuilder.build())));
+    });
 
     // Init preferences
-    routingRequest.withPreferences(preferences -> {
+    builder.withPreferences(preferences -> {
       preferences.withTransfer(tx -> {
         tx.withSlack(Duration.ZERO);
         tx.withWaitReluctance(1);
@@ -145,11 +149,11 @@ public abstract class GtfsTest {
       // since this makes interlining _worse_ than alighting and re-boarding the same line.
       // TODO rethink whether it makes sense to weight waiting to board _less_ than 1.
       preferences.withWalk(w -> w.withBoardCost(30));
-      preferences.withTransit(tr -> tr.setOtherThanPreferredRoutesPenalty(0));
+      preferences.withTransit(tr -> tr.withOtherThanPreferredRoutesPenalty(0));
     });
 
     // Route
-    RoutingResponse res = serverContext.routingService().route(routingRequest);
+    RoutingResponse res = serverContext.routingService().route(builder.buildRequest());
 
     // Assert itineraries
     List<Itinerary> itineraries = res.getTripPlan().itineraries;
@@ -169,22 +173,22 @@ public abstract class GtfsTest {
     String fromStopId,
     String alert
   ) {
-    assertEquals(startTime, leg.getStartTime().toInstant().toEpochMilli());
-    assertEquals(endTime, leg.getEndTime().toInstant().toEpochMilli());
-    assertEquals(toStopId, leg.getTo().stop.getId().getId());
-    assertEquals(FEED_ID, leg.getTo().stop.getId().getFeedId());
+    assertEquals(startTime, leg.startTime().toInstant().toEpochMilli());
+    assertEquals(endTime, leg.endTime().toInstant().toEpochMilli());
+    assertEquals(toStopId, leg.to().stop.getId().getId());
+    assertEquals(FEED_ID, leg.to().stop.getId().getFeedId());
     if (fromStopId != null) {
-      assertEquals(FEED_ID, leg.getFrom().stop.getId().getFeedId());
-      assertEquals(fromStopId, leg.getFrom().stop.getId().getId());
+      assertEquals(FEED_ID, leg.from().stop.getId().getFeedId());
+      assertEquals(fromStopId, leg.from().stop.getId().getId());
     } else {
-      assertNull(leg.getFrom().stop.getId());
+      assertNull(leg.from().stop.getId());
     }
     if (alert != null) {
-      assertNotNull(leg.getStreetNotes());
-      assertEquals(1, leg.getStreetNotes().size());
-      assertEquals(alert, leg.getStreetNotes().iterator().next().note.toString());
+      assertNotNull(leg.listStreetNotes());
+      assertEquals(1, leg.listStreetNotes().size());
+      assertEquals(alert, leg.listStreetNotes().iterator().next().note.toString());
     } else {
-      assertThat(leg.getStreetNotes()).isEmpty();
+      assertThat(leg.listStreetNotes()).isEmpty();
     }
   }
 
@@ -193,32 +197,36 @@ public abstract class GtfsTest {
     File gtfs = new File("src/test/resources/" + getFeedName());
     File gtfsRealTime = new File("src/test/resources/" + getFeedName() + ".pb");
 
-    GtfsBundle gtfsBundle = GtfsBundle.forTest(gtfs, FEED_ID);
+    GtfsBundle gtfsBundle = GtfsBundleTestFactory.forTest(gtfs, FEED_ID);
     List<GtfsBundle> gtfsBundleList = List.of(gtfsBundle);
 
     alertsUpdateHandler = new AlertsUpdateHandler(false);
-    var deduplicator = new Deduplicator();
-    graph = new Graph(deduplicator);
-    timetableRepository = new TimetableRepository(new SiteRepository(), deduplicator);
+    graph = new Graph();
+    timetableRepository = new TimetableRepository(new SiteRepository());
     timetableRepository.setUpdaterManager(
       new GraphUpdaterManager(
         new DefaultRealTimeUpdateContext(new Graph(), timetableRepository, new TimetableSnapshot()),
         List.of()
       )
     );
+    TransferRepository transferRepository = TransferServiceTestFactory.defaultTransferRepository();
 
     GtfsModule gtfsGraphBuilderImpl = GtfsModule.forTest(
       gtfsBundleList,
       timetableRepository,
       graph,
-      ServiceDateInterval.unbounded()
+      LocalDateInterval.unbounded()
     );
 
     gtfsGraphBuilderImpl.buildGraph();
     timetableRepository.index();
-    graph.index(timetableRepository.getSiteRepository());
+    graph.index();
 
-    createRaptorTransitData(timetableRepository, RouterConfig.DEFAULT.transitTuningConfig());
+    createRaptorTransitData(
+      timetableRepository,
+      transferRepository,
+      RouterConfig.DEFAULT.transitTuningConfig()
+    );
 
     var snapshotManager = new TimetableSnapshotManager(
       new RealTimeRaptorTransitDataUpdater(timetableRepository),
@@ -227,6 +235,7 @@ public abstract class GtfsTest {
     );
     tripUpdateAdapter = new GtfsRealTimeTripUpdateAdapter(
       timetableRepository,
+      new Deduplicator(),
       snapshotManager,
       LocalDate::now
     );
@@ -244,7 +253,8 @@ public abstract class GtfsTest {
       }
       tripUpdateAdapter.applyTripUpdates(
         null,
-        REQUIRED_NO_DATA,
+        ForwardsDelayPropagationType.DEFAULT,
+        BackwardsDelayPropagationType.REQUIRED_NO_DATA,
         UpdateIncrementality.DIFFERENTIAL,
         updates,
         FEED_ID
@@ -254,6 +264,8 @@ public abstract class GtfsTest {
     serverContext = TestServerContext.createServerContext(
       graph,
       timetableRepository,
+      transferRepository,
+      new DefaultFareService(),
       snapshotManager,
       null
     );

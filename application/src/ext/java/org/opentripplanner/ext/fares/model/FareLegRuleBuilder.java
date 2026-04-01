@@ -1,21 +1,29 @@
 package org.opentripplanner.ext.fares.model;
 
 import java.util.Collection;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.fare.FareProduct;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 /**
  * Builder for {@link FareLegRule}.
  */
 public class FareLegRuleBuilder {
 
-  private final FeedScopedId id;
-  private final Collection<FareProduct> fareProducts;
-  private FeedScopedId legGroupId;
-  private String networkId;
-  private String fromAreaId;
-  private FareDistance fareDistance = null;
-  private String toAreaId;
+  final FeedScopedId id;
+  final Collection<FareProduct> fareProducts;
+  FeedScopedId legGroupId;
+  FeedScopedId networkId;
+  FeedScopedId fromAreaId;
+  FeedScopedId toAreaId;
+  FareDistance fareDistance = null;
+
+  @Nullable
+  Integer priority;
+
+  Collection<Timeframe> fromTimeframes = List.of();
+  Collection<Timeframe> toTimeframes = List.of();
 
   public FareLegRuleBuilder(FeedScopedId id, Collection<FareProduct> products) {
     this.id = id;
@@ -27,12 +35,12 @@ public class FareLegRuleBuilder {
     return this;
   }
 
-  public FareLegRuleBuilder withNetworkId(String networkId) {
+  public FareLegRuleBuilder withNetworkId(FeedScopedId networkId) {
     this.networkId = networkId;
     return this;
   }
 
-  public FareLegRuleBuilder withFromAreaId(String fromAreaId) {
+  public FareLegRuleBuilder withFromAreaId(FeedScopedId fromAreaId) {
     this.fromAreaId = fromAreaId;
     return this;
   }
@@ -42,20 +50,27 @@ public class FareLegRuleBuilder {
     return this;
   }
 
-  public FareLegRuleBuilder withToAreaId(String toAreaId) {
+  public FareLegRuleBuilder withToAreaId(FeedScopedId toAreaId) {
     this.toAreaId = toAreaId;
     return this;
   }
 
+  public FareLegRuleBuilder withPriority(Integer priority) {
+    this.priority = priority;
+    return this;
+  }
+
+  public FareLegRuleBuilder withFromTimeframes(Collection<Timeframe> timeFrames) {
+    this.fromTimeframes = timeFrames;
+    return this;
+  }
+
+  public FareLegRuleBuilder withToTimeframes(Collection<Timeframe> timeFrames) {
+    this.toTimeframes = timeFrames;
+    return this;
+  }
+
   public FareLegRule build() {
-    return new FareLegRule(
-      id,
-      legGroupId,
-      networkId,
-      fromAreaId,
-      toAreaId,
-      fareDistance,
-      fareProducts
-    );
+    return new FareLegRule(this);
   }
 }

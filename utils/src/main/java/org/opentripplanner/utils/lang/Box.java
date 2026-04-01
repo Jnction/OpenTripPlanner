@@ -1,6 +1,7 @@
 package org.opentripplanner.utils.lang;
 
 import java.util.Objects;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -37,14 +38,22 @@ public class Box<T> {
     this.value = value;
   }
 
+  public void modify(@Nullable Function<T, T> body) {
+    this.value = body.apply(value);
+  }
+
   public boolean isEmpty() {
     return value == null;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Box<?> box = (Box<?>) o;
     return Objects.equals(value, box.value);
   }

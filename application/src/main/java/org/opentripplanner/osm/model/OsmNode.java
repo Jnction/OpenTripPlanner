@@ -1,12 +1,12 @@
 package org.opentripplanner.osm.model;
 
-import java.util.Set;
+import static org.opentripplanner.street.model.StreetTraversalPermission.ALL;
+import static org.opentripplanner.street.model.StreetTraversalPermission.NONE;
+
+import java.util.OptionalDouble;
 import org.locationtech.jts.geom.Coordinate;
-import org.opentripplanner.street.model.StreetTraversalPermission;
 
 public class OsmNode extends OsmEntity {
-
-  static final Set<String> MOTOR_VEHICLE_BARRIERS = Set.of("bollard", "bar", "chain");
 
   public double lat;
   public double lon;
@@ -26,17 +26,6 @@ public class OsmNode extends OsmEntity {
     return new Coordinate(this.lon, this.lat);
   }
 
-  /**
-   * Is this a multi-level node that should be decomposed to multiple coincident nodes? Currently
-   * returns true only for elevators.
-   *
-   * @return whether the node is multi-level
-   * @author mattwigway
-   */
-  public boolean isMultiLevel() {
-    return isElevator();
-  }
-
   public boolean hasHighwayTrafficLight() {
     return hasTag("highway") && "traffic_signals".equals(getTag("highway"));
   }
@@ -46,28 +35,12 @@ public class OsmNode extends OsmEntity {
   }
 
   /**
-   * Checks if this node is a barrier which prevents motor vehicle traffic.
-   *
-   * @return true if it is
-   */
-  public boolean isMotorVehicleBarrier() {
-    return isOneOfTags("barrier", MOTOR_VEHICLE_BARRIERS);
-  }
-
-  /**
    * Checks if this node blocks traversal in any way
    *
    * @return true if it does
    */
   public boolean isBarrier() {
-    return (
-      isMotorVehicleBarrier() ||
-      isPedestrianExplicitlyDenied() ||
-      isBicycleExplicitlyDenied() ||
-      isMotorcarExplicitlyDenied() ||
-      isMotorVehicleExplicitlyDenied() ||
-      isGeneralAccessDenied()
-    );
+    return overridePermissions(ALL) != ALL;
   }
 
   /**
@@ -79,20 +52,45 @@ public class OsmNode extends OsmEntity {
     return hasTag("railway") && "subway_entrance".equals(getTag("railway"));
   }
 
-  /**
-   * Consider barrier tag in  permissions. Leave the rest for the super class.
-   */
-  @Override
-  public StreetTraversalPermission overridePermissions(StreetTraversalPermission def) {
-    StreetTraversalPermission permission = def;
-    if (isMotorVehicleBarrier()) {
-      permission = permission.remove(StreetTraversalPermission.CAR);
+  /** checks for units (m/ft) in an OSM ele tag value, and returns the value in meters */
+  public OptionalDouble parseEleTag() {
+    var ele = getTag("ele");
+    if (ele == null) {
+      return OptionalDouble.empty();
     }
-    return super.overridePermissions(permission);
+    ele = ele.toLowerCase();
+    double unit = 1;
+    if (ele.endsWith("m")) {
+      ele = ele.replaceFirst("\\s*m", "");
+    } else if (ele.endsWith("ft")) {
+      ele = ele.replaceFirst("\\s*ft", "");
+      unit = 0.3048;
+    }
+    try {
+      return OptionalDouble.of(Double.parseDouble(ele) * unit);
+    } catch (NumberFormatException e) {
+      return OptionalDouble.empty();
+    }
   }
 
   @Override
   public String url() {
     return String.format("https://www.openstreetmap.org/node/%d", getId());
+  }
+
+  /**
+   * Check if this node represents a tagged barrier crossing if placed on an intersection
+   * of a highway and a barrier way.
+   *
+   * @return true if it has a barrier tag, or if it explicitly overrides permissions.
+   */
+  public boolean isTaggedBarrierCrossing() {
+    return (
+      hasTag("barrier") ||
+      hasTag("access") ||
+      hasTag("entrance") ||
+      overridePermissions(ALL) != ALL ||
+      overridePermissions(NONE) != NONE
+    );
   }
 }

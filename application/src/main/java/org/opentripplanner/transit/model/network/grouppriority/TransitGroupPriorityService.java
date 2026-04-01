@@ -7,9 +7,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.routing.api.request.framework.CostLinearFunction;
 import org.opentripplanner.routing.api.request.request.filter.TransitGroupSelect;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.utils.lang.ArrayUtils;
@@ -151,7 +151,7 @@ public class TransitGroupPriorityService {
   }
 
   /**
-   * This is the group-id assigned to all transit trips/patterns witch does not match a
+   * This is the group-id assigned to all transit trips/patterns which does not match a
    * specific group.
    */
   public int baseGroupId() {

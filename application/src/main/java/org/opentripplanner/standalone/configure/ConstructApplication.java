@@ -2,9 +2,11 @@ package org.opentripplanner.standalone.configure;
 
 import jakarta.ws.rs.core.Application;
 import javax.annotation.Nullable;
-import org.opentripplanner.apis.transmodel.TransmodelAPI;
+import org.opentripplanner.core.framework.deduplicator.DeduplicatorService;
 import org.opentripplanner.datastore.api.DataSource;
-import org.opentripplanner.ext.emissions.EmissionsRepository;
+import org.opentripplanner.ext.carpooling.CarpoolingRepository;
+import org.opentripplanner.ext.emission.EmissionRepository;
+import org.opentripplanner.ext.empiricaldelay.EmpiricalDelayRepository;
 import org.opentripplanner.ext.stopconsolidation.StopConsolidationRepository;
 import org.opentripplanner.framework.application.LogMDCSupport;
 import org.opentripplanner.framework.application.OTPFeature;
@@ -16,9 +18,11 @@ import org.opentripplanner.routing.algorithm.raptoradapter.transit.RaptorTransit
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TransitTuningParameters;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripSchedule;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.mappers.RaptorTransitDataMapper;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.fares.FareServiceFactory;
+import org.opentripplanner.routing.util.EllipsoidUtils;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildRepository;
 import org.opentripplanner.service.realtimevehicles.RealtimeVehicleRepository;
+import org.opentripplanner.service.streetdetails.StreetDetailsRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.VehicleParkingService;
 import org.opentripplanner.service.vehiclerental.VehicleRentalRepository;
@@ -32,8 +36,10 @@ import org.opentripplanner.standalone.config.OtpConfig;
 import org.opentripplanner.standalone.config.RouterConfig;
 import org.opentripplanner.standalone.server.GrizzlyServer;
 import org.opentripplanner.standalone.server.OTPWebApplication;
-import org.opentripplanner.street.model.StreetLimitationParameters;
-import org.opentripplanner.street.model.elevation.ElevationUtils;
+import org.opentripplanner.street.StreetRepository;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.linking.VertexLinker;
+import org.opentripplanner.transfer.regular.TransferRepository;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.updater.configure.UpdaterConfigurator;
 import org.opentripplanner.updater.trip.TimetableSnapshotManager;
@@ -78,15 +84,19 @@ public class ConstructApplication {
     CommandLineParameters cli,
     Graph graph,
     OsmInfoGraphBuildRepository osmInfoGraphBuildRepository,
+    StreetDetailsRepository streetDetailsRepository,
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
     WorldEnvelopeRepository worldEnvelopeRepository,
     ConfigModel config,
     GraphBuilderDataSources graphBuilderDataSources,
     DataImportIssueSummary issueSummary,
-    EmissionsRepository emissionsRepository,
+    EmissionRepository emissionRepository,
+    @Nullable EmpiricalDelayRepository empiricalDelayRepository,
     VehicleParkingRepository vehicleParkingRepository,
     @Nullable StopConsolidationRepository stopConsolidationRepository,
-    StreetLimitationParameters streetLimitationParameters
+    StreetRepository streetRepository,
+    FareServiceFactory fareServiceFactory
   ) {
     this.cli = cli;
     this.graphBuilderDataSources = graphBuilderDataSources;
@@ -96,18 +106,23 @@ public class ConstructApplication {
     // use Dagger DI to do it - passing in a parameter to enable it or not.
     var graphVisualizer = cli.visualize ? new GraphVisualizer(graph) : null;
 
-    this.factory = DaggerConstructApplicationFactory.builder()
+    ConstructApplicationFactory.Builder builder = DaggerConstructApplicationFactory.builder();
+    this.factory = builder
       .configModel(config)
       .graph(graph)
+      .streetDetailsRepository(streetDetailsRepository)
       .timetableRepository(timetableRepository)
+      .transferRepository(transferRepository)
       .graphVisualizer(graphVisualizer)
       .worldEnvelopeRepository(worldEnvelopeRepository)
       .vehicleParkingRepository(vehicleParkingRepository)
-      .emissionsDataModel(emissionsRepository)
+      .emissionRepository(emissionRepository)
+      .empiricalDelayRepository(empiricalDelayRepository)
       .dataImportIssueSummary(issueSummary)
       .stopConsolidationRepository(stopConsolidationRepository)
-      .streetLimitationParameters(streetLimitationParameters)
+      .streetStreetRepository(streetRepository)
       .schema(config.routerConfig().routingRequestDefaults())
+      .fareServiceFactory(fareServiceFactory)
       .build();
   }
 
@@ -137,12 +152,16 @@ public class ConstructApplication {
       graphBuilderDataSources,
       graph(),
       osmInfoGraphBuildRepository,
+      factory.streetDetailsRepository(),
+      fareServiceFactory(),
+      factory.streetRepository(),
       factory.timetableRepository(),
+      factory.transferRepository(),
       factory.worldEnvelopeRepository(),
       factory.vehicleParkingRepository(),
-      factory.emissionsDataModel(),
+      factory.emissionRepository(),
+      factory.empiricalDelayRepository(),
       factory.stopConsolidationRepository(),
-      factory.streetLimitationParameters(),
       cli.doLoadStreetGraph(),
       cli.doSaveStreetGraph()
     );
@@ -159,6 +178,10 @@ public class ConstructApplication {
     return graphBuilderDataSources.getOutputGraph();
   }
 
+  public GraphBuilderDataSources graphBuilderDataSources() {
+    return graphBuilderDataSources;
+  }
+
   private Application createApplication() {
     LOG.info("Wiring up and configuring server.");
     setupTransitRoutingServer();
@@ -169,15 +192,22 @@ public class ConstructApplication {
     enableRequestTraceLogging();
     createMetricsLogging();
 
-    createRaptorTransitData(timetableRepository(), routerConfig().transitTuningConfig());
+    createRaptorTransitData(
+      timetableRepository(),
+      transferRepository(),
+      routerConfig().transitTuningConfig()
+    );
 
     /* Create updater modules from JSON config. */
     UpdaterConfigurator.configure(
       graph(),
+      deduplicatorService(),
+      vertexLinker(),
       realtimeVehicleRepository(),
       vehicleRentalRepository(),
       vehicleParkingRepository(),
       timetableRepository(),
+      carpoolingRepository(),
       snapshotManager(),
       routerConfig().updaterConfig()
     );
@@ -185,16 +215,6 @@ public class ConstructApplication {
     initEllipsoidToGeoidDifference();
 
     initializeTransferCache(routerConfig().transitTuningConfig(), timetableRepository());
-
-    if (OTPFeature.TransmodelGraphQlApi.isOn()) {
-      TransmodelAPI.setUp(
-        routerConfig().transmodelApi(),
-        timetableRepository(),
-        routerConfig().routingRequestDefaults(),
-        routerConfig().server().apiDocumentationProfile(),
-        routerConfig().transitTuningConfig()
-      );
-    }
 
     if (OTPFeature.SandboxAPIGeocoder.isOn()) {
       LOG.info("Initializing geocoder");
@@ -206,7 +226,7 @@ public class ConstructApplication {
   private void initEllipsoidToGeoidDifference() {
     try {
       var c = factory.worldEnvelopeService().envelope().orElseThrow().center();
-      double value = ElevationUtils.computeEllipsoidToGeoidDifference(c.latitude(), c.longitude());
+      double value = EllipsoidUtils.computeEllipsoidToGeoidDifference(c.latitude(), c.longitude());
       graph().initEllipsoidToGeoidDifference(value, c.latitude(), c.longitude());
     } catch (Exception e) {
       LOG.error("Error computing ellipsoid/geoid difference");
@@ -218,6 +238,7 @@ public class ConstructApplication {
    */
   public static void createRaptorTransitData(
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
     TransitTuningParameters tuningParameters
   ) {
     if (!timetableRepository.hasTransit() || !timetableRepository.isIndexed()) {
@@ -227,7 +248,7 @@ public class ConstructApplication {
     }
     LOG.info("Creating transit layer for Raptor routing.");
     timetableRepository.setRaptorTransitData(
-      RaptorTransitDataMapper.map(tuningParameters, timetableRepository)
+      RaptorTransitDataMapper.map(tuningParameters, timetableRepository, transferRepository)
     );
     timetableRepository.setRealtimeRaptorTransitData(
       new RaptorTransitData(timetableRepository.getRaptorTransitData())
@@ -263,6 +284,14 @@ public class ConstructApplication {
     return factory.timetableRepository();
   }
 
+  public TransferRepository transferRepository() {
+    return factory.transferRepository();
+  }
+
+  public CarpoolingRepository carpoolingRepository() {
+    return factory.carpoolingRepository();
+  }
+
   public DataImportIssueSummary dataImportIssueSummary() {
     return factory.dataImportIssueSummary();
   }
@@ -273,6 +302,10 @@ public class ConstructApplication {
 
   public StopConsolidationRepository stopConsolidationRepository() {
     return factory.stopConsolidationRepository();
+  }
+
+  public StreetRepository streetRepository() {
+    return factory.streetRepository();
   }
 
   public RealtimeVehicleRepository realtimeVehicleRepository() {
@@ -297,6 +330,14 @@ public class ConstructApplication {
 
   public Graph graph() {
     return factory.graph();
+  }
+
+  public VertexLinker vertexLinker() {
+    return factory.vertexLinker();
+  }
+
+  public DeduplicatorService deduplicatorService() {
+    return factory.deduplicatorService();
   }
 
   public WorldEnvelopeRepository worldEnvelopeRepository() {
@@ -341,11 +382,20 @@ public class ConstructApplication {
     factory.metricsLogging();
   }
 
-  public EmissionsRepository emissionsDataModel() {
-    return factory.emissionsDataModel();
+  public EmissionRepository emissionRepository() {
+    return factory.emissionRepository();
   }
 
-  public StreetLimitationParameters streetLimitationParameters() {
-    return factory.streetLimitationParameters();
+  public StreetDetailsRepository streetDetailsRepository() {
+    return factory.streetDetailsRepository();
+  }
+
+  @Nullable
+  public EmpiricalDelayRepository empiricalDelayRepository() {
+    return factory.empiricalDelayRepository();
+  }
+
+  public FareServiceFactory fareServiceFactory() {
+    return factory.fareServiceFactory();
   }
 }

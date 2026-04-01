@@ -6,15 +6,15 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.GtfsTest;
-import org.opentripplanner.framework.model.Cost;
+import org.opentripplanner.core.model.basic.Cost;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
-import org.opentripplanner.model.plan.ScheduledTransitLeg;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
 import org.opentripplanner.model.plan.legreference.ScheduledTransitLegReference;
 import org.opentripplanner.routing.alternativelegs.AlternativeLegs;
 import org.opentripplanner.routing.alternativelegs.AlternativeLegsFilter;
 import org.opentripplanner.routing.alternativelegs.NavigationDirection;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.service.DefaultTransitService;
 
 /**

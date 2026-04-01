@@ -6,19 +6,26 @@ import io.micrometer.core.instrument.Metrics;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
-import org.opentripplanner.ext.emissions.internal.DefaultEmissionsRepository;
-import org.opentripplanner.ext.emissions.internal.DefaultEmissionsService;
-import org.opentripplanner.ext.emissions.itinerary.DecorateWithEmission;
+import org.opentripplanner.ext.emission.internal.DefaultEmissionRepository;
+import org.opentripplanner.ext.emission.internal.DefaultEmissionService;
+import org.opentripplanner.ext.emission.internal.itinerary.EmissionItineraryDecorator;
 import org.opentripplanner.raptor.configure.RaptorConfig;
 import org.opentripplanner.routing.algorithm.filterchain.framework.spi.ItineraryDecorator;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripSchedule;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.fares.FareService;
+import org.opentripplanner.routing.linking.LinkingContextFactory;
+import org.opentripplanner.routing.linking.VertexLinkerTestFactory;
+import org.opentripplanner.routing.linking.internal.VertexCreationService;
 import org.opentripplanner.routing.via.ViaCoordinateTransferFactory;
 import org.opentripplanner.routing.via.service.DefaultViaCoordinateTransferFactory;
 import org.opentripplanner.service.realtimevehicles.RealtimeVehicleService;
 import org.opentripplanner.service.realtimevehicles.internal.DefaultRealtimeVehicleService;
+import org.opentripplanner.service.streetdetails.StreetDetailsService;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsRepository;
+import org.opentripplanner.service.streetdetails.internal.DefaultStreetDetailsService;
 import org.opentripplanner.service.vehicleparking.VehicleParkingService;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
 import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingService;
@@ -33,9 +40,13 @@ import org.opentripplanner.standalone.config.DebugUiConfig;
 import org.opentripplanner.standalone.config.RouterConfig;
 import org.opentripplanner.standalone.config.routerconfig.RaptorEnvironmentFactory;
 import org.opentripplanner.standalone.server.DefaultServerRequestContext;
-import org.opentripplanner.street.model.StreetLimitationParameters;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.internal.DefaultStreetRepository;
+import org.opentripplanner.street.linking.VertexLinker;
 import org.opentripplanner.street.service.DefaultStreetLimitationParametersService;
 import org.opentripplanner.street.service.StreetLimitationParametersService;
+import org.opentripplanner.transfer.regular.TransferRepository;
+import org.opentripplanner.transfer.regular.TransferServiceTestFactory;
 import org.opentripplanner.transit.service.DefaultTransitService;
 import org.opentripplanner.transit.service.TimetableRepository;
 import org.opentripplanner.transit.service.TransitService;
@@ -46,18 +57,29 @@ public class TestServerContext {
 
   private TestServerContext() {}
 
-  /** Create a context for unit testing using default RoutingRequest.*/
+  /** Create a context for unit testing using default RoutingRequest. */
   public static OtpServerRequestContext createServerContext(
     Graph graph,
-    TimetableRepository timetableRepository
+    TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
+    FareService fareService
   ) {
-    return createServerContext(graph, timetableRepository, null, null);
+    return createServerContext(
+      graph,
+      timetableRepository,
+      transferRepository,
+      fareService,
+      null,
+      null
+    );
   }
 
   /** Create a context for unit testing */
   public static OtpServerRequestContext createServerContext(
     Graph graph,
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
+    FareService fareService,
     @Nullable TimetableSnapshotManager snapshotManager,
     @Nullable RouteRequest request
   ) {
@@ -75,7 +97,11 @@ public class TestServerContext {
     }
 
     timetableRepository.index();
-    createRaptorTransitData(timetableRepository, routerConfig.transitTuningConfig());
+    createRaptorTransitData(
+      timetableRepository,
+      transferRepository,
+      routerConfig.transitTuningConfig()
+    );
 
     snapshotManager.purgeAndCommit();
 
@@ -89,30 +115,49 @@ public class TestServerContext {
       RaptorEnvironmentFactory.create(routerConfig.transitTuningConfig().searchThreadPoolSize())
     );
 
+    var vertexLinker = createVertexLinker(graph);
+
     return new DefaultServerRequestContext(
       DebugUiConfig.DEFAULT,
+      fareService,
       routerConfig.flexParameters(),
       graph,
+      createLinkingContextFactory(graph, vertexLinker, transitService),
       Metrics.globalRegistry,
+      routerConfig.ojpApiParameters(),
       raptorConfig,
       createRealtimeVehicleService(transitService),
       List.of(),
       request,
       createStreetLimitationParametersService(),
+      TransferServiceTestFactory.transferService(transferRepository),
       routerConfig.transitTuningConfig(),
       transitService,
+      routerConfig.triasApiParameters(),
+      routerConfig.gtfsApiParameters(),
       routerConfig.vectorTileConfig(),
       createVehicleParkingService(),
       createVehicleRentalService(),
+      vertexLinker,
       createViaTransferResolver(graph, transitService),
       createWorldEnvelopeService(),
+      null,
+      null,
       createEmissionsItineraryDecorator(),
+      createStreetDetailsService(),
+      null,
+      null,
+      null,
       null,
       null,
       null,
       null,
       null
     );
+  }
+
+  private static VertexLinker createVertexLinker(Graph graph) {
+    return VertexLinkerTestFactory.of(graph);
   }
 
   /** Static factory method to create a service for test purposes. */
@@ -139,11 +184,17 @@ public class TestServerContext {
   }
 
   public static ItineraryDecorator createEmissionsItineraryDecorator() {
-    return new DecorateWithEmission(new DefaultEmissionsService(new DefaultEmissionsRepository()));
+    return new EmissionItineraryDecorator(
+      new DefaultEmissionService(new DefaultEmissionRepository())
+    );
+  }
+
+  public static StreetDetailsService createStreetDetailsService() {
+    return new DefaultStreetDetailsService(new DefaultStreetDetailsRepository());
   }
 
   public static StreetLimitationParametersService createStreetLimitationParametersService() {
-    return new DefaultStreetLimitationParametersService(new StreetLimitationParameters());
+    return new DefaultStreetLimitationParametersService(new DefaultStreetRepository());
   }
 
   public static ViaCoordinateTransferFactory createViaTransferResolver(
@@ -151,5 +202,21 @@ public class TestServerContext {
     TransitService transitService
   ) {
     return new DefaultViaCoordinateTransferFactory(graph, transitService, Duration.ofMinutes(30));
+  }
+
+  public static LinkingContextFactory createLinkingContextFactory(
+    Graph graph,
+    VertexLinker vertexLinker,
+    TransitService transitService
+  ) {
+    return new LinkingContextFactory(
+      graph,
+      new VertexCreationService(vertexLinker),
+      transitService::findStopOrChildIds,
+      id -> {
+        var group = transitService.getStopLocationsGroup(id);
+        return Optional.ofNullable(group).map(locationsGroup -> locationsGroup.getCoordinate());
+      }
+    );
   }
 }

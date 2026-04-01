@@ -5,13 +5,13 @@ import static org.opentripplanner.updater.vehicle_parking.VehicleParkingUpdaterP
 
 import java.net.URI;
 import java.time.Duration;
-import org.opentripplanner.updater.spi.HttpHeaders;
+import org.opentripplanner.framework.io.HttpHeaders;
 import org.opentripplanner.updater.vehicle_parking.VehicleParkingSourceType;
 import org.opentripplanner.updater.vehicle_parking.VehicleParkingUpdaterParameters;
 
 /**
  * Class that extends {@link VehicleParkingUpdaterParameters} with parameters required by {@link
- * SiriFmDatasource}.
+ * SiriFmDataSource}.
  */
 public record SiriFmUpdaterParameters(
   String configRef,
@@ -19,8 +19,7 @@ public record SiriFmUpdaterParameters(
   String feedId,
   Duration frequency,
   HttpHeaders httpHeaders
-)
-  implements VehicleParkingUpdaterParameters {
+) implements VehicleParkingUpdaterParameters {
   @Override
   public VehicleParkingSourceType sourceType() {
     return SIRI_FM;

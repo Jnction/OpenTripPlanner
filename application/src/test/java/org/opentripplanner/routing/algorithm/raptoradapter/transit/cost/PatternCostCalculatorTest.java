@@ -15,7 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.opentripplanner.framework.model.Cost;
+import org.opentripplanner.core.model.basic.Cost;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.raptor.api.model.RaptorTransferConstraint;
 import org.opentripplanner.raptor.spi.RaptorCostCalculator;
 import org.opentripplanner.raptorlegacy._data.transit.TestTransitData;
@@ -26,7 +27,6 @@ import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.framework.CostLinearFunction;
 import org.opentripplanner.test.support.TestTableParser;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.RouteBuilder;
 import org.opentripplanner.transit.model.organization.Agency;
 
@@ -56,13 +56,17 @@ public class PatternCostCalculatorTest {
   @DisplayName("cost mapper should create penalty map")
   public void testMcCostParameterMapping() {
     var unpreferredCostFunctionOtpDomain = CostLinearFunction.of("5m + 1.1 t");
-    RouteRequest routingRequest = new RouteRequest();
-
-    routingRequest.journey().transit().setUnpreferredRoutes(List.of(UNPREFERRED_ROUTE_ID));
-    routingRequest.journey().transit().setUnpreferredAgencies(List.of(UNPREFERRED_AGENCY_ID));
-    routingRequest.withPreferences(p ->
-      p.withTransit(tr -> tr.setUnpreferredCost(unpreferredCostFunctionOtpDomain))
-    );
+    RouteRequest routingRequest = RouteRequest.of()
+      .withJourney(jb ->
+        jb.withTransit(b -> {
+          b.withUnpreferredRoutes(List.of(UNPREFERRED_ROUTE_ID));
+          b.withUnpreferredAgencies(List.of(UNPREFERRED_AGENCY_ID));
+        })
+      )
+      .withPreferences(p ->
+        p.withTransit(tr -> tr.withUnpreferredCost(unpreferredCostFunctionOtpDomain))
+      )
+      .buildDefault();
 
     var data = new TestTransitData();
     final TestTripPattern defaultPattern = pattern(false, false);
@@ -79,7 +83,9 @@ public class PatternCostCalculatorTest {
 
     GeneralizedCostParameters costParams = GeneralizedCostParametersMapper.map(
       routingRequest,
-      data.getPatterns()
+      data.getPatterns(),
+      p -> p.route().getId(),
+      p -> p.route().getAgency().getId()
     );
     var unpreferredPatterns = costParams.unpreferredPatterns();
 
@@ -169,7 +175,9 @@ public class PatternCostCalculatorTest {
     RaptorCostCalculator<TestTripSchedule> createCostCalculator(TestTripSchedule schedule) {
       GeneralizedCostParameters costParams = GeneralizedCostParametersMapper.map(
         createRouteRequest(),
-        List.of(schedule.pattern())
+        List.of(schedule.pattern()),
+        p -> p.route().getId(),
+        p -> p.route().getAgency().getId()
       );
       return CostCalculatorFactory.createCostCalculator(costParams, null);
     }
@@ -187,27 +195,29 @@ public class PatternCostCalculatorTest {
     }
 
     RouteRequest createRouteRequest() {
-      var request = new RouteRequest();
-
-      request.withPreferences(preferences -> {
-        preferences.withTransit(transit ->
-          transit.setUnpreferredCost(
-            CostLinearFunction.of(UNPREFERRED_ROUTE_PENALTY, UNPREFERRED_ROUTE_RELUCTANCE)
-          )
-        );
-        preferences.withWalk(w -> w.withBoardCost(BOARD_COST_SEC));
-        preferences.withTransfer(tx -> {
-          tx.withCost(TRANSFER_COST_SEC).withWaitReluctance(WAIT_RELUCTANCE_FACTOR);
-        });
-      });
-
-      if (unPreferredAgency) {
-        request.journey().transit().setUnpreferredAgencies(List.of(UNPREFERRED_AGENCY_ID));
-      }
-      if (unPreferredRoute) {
-        request.journey().transit().setUnpreferredRoutes(List.of(UNPREFERRED_ROUTE_ID));
-      }
-      return request;
+      return RouteRequest.of()
+        .withPreferences(preferences -> {
+          preferences.withTransit(transit ->
+            transit.withUnpreferredCost(
+              CostLinearFunction.of(UNPREFERRED_ROUTE_PENALTY, UNPREFERRED_ROUTE_RELUCTANCE)
+            )
+          );
+          preferences.withWalk(w -> w.withBoardCost(BOARD_COST_SEC));
+          preferences.withTransfer(tx -> {
+            tx.withCost(TRANSFER_COST_SEC).withWaitReluctance(WAIT_RELUCTANCE_FACTOR);
+          });
+        })
+        .withJourney(jb ->
+          jb.withTransit(b -> {
+            if (unPreferredAgency) {
+              b.withUnpreferredAgencies(List.of(UNPREFERRED_AGENCY_ID));
+            }
+            if (unPreferredRoute) {
+              b.withUnpreferredRoutes(List.of(UNPREFERRED_ROUTE_ID));
+            }
+          })
+        )
+        .buildDefault();
     }
   }
 

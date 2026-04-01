@@ -11,13 +11,12 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
-import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.routing.graph.index.StreetIndex;
+import org.opentripplanner.street.geometry.GeometryUtils;
+import org.opentripplanner.street.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.street.graph.Graph;
 import org.opentripplanner.street.model.vertex.OsmVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
-import org.opentripplanner.transit.model.basic.TransitMode;
 
 class Subgraph {
 
@@ -88,14 +87,14 @@ class Subgraph {
   // For speed reasons, graph geometry only within given search radius is considered.
   // Distance is estimated using minimal vertex to vertex search instead of computing
   // distances between graph edges. This is good enough for our heuristics.
-  double distanceFromOtherGraph(StreetIndex index, double searchRadius) {
+  double distanceFromOtherGraph(Graph graph, double searchRadius) {
     Vertex v = getRepresentativeVertex();
     double xscale = Math.cos((v.getCoordinate().y * Math.PI) / 180);
     double searchRadiusDegrees = SphericalDistanceLibrary.metersToDegrees(searchRadius);
 
     Envelope envelope = new Envelope();
 
-    for (Iterator<Vertex> vIter = streetIterator(); vIter.hasNext();) {
+    for (Iterator<Vertex> vIter = streetIterator(); vIter.hasNext(); ) {
       Vertex vx = vIter.next();
       envelope.expandToInclude(vx.getCoordinate());
     }
@@ -104,8 +103,8 @@ class Subgraph {
     }
     envelope.expandBy(searchRadiusDegrees / xscale, searchRadiusDegrees);
 
-    return index
-      .getVerticesForEnvelope(envelope)
+    return graph
+      .findVertices(envelope)
       .stream()
       .filter(vx -> !contains(vx))
       .map(vx -> vertexDistanceFromSubgraph(vx, searchRadius))
@@ -136,9 +135,7 @@ class Subgraph {
    */
   boolean hasOnlyFerryStops() {
     for (TransitStopVertex v : stopsVertexSet) {
-      Set<TransitMode> modes = v.getModes();
-      // test if stop has other transit modes than FERRY
-      if (!modes.contains(TransitMode.FERRY)) {
+      if (!v.isFerryStop()) {
         return false;
       }
     }

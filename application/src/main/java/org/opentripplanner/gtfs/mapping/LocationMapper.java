@@ -1,33 +1,34 @@
 package org.opentripplanner.gtfs.mapping;
 
-import static org.opentripplanner.gtfs.mapping.AgencyAndIdMapper.mapAgencyAndId;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.onebusaway.gtfs.model.Location;
-import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.geometry.UnsupportedGeometryException;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
 import org.opentripplanner.graph_builder.issue.api.Issue;
+import org.opentripplanner.street.geometry.GeometryUtils;
+import org.opentripplanner.street.geometry.UnsupportedGeometryException;
 import org.opentripplanner.transit.model.site.AreaStop;
 import org.opentripplanner.transit.service.SiteRepositoryBuilder;
 import org.opentripplanner.utils.collection.MapUtils;
 
 /** Responsible for mapping GTFS Location into the OTP model. */
-public class LocationMapper {
+class LocationMapper {
 
+  private final IdFactory idFactory;
   private final Map<Location, AreaStop> mappedLocations = new HashMap<>();
   private final SiteRepositoryBuilder siteRepositoryBuilder;
   private final DataImportIssueStore issueStore;
 
   public LocationMapper(
+    IdFactory idFactory,
     SiteRepositoryBuilder siteRepositoryBuilder,
     DataImportIssueStore issueStore
   ) {
+    this.idFactory = idFactory;
     this.siteRepositoryBuilder = siteRepositoryBuilder;
     this.issueStore = issueStore;
   }
@@ -44,7 +45,7 @@ public class LocationMapper {
   private AreaStop doMap(Location gtfsLocation) {
     var name = NonLocalizedString.ofNullable(gtfsLocation.getName());
     try {
-      var id = mapAgencyAndId(gtfsLocation.getId());
+      var id = idFactory.createId(gtfsLocation.getId(), "location");
       Geometry geometry = GeometryUtils.convertGeoJsonToJtsGeometry(gtfsLocation.getGeometry());
       var isValidOp = new IsValidOp(geometry);
       if (!isValidOp.isValid()) {

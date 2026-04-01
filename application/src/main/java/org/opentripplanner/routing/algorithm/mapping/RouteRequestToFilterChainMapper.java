@@ -13,9 +13,9 @@ import org.opentripplanner.routing.algorithm.filterchain.ItineraryListFilterChai
 import org.opentripplanner.routing.algorithm.filterchain.ItineraryListFilterChainBuilder;
 import org.opentripplanner.routing.algorithm.filterchain.api.GroupBySimilarity;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.preference.ItineraryFilterPreferences;
 import org.opentripplanner.standalone.api.OtpServerRequestContext;
+import org.opentripplanner.street.model.StreetMode;
 
 public class RouteRequestToFilterChainMapper {
 
@@ -43,6 +43,13 @@ public class RouteRequestToFilterChainMapper {
     // The page cursor has deduplication information only in certain cases.
     if (request.pageCursor() != null && request.pageCursor().containsItineraryPageCut()) {
       builder = builder.withPagingDeduplicationFilter(request.pageCursor().itineraryPageCut());
+    }
+
+    // The page cursor has generalizedCostMaxLimit information only when paging is used and
+    // when the RemoveTransitIfStreetOnlyIsBetter filter is enabled.
+    // The generalizedCostMaxLimit is the best street only cost found in the first search.
+    if (request.pageCursor() != null && request.pageCursor().containsGeneralizedCostMaxLimit()) {
+      builder = builder.withGeneralizedCostMaxLimit(request.pageCursor().generalizedCostMaxLimit());
     }
 
     ItineraryFilterPreferences params = request.preferences().itineraryFilter();
@@ -76,7 +83,7 @@ public class RouteRequestToFilterChainMapper {
       )
       .withSameFirstOrLastTripFilter(params.filterItinerariesWithSameFirstOrLastTrip())
       .withAccessibilityScore(
-        params.useAccessibilityScore() && request.wheelchair(),
+        params.useAccessibilityScore() && request.journey().wheelchair(),
         request.preferences().wheelchair().maxSlope()
       )
       .withMinBikeParkingDistance(minBikeParkingDistance(request))
@@ -98,19 +105,19 @@ public class RouteRequestToFilterChainMapper {
       builder.withTransitGroupPriority();
     }
 
-    var fareService = context.graph().getFareService();
+    var fareService = context.fareService();
     if (fareService != null) {
       builder.withFareDecorator(new DecorateWithFare(fareService));
     }
 
     if (!context.rideHailingServices().isEmpty()) {
       builder.withRideHailingDecoratingFilter(
-        new DecorateWithRideHailing(context.rideHailingServices(), request.wheelchair())
+        new DecorateWithRideHailing(context.rideHailingServices(), request.journey().wheelchair())
       );
     }
 
-    if (OTPFeature.Co2Emissions.isOn()) {
-      builder.withEmissions(context.emissionsItineraryDecorator());
+    if (OTPFeature.Emission.isOn()) {
+      builder.withEmissions(context.emissionItineraryDecorator());
     }
 
     if (

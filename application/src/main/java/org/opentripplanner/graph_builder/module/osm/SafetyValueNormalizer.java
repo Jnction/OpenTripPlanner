@@ -8,7 +8,7 @@ import org.opentripplanner.graph_builder.issues.Graphwide;
 import org.opentripplanner.osm.model.OsmEntity;
 import org.opentripplanner.osm.tagmapping.OsmTagMapper;
 import org.opentripplanner.osm.wayproperty.WayProperties;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.street.graph.Graph;
 import org.opentripplanner.street.model.edge.Area;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.street.model.edge.AreaGroup;
@@ -59,11 +59,13 @@ class SafetyValueNormalizer {
       for (Edge e : vertex.getOutgoing()) {
         if (e instanceof AreaEdge) {
           AreaGroup areaGroup = ((AreaEdge) e).getArea();
-          if (seenAreas.contains(areaGroup)) continue;
+          if (seenAreas.contains(areaGroup)) {
+            continue;
+          }
           seenAreas.add(areaGroup);
           for (Area area : areaGroup.getAreas()) {
-            area.setBicycleSafetyMultiplier(area.getBicycleSafetyMultiplier() / bestBikeSafety);
-            area.setWalkSafetyMultiplier(area.getWalkSafetyMultiplier() / bestWalkSafety);
+            area.setBicycleSafety((float) (area.getBicycleSafety() / bestBikeSafety));
+            area.setWalkSafety((float) (area.getWalkSafety() / bestWalkSafety));
           }
         }
         applyFactors(seenEdges, e);
@@ -77,7 +79,8 @@ class SafetyValueNormalizer {
   void applyWayProperties(
     @Nullable StreetEdge street,
     @Nullable StreetEdge backStreet,
-    WayProperties wayData,
+    WayProperties forwardWayData,
+    WayProperties backwardWayData,
     OsmEntity way
   ) {
     OsmTagMapper tagMapperForWay = way.getOsmProvider().getOsmTagMapper();
@@ -90,12 +93,12 @@ class SafetyValueNormalizer {
     boolean walkNoThrough = tagMapperForWay.isWalkThroughTrafficExplicitlyDisallowed(way);
 
     if (street != null) {
-      double bicycleSafety = wayData.bicycleSafety().forward();
+      double bicycleSafety = forwardWayData.bicycleSafety();
       street.setBicycleSafetyFactor((float) bicycleSafety);
       if (bicycleSafety < bestBikeSafety) {
         bestBikeSafety = (float) bicycleSafety;
       }
-      double walkSafety = wayData.walkSafety().forward();
+      double walkSafety = forwardWayData.walkSafety();
       street.setWalkSafetyFactor((float) walkSafety);
       if (walkSafety < bestWalkSafety) {
         bestWalkSafety = (float) walkSafety;
@@ -111,12 +114,12 @@ class SafetyValueNormalizer {
     }
 
     if (backStreet != null) {
-      double bicycleSafety = wayData.bicycleSafety().back();
+      double bicycleSafety = backwardWayData.bicycleSafety();
       if (bicycleSafety < bestBikeSafety) {
         bestBikeSafety = (float) bicycleSafety;
       }
       backStreet.setBicycleSafetyFactor((float) bicycleSafety);
-      double walkSafety = wayData.walkSafety().back();
+      double walkSafety = backwardWayData.walkSafety();
       if (walkSafety < bestWalkSafety) {
         bestWalkSafety = (float) walkSafety;
       }

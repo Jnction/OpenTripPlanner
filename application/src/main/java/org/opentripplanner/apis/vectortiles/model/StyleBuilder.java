@@ -186,6 +186,11 @@ public class StyleBuilder {
     return this;
   }
 
+  public StyleBuilder lineOpacity(float v) {
+    paint.put("line-opacity", v);
+    return this;
+  }
+
   /**
    * Generates the line color based off a numeric property in the feature.
    * <p>
@@ -342,7 +347,8 @@ public class StyleBuilder {
   }
 
   private void validate() {
-    Stream.of(TYPE).forEach(p -> Objects.requireNonNull(props.get(p), "%s must be set".formatted(p))
+    Stream.of(TYPE).forEach(p ->
+      Objects.requireNonNull(props.get(p), "%s must be set".formatted(p))
     );
   }
 

@@ -184,7 +184,7 @@ public final class TransitRoutingConfig implements RaptorTuningParameters, Trans
       .since(NA)
       .summary(
         "The provided array of durations is used to increase the search-window for the " +
-        "next/previous page."
+          "next/previous page."
       )
       .description(
         """
@@ -286,14 +286,14 @@ public final class TransitRoutingConfig implements RaptorTuningParameters, Trans
         .summary("The dynamic search window coefficients used to calculate the EDT, LAT and SW.")
         .description(
           """
-          The dynamic search window coefficients is used to calculate EDT(*earliest-departure-time*),
-          LAT(*latest-arrival-time*) and SW(*raptor-search-window*) request parameters using heuristics. The
+          The dynamic search window coefficients is used to calculate EDT (*earliest-departure-time*),
+          LAT (*latest-arrival-time*) and SW (*raptor-search-window*) request parameters using heuristics. The
           heuristics perform a Raptor search (one-iteration) to find a trip which we use to find a lower
           bound for the travel duration time - the "minTransitTime". The heuristic search is used for other
           purposes too, and is very fast.
 
           At least the EDT or the LAT must be passed into Raptor to perform a Range Raptor search. If
-          unknown/missing the parameters(EDT, LAT, DW) are dynamically calculated. The dynamic coefficients
+          unknown/missing the parameters (EDT, LAT, DW) are dynamically calculated. The dynamic coefficients
           affect the performance and should be tuned to match the deployment.
 
           The request parameters are calculated like this:
@@ -326,7 +326,7 @@ public final class TransitRoutingConfig implements RaptorTuningParameters, Trans
         .summary("The coefficient to multiply with `minTransitTime`.")
         .description(
           "Use a value between `0.0` and `3.0`. Using `0.0` will eliminate the `minTransitTime` " +
-          "from the dynamic raptor-search-window calculation."
+            "from the dynamic raptor-search-window calculation."
         )
         .asDouble(dsWinDft.minTransitTimeCoefficient());
       this.minWaitTimeCoefficient = dsWin
@@ -335,7 +335,7 @@ public final class TransitRoutingConfig implements RaptorTuningParameters, Trans
         .summary("The coefficient to multiply with `minWaitTime`.")
         .description(
           "Use a value between `0.0` and `1.0`. Using `0.0` will eliminate the `minWaitTime` " +
-          "from the dynamic raptor-search-window calculation."
+            "from the dynamic raptor-search-window calculation."
         )
         .asDouble(dsWinDft.minWaitTimeCoefficient());
       this.minWindow = dsWin

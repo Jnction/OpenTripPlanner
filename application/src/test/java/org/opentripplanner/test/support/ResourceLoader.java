@@ -12,7 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import org.opentripplanner.datastore.api.CompositeDataSource;
+import org.opentripplanner.datastore.api.DataSource;
 import org.opentripplanner.datastore.api.FileType;
+import org.opentripplanner.datastore.file.FileDataSource;
 import org.opentripplanner.datastore.file.FileDataSourceRepository;
 
 /**
@@ -52,6 +54,11 @@ public class ResourceLoader {
     return FileDataSourceRepository.compositeSource(file(relativePath), fileType);
   }
 
+  /** Return a file datasource with the given {@code filename}. */
+  public DataSource dataSource(String filename, FileType fileType) {
+    return new FileDataSource(file(filename), fileType);
+  }
+
   /**
    * Return a File instance for the given path.
    */
@@ -68,6 +75,24 @@ public class ResourceLoader {
   }
 
   /**
+   * Returns the string content of a file.
+   */
+  public String fileToString(String p) {
+    try {
+      return Files.readString(file(p).toPath());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Returns a File instance in the original main resources folder.
+   */
+  public File mainResourceFile(String path) {
+    return resourceFile("main", path);
+  }
+
+  /**
    * Returns a File instance in the original test resources folder.
    */
   public File testResourceFile(String path) {
@@ -79,17 +104,6 @@ public class ResourceLoader {
    */
   public File extTestResourceFile(String path) {
     return resourceFile("ext-test", path);
-  }
-
-  /**
-   * Returns the string content of a file.
-   */
-  public String fileToString(String p) {
-    try {
-      return Files.readString(file(p).toPath());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /**
@@ -150,12 +164,11 @@ public class ResourceLoader {
    * test).
    */
   private File resourceFile(String resourceDir, String path) {
-    var fullPath =
-      "src/%s/resources/%s/%s".formatted(
-          resourceDir,
-          clazz.getPackage().getName().replace(".", "/"),
-          path
-        );
+    var fullPath = "src/%s/resources/%s/%s".formatted(
+      resourceDir,
+      clazz.getPackage().getName().replace(".", "/"),
+      path
+    );
     File file = new File(fullPath);
     assertFileExists(file);
     return file;

@@ -12,10 +12,10 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripPatternForDate;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
 import org.opentripplanner.transit.model.framework.Deduplicator;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.model.timetable.TripTimesFactory;
 
@@ -25,7 +25,7 @@ public class TripPatternForDateMapperTest {
 
   private static final LocalDate SERVICE_DATE = LocalDate.of(2009, 8, 7);
   private static final int SERVICE_CODE = 555;
-  private static final Map<LocalDate, TIntSet> serviceCodesRunningForDate = Map.of(
+  private static final Map<LocalDate, TIntSet> SERVICE_CODES_RUNNING_FOR_DATE = Map.of(
     SERVICE_DATE,
     tintHashSet(SERVICE_CODE)
   );
@@ -39,8 +39,7 @@ public class TripPatternForDateMapperTest {
       trip,
       TEST_MODEL.stopTimesEvery5Minutes(5, trip, "11:00"),
       new Deduplicator()
-    );
-    tripTimes.setServiceCode(SERVICE_CODE);
+    ).withServiceCode(SERVICE_CODE);
     timetable = Timetable.of().withTripPattern(pattern).addTripTimes(tripTimes).build();
   }
 
@@ -50,7 +49,7 @@ public class TripPatternForDateMapperTest {
    */
   @Test
   void testTimetableWithNoServiceCodesRunningForDateShouldReturnNull() {
-    TripPatternForDateMapper mapper = new TripPatternForDateMapper(serviceCodesRunningForDate);
+    TripPatternForDateMapper mapper = new TripPatternForDateMapper(SERVICE_CODES_RUNNING_FOR_DATE);
 
     //Invalid service date
     LocalDate invalidDate = LocalDate.of(2999, 1, 1);
@@ -64,7 +63,7 @@ public class TripPatternForDateMapperTest {
    */
   @Test
   void testTimetableWithServiceCodesRunningForDateShouldReturnTripPatternForDate() {
-    TripPatternForDateMapper mapper = new TripPatternForDateMapper(serviceCodesRunningForDate);
+    TripPatternForDateMapper mapper = new TripPatternForDateMapper(SERVICE_CODES_RUNNING_FOR_DATE);
 
     TripPatternForDate mappedPattern = mapper.map(timetable, SERVICE_DATE);
 

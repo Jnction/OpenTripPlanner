@@ -7,7 +7,7 @@ import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLTypeReference;
 import java.util.List;
 import java.util.Objects;
-import org.opentripplanner.model.plan.ElevationProfile;
+import org.opentripplanner.model.plan.leg.ElevationProfile;
 
 public class ElevationProfileStepType {
 
@@ -19,7 +19,8 @@ public class ElevationProfileStepType {
     The %s's elevation profile. All elevation values, including the first one, are in meters
     above sea level. The elevation is negative for places below sea level. The profile
     includes both the start and end coordinate.
-    """.formatted(name).stripIndent();
+    """.formatted(name)
+      .stripIndent();
   }
 
   public static GraphQLObjectType create() {

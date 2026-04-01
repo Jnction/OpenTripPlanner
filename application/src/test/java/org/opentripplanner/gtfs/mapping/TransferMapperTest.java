@@ -16,21 +16,21 @@ import org.onebusaway.gtfs.model.Transfer;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
 import org.opentripplanner.model.TripStopTimes;
-import org.opentripplanner.model.transfer.ConstrainedTransfer;
-import org.opentripplanner.model.transfer.TransferPriority;
+import org.opentripplanner.transfer.constrained.model.ConstrainedTransfer;
+import org.opentripplanner.transfer.constrained.model.TransferPriority;
 import org.opentripplanner.transit.model.site.StopTransferPriority;
 import org.opentripplanner.transit.service.SiteRepository;
 import org.opentripplanner.transit.service.SiteRepositoryBuilder;
 
 public class TransferMapperTest {
 
-  private static final GtfsTestData testData = new GtfsTestData();
+  private static final GtfsTestData TEST_DATA = new GtfsTestData();
 
   private static final String FEED_ID = "FEED";
 
   private static final TranslationHelper TRANSLATION_HELPER = new TranslationHelper();
 
-  public static final DataImportIssueStore ISSUE_STORE = DataImportIssueStore.NOOP;
+  private static final DataImportIssueStore ISSUE_STORE = DataImportIssueStore.NOOP;
   private static RouteMapper ROUTE_MAPPER;
 
   private static TripMapper TRIP_MAPPER;
@@ -39,7 +39,10 @@ public class TransferMapperTest {
 
   private static final SiteRepositoryBuilder SITE_REPOSITORY_BUILDER = SiteRepository.of();
 
+  private static final IdFactory ID_FACTORY = new IdFactory(FEED_ID);
+
   private static final StopMapper STOP_MAPPER = new StopMapper(
+    ID_FACTORY,
     TRANSLATION_HELPER,
     stationId -> null,
     SITE_REPOSITORY_BUILDER
@@ -47,11 +50,13 @@ public class TransferMapperTest {
   private static final BookingRuleMapper BOOKING_RULE_MAPPER = new BookingRuleMapper();
 
   private static final LocationMapper LOCATION_MAPPER = new LocationMapper(
+    ID_FACTORY,
     SITE_REPOSITORY_BUILDER,
     ISSUE_STORE
   );
 
   private static final LocationGroupMapper LOCATION_GROUP_MAPPER = new LocationGroupMapper(
+    ID_FACTORY,
     STOP_MAPPER,
     LOCATION_MAPPER,
     SITE_REPOSITORY_BUILDER
@@ -60,17 +65,17 @@ public class TransferMapperTest {
 
   private static final Integer ID = 45;
 
-  private static final Route FROM_ROUTE = testData.route;
+  private static final Route FROM_ROUTE = TEST_DATA.route;
 
-  private static final Stop FROM_STOP = testData.stop_3;
+  private static final Stop FROM_STOP = TEST_DATA.stop_3;
 
-  private static final Trip FROM_TRIP = testData.trip;
+  private static final Trip FROM_TRIP = TEST_DATA.trip;
 
-  private static final Route TO_ROUTE = testData.route_2;
+  private static final Route TO_ROUTE = TEST_DATA.route_2;
 
-  private static final Stop TO_STOP = testData.stop_3;
+  private static final Stop TO_STOP = TEST_DATA.stop_3;
 
-  private static final Trip TO_TRIP = testData.trip_2;
+  private static final Trip TO_TRIP = TEST_DATA.trip_2;
 
   private static final int MIN_TRANSFER_TIME = 200;
 
@@ -82,22 +87,40 @@ public class TransferMapperTest {
 
   @BeforeEach
   void prepare() {
-    ROUTE_MAPPER = new RouteMapper(new AgencyMapper(FEED_ID), ISSUE_STORE, new TranslationHelper());
+    ROUTE_MAPPER = new RouteMapper(
+      ID_FACTORY,
+      new AgencyMapper(ID_FACTORY),
+      new RouteNetworkAssignmentMapper(ID_FACTORY),
+      ISSUE_STORE,
+      new TranslationHelper()
+    );
 
     TRIP_MAPPER = new TripMapper(
+      ID_FACTORY,
       ROUTE_MAPPER,
       new DirectionMapper(ISSUE_STORE),
       TRANSLATION_HELPER
     );
 
-    STATION_MAPPER = new StationMapper(TRANSLATION_HELPER, StopTransferPriority.ALLOWED);
+    STATION_MAPPER = new StationMapper(
+      ID_FACTORY,
+      TRANSLATION_HELPER,
+      StopTransferPriority.ALLOWED
+    );
 
     STOP_TIME_MAPPER = new StopTimeMapper(
       STOP_MAPPER,
       LOCATION_MAPPER,
       LOCATION_GROUP_MAPPER,
       new TripMapper(
-        new RouteMapper(new AgencyMapper(FEED_ID), ISSUE_STORE, TRANSLATION_HELPER),
+        ID_FACTORY,
+        new RouteMapper(
+          ID_FACTORY,
+          new AgencyMapper(ID_FACTORY),
+          new RouteNetworkAssignmentMapper(ID_FACTORY),
+          ISSUE_STORE,
+          TRANSLATION_HELPER
+        ),
         new DirectionMapper(ISSUE_STORE),
         TRANSLATION_HELPER
       ),
@@ -264,12 +287,12 @@ public class TransferMapperTest {
 
   private static List<StopTime> createStopTimes() {
     return List.of(
-      createStopTime(testData.stop, 0, 0, FROM_TRIP),
-      createStopTime(testData.stop_2, 1, 1, FROM_TRIP),
-      createStopTime(testData.stop_3, 2, 2, FROM_TRIP),
-      createStopTime(testData.stop_3, 3, 0, TO_TRIP),
-      createStopTime(testData.stop_4, 4, 1, TO_TRIP),
-      createStopTime(testData.stop_5, 5, 2, TO_TRIP)
+      createStopTime(TEST_DATA.stop, 0, 0, FROM_TRIP),
+      createStopTime(TEST_DATA.stop_2, 1, 1, FROM_TRIP),
+      createStopTime(TEST_DATA.stop_3, 2, 2, FROM_TRIP),
+      createStopTime(TEST_DATA.stop_3, 3, 0, TO_TRIP),
+      createStopTime(TEST_DATA.stop_4, 4, 1, TO_TRIP),
+      createStopTime(TEST_DATA.stop_5, 5, 2, TO_TRIP)
     );
   }
 }

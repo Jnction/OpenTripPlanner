@@ -13,6 +13,7 @@ import org.opentripplanner.model.plan.paging.cursor.PageCursorInput;
 import org.opentripplanner.routing.algorithm.filterchain.filters.system.NumItinerariesFilter;
 import org.opentripplanner.routing.algorithm.filterchain.filters.system.OutsideSearchWindowFilter;
 import org.opentripplanner.routing.algorithm.filterchain.filters.system.PagingFilter;
+import org.opentripplanner.routing.algorithm.filterchain.paging.DefaultPageCursorInput;
 import org.opentripplanner.utils.collection.ListSection;
 import org.opentripplanner.utils.lang.Box;
 
@@ -28,7 +29,6 @@ final class TestDriver {
   private final Instant edt;
   private final Instant lat;
   private final SortOrder sortOrder;
-  private final ListSection cropSection;
   private final PageCursorInput results;
 
   public TestDriver(
@@ -39,7 +39,6 @@ final class TestDriver {
     Instant edt,
     Instant lat,
     SortOrder sortOrder,
-    ListSection cropSection,
     PageCursorInput results
   ) {
     this.nResults = nResults;
@@ -49,7 +48,6 @@ final class TestDriver {
     this.edt = edt;
     this.lat = lat;
     this.sortOrder = sortOrder;
-    this.cropSection = cropSection;
     this.results = results;
     debug();
   }
@@ -103,15 +101,11 @@ final class TestDriver {
   }
 
   boolean arrivedBy() {
-    return !sortOrder.isSortedByAscendingArrivalTime();
+    return !sortOrder.isSortedForDepartAfterSearch();
   }
 
   PageCursorInput filterResults() {
     return results;
-  }
-
-  ItinerarySortKey expectedCut() {
-    return results == null ? null : results.pageCut();
   }
 
   TestDriver newPage(PageCursor cursor) {
@@ -153,7 +147,10 @@ final class TestDriver {
 
     // Simulate Raptor - apply LAT filtering done by raptor
     if (lat != null) {
-      kept = kept.stream().filter(it -> !lat.isBefore(it.endTime().toInstant())).toList();
+      kept = kept
+        .stream()
+        .filter(it -> !lat.isBefore(it.endTime().toInstant()))
+        .toList();
     }
 
     //Page filter
@@ -164,8 +161,20 @@ final class TestDriver {
 
     // Filter nResults
     var filterResultBox = new Box<PageCursorInput>();
-    var maxNumFilter = new NumItinerariesFilter(nResults, cropItineraries, filterResultBox::set);
+    var maxNumFilter = new NumItinerariesFilter(nResults, cropItineraries);
     kept = maxNumFilter.removeMatchesForTest(kept);
+    DefaultPageCursorInput.Builder pageCursorInputBuilder = DefaultPageCursorInput.of();
+    if (maxNumFilter.getNumItinerariesFilterResult() != null) {
+      pageCursorInputBuilder = pageCursorInputBuilder
+        .withEarliestRemovedDeparture(
+          maxNumFilter.getNumItinerariesFilterResult().earliestRemovedDeparture()
+        )
+        .withLatestRemovedDeparture(
+          maxNumFilter.getNumItinerariesFilterResult().latestRemovedDeparture()
+        )
+        .withPageCut(maxNumFilter.getNumItinerariesFilterResult().pageCut());
+    }
+    filterResultBox.set(pageCursorInputBuilder.build());
 
     return new TestDriver(
       nResults,
@@ -175,7 +184,6 @@ final class TestDriver {
       edt,
       lat,
       sortOrder,
-      ListSection.TAIL,
       filterResultBox.get()
     );
   }

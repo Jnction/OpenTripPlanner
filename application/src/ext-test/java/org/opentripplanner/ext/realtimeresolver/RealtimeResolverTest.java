@@ -12,13 +12,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
-import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.model.calendar.CalendarServiceData;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.model.plan.Leg;
 import org.opentripplanner.model.plan.Place;
-import org.opentripplanner.model.plan.ScheduledTransitLeg;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
 import org.opentripplanner.routing.alertpatch.EntitySelector;
 import org.opentripplanner.routing.alertpatch.TimePeriod;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
@@ -28,6 +26,7 @@ import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
 import org.opentripplanner.transit.model.network.Route;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.RegularStop;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.service.DefaultTransitService;
 import org.opentripplanner.transit.service.TimetableRepository;
@@ -75,14 +74,14 @@ class RealtimeResolverTest {
     var leg1ArrivalDelay = legs
       .get(0)
       .asScheduledTransitLeg()
-      .getTripPattern()
+      .tripPattern()
       .getScheduledTimetable()
       .getTripTimes()
       .getFirst()
       .getArrivalDelay(1);
     assertEquals(123, leg1ArrivalDelay);
-    assertEquals(0, legs.get(0).getTransitAlerts().size());
-    assertEquals(1, legs.get(1).getTransitAlerts().size());
+    assertEquals(0, legs.get(0).listTransitAlerts().size());
+    assertEquals(1, legs.get(1).listTransitAlerts().size());
     assertEquals(1, itinerariesWithRealtime.size());
   }
 
@@ -125,7 +124,7 @@ class RealtimeResolverTest {
 
     assertEquals(1, itineraries.size());
 
-    var constrained = itineraries.get(0).legs().get(1).getTransferFromPrevLeg();
+    var constrained = itineraries.get(0).legs().get(1).transferFromPrevLeg();
     assertNotNull(constrained);
     assertTrue(constrained.getTransferConstraint().isStaySeated());
   }
@@ -143,12 +142,12 @@ class RealtimeResolverTest {
   }
 
   private static TripTimes delay(TripTimes tt, int seconds) {
-    var delayed = tt.copyScheduledTimes();
-    IntStream.range(0, delayed.getNumStops()).forEach(i -> {
-      delayed.updateArrivalDelay(i, seconds);
-      delayed.updateDepartureDelay(i, seconds);
+    var builder = tt.createRealTimeFromScheduledTimes();
+    IntStream.range(0, tt.getNumStops()).forEach(i -> {
+      builder.withArrivalDelay(i, seconds);
+      builder.withDepartureDelay(i, seconds);
     });
-    return delayed;
+    return builder.build();
   }
 
   private static List<TripPattern> itineraryPatterns(Itinerary itinerary) {
@@ -157,7 +156,7 @@ class RealtimeResolverTest {
       .stream()
       .filter(Leg::isScheduledTransitLeg)
       .map(Leg::asScheduledTransitLeg)
-      .map(ScheduledTransitLeg::getTripPattern)
+      .map(ScheduledTransitLeg::tripPattern)
       .collect(Collectors.toList());
   }
 
@@ -177,11 +176,7 @@ class RealtimeResolverTest {
       calendarServiceData.putServiceDatesForServiceId(pattern.getId(), List.of(serviceDate));
     });
 
-    timetableRepository.updateCalendarServiceData(
-      true,
-      calendarServiceData,
-      DataImportIssueStore.NOOP
-    );
+    timetableRepository.updateCalendarServiceData(calendarServiceData);
     timetableRepository.index();
 
     return new DefaultTransitService(timetableRepository) {

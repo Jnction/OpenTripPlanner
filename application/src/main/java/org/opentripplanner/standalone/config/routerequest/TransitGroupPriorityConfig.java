@@ -3,9 +3,8 @@ package org.opentripplanner.standalone.config.routerequest;
 import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_3;
 import static org.opentripplanner.standalone.config.framework.json.OtpVersion.V2_5;
 
-import java.util.Collection;
 import java.util.List;
-import org.opentripplanner.routing.api.request.request.TransitRequest;
+import org.opentripplanner.routing.api.request.request.TransitRequestBuilder;
 import org.opentripplanner.routing.api.request.request.filter.TransitGroupSelect;
 import org.opentripplanner.standalone.config.framework.json.NodeAdapter;
 import org.opentripplanner.standalone.config.framework.json.OtpVersion;
@@ -13,7 +12,7 @@ import org.opentripplanner.transit.model.basic.TransitMode;
 
 public class TransitGroupPriorityConfig {
 
-  public static void mapTransitRequest(NodeAdapter root, TransitRequest transit) {
+  public static void mapTransitRequest(NodeAdapter root, TransitRequestBuilder transit) {
     var c = root
       .of("transitGroupPriority")
       .since(OtpVersion.V2_5)
@@ -34,13 +33,13 @@ public class TransitGroupPriorityConfig {
       .experimentalFeature()
       .asObject();
 
-    transit.addPriorityGroupsByAgency(
+    transit.withPriorityGroupsByAgency(
       TransitGroupPriorityConfig.mapList(
         c,
         "byAgency",
         "All groups here are split by agency. For example if you list mode " +
-        "[RAIL, COACH] then all rail and coach services run by an agency get the same " +
-        "group-id."
+          "[RAIL, COACH] then all rail and coach services run by an agency get the same " +
+          "group-id."
       )
     );
     transit.addPriorityGroupsGlobal(
@@ -48,12 +47,12 @@ public class TransitGroupPriorityConfig {
         c,
         "global",
         "All services matching a 'global' group will get the same group-id. Use this " +
-        "to assign the same id to a specific mode/sub-mode/route."
+          "to assign the same id to a specific mode/sub-mode/route."
       )
     );
   }
 
-  private static Collection<TransitGroupSelect> mapList(
+  private static List<TransitGroupSelect> mapList(
     NodeAdapter root,
     String parameterName,
     String description

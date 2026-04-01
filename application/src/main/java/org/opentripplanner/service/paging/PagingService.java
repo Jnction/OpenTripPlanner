@@ -17,16 +17,18 @@ import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 public class PagingService {
 
-  private final Duration searchWindowUsed;
+  private final Duration raptorSearchWindowUsed;
   private final Instant earliestDepartureTime;
   private final Instant latestArrivalTime;
   private final SortOrder itinerariesSortOrder;
-  private final boolean arriveBy;
   private final int numberOfItineraries;
   private final PageCursor pageCursor;
   private final PageCursorInput pageCursorInput;
   private final PagingSearchWindowAdjuster searchWindowAdjuster;
   private final List<Itinerary> itineraries;
+
+  private PageCursor nextPageCursor = null;
+  private PageCursor previousPageCursor = null;
 
   // Lazy init
   private PageCursorFactory pageCursorFactory = null;
@@ -35,21 +37,19 @@ public class PagingService {
     List<Duration> pagingSearchWindowAdjustments,
     Duration minSearchWindowSize,
     Duration maxSearchWindowSize,
-    @Nullable Duration searchWindowUsed,
+    @Nullable Duration raptorSearchWindowUsed,
     @Nullable Instant earliestDepartureTime,
     @Nullable Instant latestArrivalTime,
     SortOrder itinerariesSortOrder,
-    boolean arriveBy,
     int numberOfItineraries,
     @Nullable PageCursor pageCursor,
     PageCursorInput pageCursorInput,
     List<Itinerary> itineraries
   ) {
-    this.searchWindowUsed = searchWindowUsed;
+    this.raptorSearchWindowUsed = raptorSearchWindowUsed;
     this.earliestDepartureTime = earliestDepartureTime;
     this.latestArrivalTime = latestArrivalTime;
     this.itinerariesSortOrder = Objects.requireNonNull(itinerariesSortOrder);
-    this.arriveBy = arriveBy;
     this.numberOfItineraries = numberOfItineraries;
     this.pageCursor = pageCursor;
 
@@ -63,11 +63,17 @@ public class PagingService {
   }
 
   public PageCursor nextPageCursor() {
-    return pageCursorFactory().nextPageCursor();
+    if (nextPageCursor == null) {
+      this.nextPageCursor = pageCursorFactory().nextPageCursor();
+    }
+    return nextPageCursor;
   }
 
   public PageCursor previousPageCursor() {
-    return pageCursorFactory().previousPageCursor();
+    if (previousPageCursor == null) {
+      this.previousPageCursor = pageCursorFactory().previousPageCursor();
+    }
+    return previousPageCursor;
   }
 
   @Nullable
@@ -75,18 +81,24 @@ public class PagingService {
     if (noSuccessfulTransitSearchPerformed()) {
       return null;
     }
+    var edt = previousPageCursor().latestDepartureTime();
+    var ldt = nextPageCursor().earliestDepartureTime();
 
-    if (arriveBy) {
-      return TripSearchMetadata.createForArriveBy(
+    if (itinerariesSortOrder.isSortedForDepartAfterSearch()) {
+      return TripSearchMetadata.createForDepartAfter(
+        edt,
+        ldt,
         earliestDepartureTime,
-        searchWindowUsed,
-        firstKeptDepartureTime()
+        raptorSearchWindowUsed,
+        lastKeptDepartureTime()
       );
     } else {
-      return TripSearchMetadata.createForDepartAfter(
+      return TripSearchMetadata.createForArriveBy(
+        edt,
+        ldt,
         earliestDepartureTime,
-        searchWindowUsed,
-        lastKeptDepartureTime()
+        raptorSearchWindowUsed,
+        firstKeptDepartureTime()
       );
     }
   }
@@ -97,12 +109,12 @@ public class PagingService {
     }
 
     // SearchWindow cropped -> decrease search-window
-    if (pageCursorInput != null) {
+    if (pageCursorInput.pageCut() != null) {
       boolean cropSWHead = doCropSearchWindowAtTail();
       Instant rmItineraryStartTime = pageCursorInput.pageCut().startTimeAsInstant();
 
       return searchWindowAdjuster.decreaseSearchWindow(
-        searchWindowUsed,
+        raptorSearchWindowUsed,
         earliestDepartureTime,
         rmItineraryStartTime,
         cropSWHead
@@ -116,7 +128,7 @@ public class PagingService {
         .count();
 
       return searchWindowAdjuster.increaseOrKeepSearchWindow(
-        searchWindowUsed,
+        raptorSearchWindowUsed,
         numberOfItineraries,
         nFound
       );
@@ -124,11 +136,15 @@ public class PagingService {
   }
 
   private Instant lastKeptDepartureTime() {
-    return pageCursorInput == null ? null : pageCursorInput.pageCut().startTimeAsInstant();
+    return pageCursorInput.pageCut() != null
+      ? pageCursorInput.pageCut().startTimeAsInstant()
+      : null;
   }
 
   private Instant firstKeptDepartureTime() {
-    return pageCursorInput == null ? null : pageCursorInput.pageCut().startTimeAsInstant();
+    return pageCursorInput.pageCut() != null
+      ? pageCursorInput.pageCut().startTimeAsInstant()
+      : null;
   }
 
   private PagingSearchWindowAdjuster createSearchWindowAdjuster(
@@ -153,7 +169,7 @@ public class PagingService {
    */
   private boolean doCropSearchWindowAtTail() {
     if (pageCursor == null) {
-      return itinerariesSortOrder.isSortedByAscendingArrivalTime();
+      return itinerariesSortOrder.isSortedForDepartAfterSearch();
     }
     return pageCursor.type().isNext();
   }
@@ -179,41 +195,46 @@ public class PagingService {
 
     factory = factory.withOriginalSearch(
       currentPageType,
+      itineraries.size() > 0 ? itineraries.get(0).startTimeAsInstant() : null,
       earliestDepartureTime,
       latestArrivalTime,
-      searchWindowUsed
+      raptorSearchWindowUsed
     );
 
-    if (pageCursorInput != null) {
-      factory = factory.withRemovedItineraries(pageCursorInput);
-    }
+    factory = factory.withPageCursorInput(pageCursorInput);
+
     return factory;
   }
 
   private void assertRequestPrerequisites() {
-    if (noSuccessfulTransitSearchPerformed()) {
+    if (raptorSearchWindowUsed == null) {
       throw new IllegalStateException("SearchWindow not set");
     }
     if (earliestDepartureTime == null) {
       throw new IllegalStateException("Earliest departure time not set");
     }
+    if (pageCursorInput == null) {
+      throw new IllegalStateException("Page cursor input not set");
+    }
   }
 
   /**
-   * Both SW and EDT must be available to compute paging tokens.
+   * The search window, earliest departure time, and page cursor input must be available
+   * to compute paging tokens.
    */
   private boolean noSuccessfulTransitSearchPerformed() {
-    return searchWindowUsed == null || earliestDepartureTime == null;
+    return (
+      raptorSearchWindowUsed == null || earliestDepartureTime == null || pageCursorInput == null
+    );
   }
 
   @Override
   public String toString() {
     return ToStringBuilder.of(PagingService.class)
-      .addDuration("searchWindowUsed", searchWindowUsed)
+      .addDuration("raptorSearchWindowUsed", raptorSearchWindowUsed)
       .addDateTime("earliestDepartureTime", earliestDepartureTime)
       .addDateTime("latestArrivalTime", latestArrivalTime)
       .addEnum("itinerariesSortOrder", itinerariesSortOrder)
-      .addBoolIfTrue("arriveBy", arriveBy)
       .addNum("numberOfItineraries", numberOfItineraries)
       .addObj("pageCursor", pageCursor)
       .toString();

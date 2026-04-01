@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import org.opentripplanner.apis.support.mapping.PropertyMapper;
-import org.opentripplanner.framework.i18n.I18NStringMapper;
+import org.opentripplanner.core.model.i18n.I18NStringMapper;
 import org.opentripplanner.inspector.vector.KeyValue;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.service.ArrivalDeparture;
@@ -39,13 +39,15 @@ public class DigitransitRealtimeStopPropertyMapper extends PropertyMapper<Regula
       .findStopTimesInPattern(stop, serviceDate, ArrivalDeparture.BOTH, true)
       .stream()
       .anyMatch(stopTime -> stopTime.times.size() > 0);
+    var inService = transitService.hasScheduledServicesAfter(LocalDate.now(), stop);
 
     Collection<KeyValue> sharedKeyValues = getBaseKeyValues(stop, i18NStringMapper, transitService);
     return ListUtils.combine(
       sharedKeyValues,
       List.of(
         new KeyValue("closedByServiceAlert", noServiceAlert),
-        new KeyValue("servicesRunningOnServiceDate", stopTimesExist)
+        new KeyValue("servicesRunningOnServiceDate", stopTimesExist),
+        new KeyValue("servicesRunningInFuture", inService)
       )
     );
   }

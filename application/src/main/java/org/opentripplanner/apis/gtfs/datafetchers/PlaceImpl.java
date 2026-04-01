@@ -7,10 +7,11 @@ import org.opentripplanner.apis.gtfs.generated.GraphQLTypes.GraphQLVertexType;
 import org.opentripplanner.apis.gtfs.model.StopPosition;
 import org.opentripplanner.apis.gtfs.model.StopPosition.PositionAtStop;
 import org.opentripplanner.framework.graphql.GraphQLUtils;
-import org.opentripplanner.model.plan.LegCallTime;
 import org.opentripplanner.model.plan.Place;
-import org.opentripplanner.model.plan.StopArrival;
 import org.opentripplanner.model.plan.VertexType;
+import org.opentripplanner.model.plan.leg.LegCallTime;
+import org.opentripplanner.model.plan.leg.StopArrival;
+import org.opentripplanner.model.plan.leg.ViaLocationType;
 import org.opentripplanner.service.vehicleparking.model.VehicleParking;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalStation;
@@ -165,6 +166,14 @@ public class PlaceImpl implements GraphQLDataFetchers.GraphQLPlace {
         case VEHICLERENTAL -> GraphQLVertexType.BIKESHARE.name();
         case VEHICLEPARKING -> GraphQLVertexType.BIKEPARK.name();
       };
+    };
+  }
+
+  @Override
+  public DataFetcher<ViaLocationType> viaLocationType() {
+    return environment -> {
+      var stopArrival = getSource(environment);
+      return stopArrival.viaLocationType;
     };
   }
 

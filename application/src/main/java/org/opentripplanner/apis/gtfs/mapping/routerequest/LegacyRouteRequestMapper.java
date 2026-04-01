@@ -17,10 +17,12 @@ import org.opentripplanner.api.parameter.QualifiedMode;
 import org.opentripplanner.api.parameter.QualifiedModeSet;
 import org.opentripplanner.apis.gtfs.GraphQLRequestContext;
 import org.opentripplanner.apis.gtfs.generated.GraphQLTypes;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.framework.graphql.GraphQLUtils;
 import org.opentripplanner.framework.time.ZoneIdFallback;
 import org.opentripplanner.model.GenericLocation;
 import org.opentripplanner.routing.api.request.RouteRequest;
+import org.opentripplanner.routing.api.request.RouteRequestBuilder;
 import org.opentripplanner.routing.api.request.framework.CostLinearFunction;
 import org.opentripplanner.routing.api.request.preference.ItineraryFilterDebugProfile;
 import org.opentripplanner.routing.api.request.preference.VehicleParkingPreferences;
@@ -28,7 +30,7 @@ import org.opentripplanner.routing.api.request.preference.VehicleRentalPreferenc
 import org.opentripplanner.routing.api.request.preference.VehicleWalkingPreferences;
 import org.opentripplanner.routing.api.request.request.filter.SelectRequest;
 import org.opentripplanner.routing.api.request.request.filter.TransitFilterRequest;
-import org.opentripplanner.routing.core.VehicleRoutingOptimizeType;
+import org.opentripplanner.street.model.VehicleRoutingOptimizeType;
 import org.opentripplanner.transit.model.basic.MainAndSubMode;
 import org.opentripplanner.transit.model.basic.TransitMode;
 
@@ -38,32 +40,32 @@ public class LegacyRouteRequestMapper {
     DataFetchingEnvironment environment,
     GraphQLRequestContext context
   ) {
-    RouteRequest request = context.defaultRouteRequest();
+    var request = context.defaultRouteRequest().copyOf();
 
     CallerWithEnvironment callWith = new CallerWithEnvironment(environment);
 
     callWith.argument("fromPlace", (String from) ->
-      request.setFrom(LocationStringParser.fromOldStyleString(from))
+      request.withFrom(LocationStringParser.fromOldStyleString(from))
     );
     callWith.argument("toPlace", (String to) ->
-      request.setTo(LocationStringParser.fromOldStyleString(to))
+      request.withTo(LocationStringParser.fromOldStyleString(to))
     );
 
-    callWith.argument("from", (Map<String, Object> v) -> request.setFrom(toGenericLocation(v)));
-    callWith.argument("to", (Map<String, Object> v) -> request.setTo(toGenericLocation(v)));
+    callWith.argument("from", (Map<String, Object> v) -> request.withFrom(toGenericLocation(v)));
+    callWith.argument("to", (Map<String, Object> v) -> request.withTo(toGenericLocation(v)));
 
     mapViaLocations(request, environment);
 
-    request.setDateTime(
+    request.withDateTime(
       environment.getArgument("date"),
       environment.getArgument("time"),
       ZoneIdFallback.zoneId(context.transitService().getTimeZone())
     );
+    boolean isTripPlannedForNow = RouteRequest.isAPIGtfsTripPlannedForNow(request.dateTime());
 
-    callWith.argument("wheelchair", request::setWheelchair);
-    callWith.argument("numItineraries", request::setNumItineraries);
-    callWith.argument("searchWindow", (Long m) -> request.setSearchWindow(Duration.ofSeconds(m)));
-    callWith.argument("pageCursor", request::setPageCursorFromEncoded);
+    callWith.argument("numItineraries", request::withNumItineraries);
+    callWith.argument("searchWindow", (Long m) -> request.withSearchWindow(Duration.ofSeconds(m)));
+    callWith.argument("pageCursor", request::withPageCursorFromEncoded);
 
     request.withPreferences(preferences -> {
       preferences.withBike(bike -> {
@@ -87,14 +89,14 @@ public class LegacyRouteRequestMapper {
         }
 
         bike.withParking(parking -> setParkingPreferences(callWith, parking));
-        bike.withRental(rental -> setRentalPreferences(callWith, request, rental));
+        bike.withRental(rental -> setRentalPreferences(callWith, isTripPlannedForNow, rental));
         bike.withWalking(walking -> setVehicleWalkingPreferences(callWith, walking));
       });
 
       preferences.withCar(car -> {
         callWith.argument("carReluctance", car::withReluctance);
         car.withParking(parking -> setParkingPreferences(callWith, parking));
-        car.withRental(rental -> setRentalPreferences(callWith, request, rental));
+        car.withRental(rental -> setRentalPreferences(callWith, isTripPlannedForNow, rental));
       });
 
       preferences.withScooter(scooter -> {
@@ -116,7 +118,7 @@ public class LegacyRouteRequestMapper {
           });
         }
 
-        scooter.withRental(rental -> setRentalPreferences(callWith, request, rental));
+        scooter.withRental(rental -> setRentalPreferences(callWith, isTripPlannedForNow, rental));
       });
 
       preferences.withWalk(b -> {
@@ -136,16 +138,16 @@ public class LegacyRouteRequestMapper {
         callWith.argument("alightSlack", tr::withDefaultAlightSlackSec);
         callWith.argument(
           "preferred.otherThanPreferredRoutesPenalty",
-          tr::setOtherThanPreferredRoutesPenalty
+          tr::withOtherThanPreferredRoutesPenalty
         );
         // This is deprecated, if both are set, the proper one will override this
         callWith.argument("unpreferred.useUnpreferredRoutesPenalty", (Integer v) ->
-          tr.setUnpreferredCost(CostLinearFunction.of(Duration.ofSeconds(v), 0.0))
+          tr.withUnpreferredCost(CostLinearFunction.of(Duration.ofSeconds(v), 0.0))
         );
-        callWith.argument("unpreferred.unpreferredCost", tr::setUnpreferredCostString);
-        callWith.argument("ignoreRealtimeUpdates", tr::setIgnoreRealtimeUpdates);
+        callWith.argument("unpreferred.unpreferredCost", tr::withUnpreferredCostString);
+        callWith.argument("ignoreRealtimeUpdates", tr::withIgnoreRealtimeUpdates);
         callWith.argument("modeWeight", (Map<String, Object> modeWeights) ->
-          tr.setReluctanceForMode(
+          tr.withReluctanceForMode(
             modeWeights
               .entrySet()
               .stream()
@@ -162,92 +164,88 @@ public class LegacyRouteRequestMapper {
         callWith.argument("maxTransfers", tx::withMaxTransfers);
         callWith.argument("nonpreferredTransferPenalty", tx::withNonpreferredCost);
       });
+      callWith.argument("locale", (String v) ->
+        preferences.withLocale(GraphQLUtils.getLocale(environment, v))
+      );
     });
 
-    callWith.argument("arriveBy", request::setArriveBy);
+    callWith.argument("arriveBy", request::withArriveBy);
 
-    callWith.argument(
-      "preferred.routes",
-      request.journey().transit()::setPreferredRoutesFromString
-    );
+    request.withJourney(journeyBuilder -> {
+      callWith.argument("wheelchair", journeyBuilder::withWheelchair);
 
-    callWith.argument(
-      "preferred.agencies",
-      request.journey().transit()::setPreferredAgenciesFromString
-    );
-    callWith.argument(
-      "unpreferred.routes",
-      request.journey().transit()::setUnpreferredRoutesFromString
-    );
-    callWith.argument(
-      "unpreferred.agencies",
-      request.journey().transit()::setUnpreferredAgenciesFromString
-    );
+      journeyBuilder.withTransit(transitBuilder -> {
+        callWith.argument("unpreferred.routes", (String v) ->
+          transitBuilder.withUnpreferredRoutes(FeedScopedId.parseList(v))
+        );
+        callWith.argument("unpreferred.agencies", (String v) ->
+          transitBuilder.withUnpreferredAgencies(FeedScopedId.parseList(v))
+        );
 
-    var transitDisabled = false;
-    if (hasArgument(environment, "banned") || hasArgument(environment, "transportModes")) {
-      var filterRequestBuilder = TransitFilterRequest.of();
+        var transitDisabled = false;
+        if (hasArgument(environment, "banned") || hasArgument(environment, "transportModes")) {
+          var filterRequestBuilder = TransitFilterRequest.of();
 
-      callWith.argument("banned.routes", s ->
-        filterRequestBuilder.addNot(SelectRequest.of().withRoutesFromString((String) s).build())
-      );
+          callWith.argument("banned.routes", (String v) -> {
+            var bannedRoutes = FeedScopedId.parseList(v);
+            if (!bannedRoutes.isEmpty()) {
+              filterRequestBuilder.addNot(SelectRequest.of().withRoutes(bannedRoutes).build());
+            }
+          });
 
-      callWith.argument("banned.agencies", s ->
-        filterRequestBuilder.addNot(SelectRequest.of().withAgenciesFromString((String) s).build())
-      );
+          callWith.argument("banned.agencies", (String v) -> {
+            var bannedAgencies = FeedScopedId.parseList(v);
+            if (!bannedAgencies.isEmpty()) {
+              filterRequestBuilder.addNot(SelectRequest.of().withAgencies(bannedAgencies).build());
+            }
+          });
 
-      callWith.argument("banned.trips", request.journey().transit()::setBannedTripsFromString);
+          callWith.argument("banned.trips", (String v) ->
+            transitBuilder.withBannedTrips(FeedScopedId.parseList(v))
+          );
 
-      if (hasArgument(environment, "transportModes")) {
-        QualifiedModeSet modes = new QualifiedModeSet("WALK");
+          if (hasArgument(environment, "transportModes")) {
+            QualifiedModeSet modes = new QualifiedModeSet("WALK");
 
-        modes.qModes = environment
-          .<List<Map<String, String>>>getArgument("transportModes")
-          .stream()
-          .map(transportMode ->
-            new QualifiedMode(
-              transportMode.get("mode") +
-              (transportMode.get("qualifier") == null ? "" : "_" + transportMode.get("qualifier"))
-            )
-          )
-          .collect(Collectors.toSet());
+            modes.qModes = environment
+              .<List<Map<String, String>>>getArgument("transportModes")
+              .stream()
+              .map(transportMode ->
+                new QualifiedMode(
+                  transportMode.get("mode") +
+                    (transportMode.get("qualifier") == null
+                      ? ""
+                      : "_" + transportMode.get("qualifier"))
+                )
+              )
+              .collect(Collectors.toSet());
 
-        var requestModes = modes.getRequestModes();
-        request.journey().access().setMode(requestModes.accessMode);
-        request.journey().egress().setMode(requestModes.egressMode);
-        request.journey().direct().setMode(requestModes.directMode);
-        request.journey().transfer().setMode(requestModes.transferMode);
+            journeyBuilder.withModes(modes.getRequestModes());
 
-        var tModes = modes.getTransitModes().stream().map(MainAndSubMode::new).toList();
-        if (tModes.isEmpty()) {
-          transitDisabled = true;
-        } else {
-          filterRequestBuilder.addSelect(SelectRequest.of().withTransportModes(tModes).build());
+            var tModes = modes.getTransitModes().stream().map(MainAndSubMode::new).toList();
+            if (tModes.isEmpty()) {
+              transitDisabled = true;
+            } else {
+              filterRequestBuilder.addSelect(SelectRequest.of().withTransportModes(tModes).build());
+            }
+          }
+
+          if (transitDisabled) {
+            transitBuilder.disable();
+          } else {
+            transitBuilder.withFilters(List.of(filterRequestBuilder.build()));
+          }
         }
-      }
+      });
+    });
 
-      if (transitDisabled) {
-        request.journey().transit().disable();
-      } else {
-        request.journey().transit().setFilters(List.of(filterRequestBuilder.build()));
-      }
-    }
-
-    if (hasArgument(environment, "allowedTicketTypes")) {
-      // request.allowedFares = new HashSet();
-      // ((List<String>)environment.getArgument("allowedTicketTypes")).forEach(ticketType -> request.allowedFares.add(ticketType.replaceFirst("_", ":")));
-    }
-
-    callWith.argument("locale", (String v) ->
-      request.setLocale(GraphQLUtils.getLocale(environment, v))
-    );
-    return request;
+    return request.buildRequest();
   }
 
-  static void mapViaLocations(RouteRequest request, DataFetchingEnvironment env) {
+  static void mapViaLocations(RouteRequestBuilder request, DataFetchingEnvironment env) {
     var args = env.getArgument("via");
     var locs = ViaLocationMapper.mapToViaLocations((List<Map<String, Object>>) args);
-    request.setViaLocations(locs);
+    request.withViaLocations(locs);
   }
 
   private static <T> boolean hasArgument(Map<String, T> m, String name) {
@@ -267,7 +265,7 @@ public class LegacyRouteRequestMapper {
       return new GenericLocation(address, null, lat, lng);
     }
 
-    return new GenericLocation(lat, lng);
+    return GenericLocation.fromCoordinate(lat, lng);
   }
 
   private static void setParkingPreferences(
@@ -289,14 +287,14 @@ public class LegacyRouteRequestMapper {
 
   private static void setRentalPreferences(
     CallerWithEnvironment callWith,
-    RouteRequest request,
+    boolean isTripPlannedForNow,
     VehicleRentalPreferences.Builder rental
   ) {
     callWith.argument(
       "keepingRentedBicycleAtDestinationCost",
       rental::withArrivingInRentalVehicleAtDestinationCost
     );
-    rental.withUseAvailabilityInformation(request.isTripPlannedForNow());
+    rental.withUseAvailabilityInformation(isTripPlannedForNow);
     callWith.argument(
       "allowKeepingRentedBicycleAtDestination",
       rental::withAllowArrivingInRentedVehicleAtDestination
@@ -320,7 +318,9 @@ public class LegacyRouteRequestMapper {
   ) {
     callWith.argument("bikeWalkingReluctance", walking::withReluctance);
     callWith.argument("bikeWalkingSpeed", walking::withSpeed);
-    callWith.argument("bikeSwitchTime", time -> walking.withMountDismountTime((int) time));
+    callWith.argument("bikeSwitchTime", time ->
+      walking.withMountDismountTime(Duration.ofSeconds((int) time))
+    );
     callWith.argument("bikeSwitchCost", cost -> walking.withMountDismountCost((int) cost));
   }
 

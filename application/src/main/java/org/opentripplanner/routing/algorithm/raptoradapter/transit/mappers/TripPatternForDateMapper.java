@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripPatternForDate;
 import org.opentripplanner.transit.model.timetable.FrequencyEntry;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,8 +79,8 @@ public class TripPatternForDateMapper {
     List<FrequencyEntry> frequencies = timetable
       .getFrequencyEntries()
       .stream()
-      .filter(frequency -> serviceCodesRunning.contains(frequency.tripTimes.getServiceCode()))
-      .sorted(Comparator.comparing(frequencyEntry -> frequencyEntry.startTime))
+      .filter(frequency -> serviceCodesRunning.contains(frequency.tripTimes().getServiceCode()))
+      .sorted(Comparator.comparing(frequencyEntry -> frequencyEntry.startTime()))
       .collect(Collectors.toList());
 
     if (times.isEmpty() && frequencies.isEmpty()) {
@@ -100,5 +100,22 @@ public class TripPatternForDateMapper {
       frequencies,
       serviceDate
     );
+  }
+
+  /**
+   * Calls {@link TripPatternForDateMapper#map(Timetable, LocalDate)} and validates that the result
+   * is valid. Since it would cause exceptions with flex trips during start up this method should
+   * be used during real-time updates as flex trip cannot have real-time (as of now).
+   *
+   * @throws IllegalArgumentException
+   */
+  @Nullable
+  public TripPatternForDate mapAndValidate(Timetable timetable, LocalDate serviceDate)
+    throws IllegalArgumentException {
+    var result = map(timetable, serviceDate);
+    if (result != null) {
+      result.assertValidRunningPeriod();
+    }
+    return result;
   }
 }

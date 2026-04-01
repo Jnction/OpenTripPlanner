@@ -18,22 +18,10 @@ public enum OTPFeature {
   AlertMetrics(
     false,
     false,
-    "Starts a background thread to continuously publish metrics about alerts. Needs to be enabled together with `ActuactorAPI`."
+    "Starts a background thread to continuously publish metrics about alerts. Needs to be enabled together with `ActuatorAPI`."
   ),
-  APIBikeRental(true, false, "Enable the bike rental endpoint."),
   APIServerInfo(true, false, "Enable the server info endpoint."),
   APIUpdaterStatus(true, false, "Enable endpoint for graph updaters status."),
-  IncludeEmptyRailStopsInTransfers(
-    false,
-    false,
-    """
-    Turning this on guarantees that Rail stops without scheduled departures still get included
-    when generating transfers using `ConsiderPatternsForDirectTransfers`. It is common for stops
-    to be assign at real-time for Rail. Turning this on will help to avoid dropping transfers which
-    are needed, when the stop is in use later. Turning this on, if
-    ConsiderPatternsForDirectTransfers is off has no effect.
-    """
-  ),
   ConsiderPatternsForDirectTransfers(
     true,
     false,
@@ -45,7 +33,7 @@ public enum OTPFeature {
     """
     Enable the debug GraphQL client and web UI and located at the root of the web server as well as the debug map tiles it uses.
     Be aware that the map tiles are not a stable API and can change without notice.
-    Use the [vector tiles feature if](sandbox/MapboxVectorTilesApi.md) you want a stable map tiles API.
+    Use the [vector tiles feature](sandbox/MapboxVectorTilesApi.md) if you want a stable map tiles API.
     """
   ),
   ExtraTransferLegOnSameStop(
@@ -55,6 +43,20 @@ public enum OTPFeature {
   ),
   FloatingBike(true, false, "Enable floating bike routing."),
   GtfsGraphQlApi(true, false, "Enable the [GTFS GraphQL API](apis/GTFS-GraphQL-API.md)."),
+  IncludeStopsUsedRealTimeInTransfers(
+    false,
+    false,
+    """
+    When generating transfers, stops without any patterns are excluded to improve performance if
+    `ConsiderPatternsForDirectTransfers` is enabled. However, some stops are only used by trips
+    changed or added by real-time updates. Since transfer generation happens before real-time
+    updates are applied, OTP cannot know which stops will be needed. Instead, OTP will attempt to
+    identify stops likely to be used by real-time updates at import time. Common cases include rail
+    stops (which often have late platform assignments) and stops reserved for replacement services.
+    This is detected examining the stop `subMode`(NeTEx) and `vehicleType`(GTFS). This feature has
+    no effect if `ConsiderPatternsForDirectTransfers` is disabled.
+    """
+  ),
   /**
    * If this feature flag is switched on, then the minimum transfer time is not the minimum transfer
    * time, but the definitive transfer time. Use this to override what we think the transfer will
@@ -67,8 +69,20 @@ public enum OTPFeature {
     false,
     false,
     "If the minimum transfer time is a lower bound (default) or the definitive time for the " +
-    "transfer. Set this to `true` if you want to set a transfer time lower than what OTP derives " +
-    "from OSM data."
+      "transfer. Set this to `true` if you want to set a transfer time lower than what OTP derives " +
+      "from OSM data."
+  ),
+
+  OnDemandRaptorTransfer(
+    false,
+    false,
+    """
+    Calculate transfers only when accessed by Raptor, instead of calculating and caching all transfers for the whole graph,
+    for runtime requests which are not pre-cached in `transferCacheRequests` in router-config.json.
+    This may help performance when doing local journey planning in a large graph.
+
+    Requests which are specified in `transferCacheRequests` in router-config.json are not affected and are always pre-cached for the whole graph.
+    """
   ),
 
   OptimizeTransfers(
@@ -92,6 +106,11 @@ public enum OTPFeature {
   /* Sandbox extension features - Must be turned OFF by default */
 
   ActuatorAPI(false, true, "Endpoint for actuators (service health status)."),
+  HttpResponseTimeMetrics(
+    false,
+    true,
+    "Record HTTP response time metrics per client. Requires ActuatorAPI to be enabled."
+  ),
   AsyncGraphQLFetchers(
     false,
     false,
@@ -101,9 +120,11 @@ public enum OTPFeature {
     true,
     false,
     "Make all polling updaters wait for graph updates to complete before finishing. " +
-    "If this is not enabled, the updaters will finish after submitting the task to update the graph."
+      "If this is not enabled, the updaters will finish after submitting the task to update the graph."
   ),
-  Co2Emissions(false, true, "Enable the emissions sandbox module."),
+  CarPooling(false, true, "Enable the carpooling sandbox module."),
+  Emission(false, true, "Enable the emission sandbox module."),
+  EmpiricalDelay(false, true, "Enable empirical delay sandbox module."),
   DataOverlay(
     false,
     true,
@@ -117,10 +138,11 @@ public enum OTPFeature {
     false,
     false,
     "Keep the best itinerary with respect to each criteria used in the transit-routing search. " +
-    "For example the itinerary with the lowest cost, fewest transfers, and each unique transit-group " +
-    "(transit-group-priority) is kept, even if the max-limit is exceeded. This is turned off by default " +
-    "for now, until this feature is well tested."
+      "For example the itinerary with the lowest cost, fewest transfers, and each unique transit-group " +
+      "(transit-group-priority) is kept, even if the max-limit is exceeded. This is turned off by default " +
+      "for now, until this feature is well tested."
   ),
+  OjpApi(false, true, "OJP v2.0 API."),
   RealtimeResolver(
     false,
     true,
@@ -135,7 +157,8 @@ public enum OTPFeature {
     true,
     "Include train Sørlandsbanen in results when searching in south of Norway. Only relevant in Norway."
   ),
-  TransferAnalyzer(false, true, "Analyze transfers during graph build.");
+  TransferAnalyzer(false, true, "Analyze transfers during graph build."),
+  TriasApi(false, true, "TRIAS API.");
 
   private static final Object TEST_LOCK = new Object();
 

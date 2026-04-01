@@ -4,31 +4,40 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.opentripplanner.framework.geometry.WgsCoordinate;
+import org.opentripplanner.core.model.id.FeedScopedId;
+import org.opentripplanner.graph_builder.module.nearbystops.SiteRepositoryResolver;
 import org.opentripplanner.model.GenericLocation;
 import org.opentripplanner.routing.algorithm.GraphRoutingTest;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.api.request.request.StreetRequest;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graphfinder.NearbyStop;
+import org.opentripplanner.routing.linking.LinkingContextFactory;
+import org.opentripplanner.routing.linking.VertexLinkerTestFactory;
+import org.opentripplanner.routing.linking.internal.VertexCreationService;
+import org.opentripplanner.routing.linking.mapping.LinkingContextRequestMapper;
+import org.opentripplanner.street.geometry.WgsCoordinate;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.linking.TemporaryVerticesContainer;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
-import org.opentripplanner.street.search.TemporaryVerticesContainer;
 import org.opentripplanner.street.search.state.State;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.transit.service.DefaultTransitService;
+import org.opentripplanner.transit.service.TimetableRepository;
 
 class AccessEgressRouterTest extends GraphRoutingTest {
 
   private Graph graph;
+  private TimetableRepository timetableRepository;
 
   private TransitStopVertex stopForCentroidRoutingStation;
   private TransitStopVertex stopForNoCentroidRoutingStation;
 
-  private static final WgsCoordinate origin = new WgsCoordinate(0.0, 0.0);
-  private static final WgsCoordinate farAwayCoordinate = origin.moveEastMeters(100000);
+  private static final WgsCoordinate ORIGIN = new WgsCoordinate(0.0, 0.0);
+  private static final WgsCoordinate FAR_AWAY_COORDINATE = ORIGIN.moveEastMeters(100000);
 
   @BeforeEach
   protected void setUp() throws Exception {
@@ -36,11 +45,11 @@ class AccessEgressRouterTest extends GraphRoutingTest {
       new GraphRoutingTest.Builder() {
         @Override
         public void build() {
-          var A = intersection("A", origin);
-          var B = intersection("B", origin.moveEastMeters(100));
-          var C = intersection("C", origin.moveEastMeters(200));
-          var D = intersection("D", origin.moveEastMeters(300));
-          var farAway = intersection("FarAway", farAwayCoordinate);
+          var A = intersection("A", ORIGIN);
+          var B = intersection("B", ORIGIN.moveEastMeters(100));
+          var C = intersection("C", ORIGIN.moveEastMeters(200));
+          var D = intersection("D", ORIGIN.moveEastMeters(300));
+          var farAway = intersection("FarAway", FAR_AWAY_COORDINATE);
 
           biStreet(A, B, 100);
           biStreet(B, C, 100);
@@ -55,37 +64,32 @@ class AccessEgressRouterTest extends GraphRoutingTest {
           var noCentroidRoutingStation = stationEntity("NoCentroidRoutingStation", b ->
             b.withCoordinate(D.toWgsCoordinate())
           );
-          var noCentroidRoutingStationVertex = stationCentroid(noCentroidRoutingStation);
 
           // StopForCentroidRoutingStation is a child of centroidRoutingStation
-          stopForCentroidRoutingStation = stop(
-            "StopForCentroidRoutingStation",
-            B.toWgsCoordinate(),
-            centroidRoutingStation
+          stopForCentroidRoutingStation = stop("StopForCentroidRoutingStation", b ->
+            b.withCoordinate(B.toWgsCoordinate()).withParentStation(centroidRoutingStation)
           );
 
           // StopForNoCentroidRoutingStation is a child of noCentroidRoutingStation
-          stopForNoCentroidRoutingStation = stop(
-            "StopForNoCentroidRoutingStation",
-            C.toWgsCoordinate(),
-            noCentroidRoutingStation
+          stopForNoCentroidRoutingStation = stop("StopForNoCentroidRoutingStation", b ->
+            b.withCoordinate(C.toWgsCoordinate()).withParentStation(noCentroidRoutingStation)
           );
 
           biLink(A, centroidRoutingStationVertex);
           biLink(B, stopForCentroidRoutingStation);
           biLink(C, stopForNoCentroidRoutingStation);
-          biLink(D, noCentroidRoutingStationVertex);
         }
       }
     );
     graph = otpModel.graph();
+    timetableRepository = otpModel.timetableRepository();
   }
 
   @Test
   void findAccessEgressFromStop() {
     var accesses = findAccessEgressFromTo(
       location("StopForCentroidRoutingStation"),
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       AccessEgressType.ACCESS
     );
     assertAcessEgresses(
@@ -97,7 +101,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     );
 
     var egresses = findAccessEgressFromTo(
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       location("StopForCentroidRoutingStation"),
       AccessEgressType.EGRESS
     );
@@ -115,7 +119,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     // For stations with centroid routing we should use the station centroid as source for the street search
     var accesses = findAccessEgressFromTo(
       location("CentroidRoutingStation"),
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       AccessEgressType.ACCESS
     );
     assertAcessEgresses(
@@ -127,7 +131,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     );
 
     var egresses = findAccessEgressFromTo(
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       location("CentroidRoutingStation"),
       AccessEgressType.EGRESS
     );
@@ -145,7 +149,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     // For stations without centroid routing we should use the quay as source for the street search
     var accesses = findAccessEgressFromTo(
       location("NoCentroidRoutingStation"),
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       AccessEgressType.ACCESS
     );
     assertAcessEgresses(
@@ -157,7 +161,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     );
 
     var egresses = findAccessEgressFromTo(
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       location("NoCentroidRoutingStation"),
       AccessEgressType.EGRESS
     );
@@ -172,12 +176,12 @@ class AccessEgressRouterTest extends GraphRoutingTest {
 
   @Test
   void findAccessEgressFromCoordinate() {
-    var coordinate = origin.moveEastMeters(5);
+    var coordinate = ORIGIN.moveEastMeters(5);
 
     // We should get street access from coordinate to quay1 and quay2
     var accesses = findAccessEgressFromTo(
       location(coordinate),
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       AccessEgressType.ACCESS
     );
     assertAcessEgresses(
@@ -190,7 +194,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
 
     // We should get street access from coordinate to quay1 and quay2
     var egresses = findAccessEgressFromTo(
-      location(farAwayCoordinate),
+      location(FAR_AWAY_COORDINATE),
       location(coordinate),
       AccessEgressType.EGRESS
     );
@@ -206,7 +210,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
   /* Helper methods */
 
   private GenericLocation location(WgsCoordinate coordinate) {
-    return new GenericLocation(coordinate.latitude(), coordinate.longitude());
+    return GenericLocation.fromCoordinate(coordinate.latitude(), coordinate.longitude());
   }
 
   private GenericLocation location(FeedScopedId id) {
@@ -218,10 +222,7 @@ class AccessEgressRouterTest extends GraphRoutingTest {
   }
 
   private RouteRequest requestFromTo(GenericLocation from, GenericLocation to) {
-    var routeRequest = new RouteRequest();
-    routeRequest.setFrom(from);
-    routeRequest.setTo(to);
-    return routeRequest;
+    return RouteRequest.of().withFrom(from).withTo(to).buildRequest();
   }
 
   private String nearbyStopDescription(NearbyStop nearbyStop) {
@@ -255,23 +256,32 @@ class AccessEgressRouterTest extends GraphRoutingTest {
     var durationLimit = Duration.ofMinutes(10);
     var request = requestFromTo(from, to);
 
-    try (
-      var verticesContainer = new TemporaryVerticesContainer(
+    try (var verticesContainer = new TemporaryVerticesContainer()) {
+      var vertexLinker = VertexLinkerTestFactory.of(graph);
+      var vertexCreationService = new VertexCreationService(vertexLinker);
+      var transitService = new DefaultTransitService(timetableRepository);
+      var linkingContextFactory = new LinkingContextFactory(
         graph,
-        from,
-        to,
-        StreetMode.WALK,
-        StreetMode.WALK
-      )
-    ) {
-      return AccessEgressRouter.findAccessEgresses(
+        vertexCreationService,
+        transitService::findStopOrChildIds,
+        id -> {
+          var group = transitService.getStopLocationsGroup(id);
+          return Optional.ofNullable(group).map(locationsGroup -> locationsGroup.getCoordinate());
+        }
+      );
+      var linkingRequest = LinkingContextRequestMapper.map(request);
+      var linkingContext = linkingContextFactory.create(verticesContainer, linkingRequest);
+
+      return new AccessEgressRouter(
+        new SiteRepositoryResolver(timetableRepository.getSiteRepository())
+      ).findAccessEgresses(
         request,
-        verticesContainer,
-        new StreetRequest(),
-        null,
+        StreetMode.WALK,
+        List.of(),
         accessEgress,
         durationLimit,
-        maxStopCount
+        maxStopCount,
+        linkingContext
       );
     }
   }

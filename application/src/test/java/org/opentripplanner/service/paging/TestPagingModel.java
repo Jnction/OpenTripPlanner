@@ -38,16 +38,23 @@ class TestPagingModel {
   static final int TIME_NOT_SET = -9_999_999;
 
   // Times CASE - B
-  static final int T15_00_MINUS_1d = TimeUtils.time("15:00:00-1d");
-  static final int T15_30_MINUS_1d = TimeUtils.time("15:30:00-1d");
+  static final int T15_00_MINUS_1_d = TimeUtils.time("15:00:00-1d");
+  static final int T15_30_MINUS_1_d = TimeUtils.time("15:30:00-1d");
   static final int T09_00 = hm2time(9, 0);
   static final int T09_30 = hm2time(9, 30);
   static final int T15_00 = hm2time(15, 0);
   static final int T15_30 = hm2time(15, 30);
-  static final int T09_00_PLUS_1d = TimeUtils.time("09:00:00+1d");
-  static final int T09_30_PLUS_1d = TimeUtils.time("09:30:00+1d");
+  static final int T09_00_PLUS_1_d = TimeUtils.time("09:00:00+1d");
+  static final int T09_30_PLUS_1_d = TimeUtils.time("09:30:00+1d");
 
-  static final Duration D30m = Duration.ofMinutes(30);
+  // Times CASE - C
+  static final int T16_15_00 = TimeUtils.time("16:15:00");
+  static final int T16_30_00 = TimeUtils.time("16:30:00");
+  static final int T16_44_30 = TimeUtils.time("16:44:30");
+  static final int T17_00_00 = TimeUtils.time("17:00:00");
+  static final int T17_30_00 = TimeUtils.time("17:30:00");
+
+  static final Duration D30_m = Duration.ofMinutes(30);
 
   // The SEARCH-WINDOW is set to "fixed" 30m in this test for simplicity
   private static final List<Duration> SEARCH_WINDOW_ADJUSTMENTS = List.of();
@@ -109,10 +116,10 @@ class TestPagingModel {
    *  </pre>
    */
   private static final List<Itinerary> ITINERARIES_CASE_B = List.of(
-    itinerary(T15_00_MINUS_1d, T15_30_MINUS_1d, COST_HIGH, TX_1, TRANSIT),
+    itinerary(T15_00_MINUS_1_d, T15_30_MINUS_1_d, COST_HIGH, TX_1, TRANSIT),
     itinerary(T09_00, T09_30, COST_HIGH, TX_1, TRANSIT),
     itinerary(T15_00, T15_30, COST_HIGH, TX_1, TRANSIT),
-    itinerary(T09_00_PLUS_1d, T09_30_PLUS_1d, COST_HIGH, TX_1, TRANSIT)
+    itinerary(T09_00_PLUS_1_d, T09_30_PLUS_1_d, COST_HIGH, TX_1, TRANSIT)
   );
 
   static final List<Itinerary> ITINERARIES_CASE_B_DEPART_AFTER = ITINERARIES_CASE_B.stream()
@@ -120,6 +127,27 @@ class TestPagingModel {
     .toList();
 
   static final List<Itinerary> ITINERARIES_CASE_B_ARRIVE_BY = ITINERARIES_CASE_B.stream()
+    .sorted(SortOrderComparator.comparator(SortOrder.STREET_AND_DEPARTURE_TIME))
+    .toList();
+
+  /**
+   * Case C has 2 itineraries with seconds included:
+   * <pre>
+   *  - departure 16:15:00, arrival 17:00:00
+   *  - departure 16:44:30, arrival 17:30:00
+   *  </pre>
+   */
+
+  private static final List<Itinerary> ITINERARIES_CASE_C = List.of(
+    itinerary(T16_15_00, T17_00_00, COST_HIGH, TX_1, TRANSIT),
+    itinerary(T16_44_30, T17_30_00, COST_HIGH, TX_1, TRANSIT)
+  );
+
+  static final List<Itinerary> ITINERARIES_CASE_C_DEPART_AFTER = ITINERARIES_CASE_C.stream()
+    .sorted(SortOrderComparator.comparator(STREET_AND_ARRIVAL_TIME))
+    .toList();
+
+  static final List<Itinerary> ITINERARIES_CASE_C_ARRIVE_BY = ITINERARIES_CASE_C.stream()
     .sorted(SortOrderComparator.comparator(SortOrder.STREET_AND_DEPARTURE_TIME))
     .toList();
 
@@ -142,6 +170,10 @@ class TestPagingModel {
     return new TestPagingModel(ITINERARIES_CASE_B_DEPART_AFTER, ITINERARIES_CASE_B_ARRIVE_BY);
   }
 
+  static TestPagingModel testDataWithFewItinerariesCaseC() {
+    return new TestPagingModel(ITINERARIES_CASE_C_DEPART_AFTER, ITINERARIES_CASE_C_ARRIVE_BY);
+  }
+
   static PagingService pagingService(TestDriver testDriver) {
     return new PagingService(
       SEARCH_WINDOW_ADJUSTMENTS,
@@ -151,7 +183,6 @@ class TestPagingModel {
       testDriver.earliestDepartureTime(),
       testDriver.latestArrivalTime(),
       testDriver.sortOrder(),
-      testDriver.arrivedBy(),
       testDriver.nResults(),
       null,
       testDriver.filterResults(),
@@ -168,7 +199,6 @@ class TestPagingModel {
       pageCursor.earliestDepartureTime(),
       pageCursor.latestArrivalTime(),
       pageCursor.originalSortOrder(),
-      testDriver.arrivedBy(),
       testDriver.nResults(),
       pageCursor,
       testDriver.filterResults(),

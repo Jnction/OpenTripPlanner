@@ -5,13 +5,14 @@ import com.google.common.collect.Multimap;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.routing.alertpatch.EntityKey;
 import org.opentripplanner.routing.alertpatch.EntitySelector;
 import org.opentripplanner.routing.alertpatch.StopCondition;
 import org.opentripplanner.routing.alertpatch.TransitAlert;
 import org.opentripplanner.routing.services.TransitAlertService;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.timetable.Direction;
 import org.opentripplanner.transit.service.TimetableRepository;
 
@@ -78,24 +79,18 @@ public class TransitAlertServiceImpl implements TransitAlertService {
   ) {
     EntitySelector.Stop entitySelector = new EntitySelector.Stop(stopId, stopConditions);
     var result = findMatchingAlerts(entitySelector);
-    if (result.isEmpty()) {
-      // Search for alerts on parent-stop
-      if (timetableRepository != null) {
-        var quay = timetableRepository.getSiteRepository().getRegularStop(stopId);
-        if (quay != null) {
-          // TODO - SIRI: Add alerts from parent- and multimodal-stops
-          /*
-                    if ( quay.isPartOfStation()) {
-                        // Add alerts for parent-station
-                        result.addAll(patchesByStop.getOrDefault(quay.getParentStationFeedScopedId(), Collections.emptySet()));
-                    }
-                    if (quay.getMultiModalStation() != null) {
-                        // Add alerts for multimodal-station
-                        result.addAll(patchesByStop.getOrDefault(new FeedScopedId(stop.getAgencyId(), quay.getMultiModalStation()), Collections.emptySet()));
-                    }
-                    */
-        }
-      }
+    var stop = timetableRepository.getSiteRepository().getStopLocation(stopId);
+
+    if (stop != null && stop.isPartOfStation()) {
+      // Add alerts for parent-station
+      result.addAll(
+        findMatchingAlerts(
+          new EntitySelector.Stop(
+            Objects.requireNonNull(stop.getParentStation()).getId(),
+            stopConditions
+          )
+        )
+      );
     }
     return result;
   }
@@ -171,7 +166,12 @@ public class TransitAlertServiceImpl implements TransitAlertService {
   private Collection<TransitAlert> findMatchingAlerts(EntitySelector entitySelector) {
     Set<TransitAlert> result = new HashSet<>();
     for (TransitAlert alert : alerts.get(entitySelector.key())) {
-      if (alert.entities().stream().anyMatch(selector -> selector.matches(entitySelector))) {
+      if (
+        alert
+          .entities()
+          .stream()
+          .anyMatch(selector -> selector.matches(entitySelector))
+      ) {
         result.add(alert);
       }
     }

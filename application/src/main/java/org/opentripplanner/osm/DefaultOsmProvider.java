@@ -36,7 +36,6 @@ public class DefaultOsmProvider implements OsmProvider {
 
   private final OsmTagMapper osmTagMapper;
 
-  private final boolean includeSubwayEntrances;
   private final WayPropertySet wayPropertySet;
   private byte[] cachedBytes = null;
 
@@ -46,7 +45,6 @@ public class DefaultOsmProvider implements OsmProvider {
       new FileDataSource(file, FileType.OSM),
       OsmTagMapperSource.DEFAULT,
       null,
-      false,
       cacheDataInMem,
       DataImportIssueStore.NOOP
     );
@@ -56,16 +54,13 @@ public class DefaultOsmProvider implements OsmProvider {
     DataSource dataSource,
     OsmTagMapperSource tagMapperSource,
     ZoneId zoneId,
-    boolean includeSubwayEntrances,
     boolean cacheDataInMem,
     DataImportIssueStore issueStore
   ) {
     this.source = dataSource;
     this.zoneId = zoneId;
     this.osmTagMapper = tagMapperSource.getInstance();
-    this.includeSubwayEntrances = includeSubwayEntrances;
-    this.wayPropertySet = new WayPropertySet(issueStore);
-    osmTagMapper.populateProperties(wayPropertySet);
+    this.wayPropertySet = osmTagMapper.buildWayPropertySet();
     this.cacheDataInMem = cacheDataInMem;
   }
 
@@ -141,7 +136,7 @@ public class DefaultOsmProvider implements OsmProvider {
         hasWarnedAboutMissingTimeZone = true;
         LOG.warn(
           "Missing time zone for OSM source {} - time-restricted entities will " +
-          "not be created, please configure it in the {}",
+            "not be created, please configure it in the {}",
           source.uri(),
           OtpFileNames.BUILD_CONFIG_FILENAME
         );

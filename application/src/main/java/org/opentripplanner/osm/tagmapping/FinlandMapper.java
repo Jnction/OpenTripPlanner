@@ -36,7 +36,8 @@ class FinlandMapper extends OsmTagMapper {
   );
 
   @Override
-  public void populateProperties(WayPropertySet props) {
+  public WayPropertySet buildWayPropertySet() {
+    var props = WayPropertySet.of();
     TriFunction<
       StreetTraversalPermission,
       Float,
@@ -98,6 +99,15 @@ class FinlandMapper extends OsmTagMapper {
     // No biking on designated footways/sidewalks
     props.setProperties("highway=footway", withModes(PEDESTRIAN));
     props.setProperties("footway=sidewalk;highway=footway", withModes(PEDESTRIAN));
+
+    // biking is allowed on pedestrian areas
+    props.setProperties("highway=pedestrian", withModes(PEDESTRIAN_AND_BICYCLE).bicycleSafety(1.1));
+
+    // Walking is allowed on cycleways
+    props.setProperties(
+      "highway=cycleway",
+      withModes(PEDESTRIAN_AND_BICYCLE).bicycleSafety(0.6).walkSafety(2.0)
+    );
 
     // Walking on segregated ways is safer than when cycling and walking happens on the same lane
     props.setProperties(
@@ -176,9 +186,9 @@ class FinlandMapper extends OsmTagMapper {
 
     // Automobile speeds in Finland.
     // General speed limit is 80kph unless signs says otherwise.
-    props.defaultCarSpeed = 22.22f;
+    props.setDefaultCarSpeed(22.22f);
     // 120kph is the max speed limit in Finland
-    props.maxPossibleCarSpeed = 33.34f;
+    props.setMaxPossibleCarSpeed(33.34f);
     // = 100kph. Varies between 80 - 120 kph depending on road and season.
     props.setCarSpeed("highway=motorway", 27.77f);
     // = 54kph
@@ -208,8 +218,9 @@ class FinlandMapper extends OsmTagMapper {
     props.setCarSpeed("highway=living_street", 5.55f);
     // ~= 16 kph
     props.setCarSpeed("highway=track", 4.5f);
+    props.setCarSpeed("highway=pedestrian", 4.5f);
 
-    super.populateProperties(props);
+    return props.addPickers(super.buildWayPropertySet()).build();
   }
 
   @Override

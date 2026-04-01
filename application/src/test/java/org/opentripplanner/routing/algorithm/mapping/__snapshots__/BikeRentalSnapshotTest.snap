@@ -11,28 +11,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              3
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 2232,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -47,12 +40,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -133,12 +123,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tGl|{kVV@GsJEuKE}HAwAAo@"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -206,12 +193,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 53,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 5,
-            "points" : "ic{tG~uzkV@n@M@C??H"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -365,10 +349,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 39,
-            "points" : "{c{tGnwzkVR?lCEvBC??VAlCClCEAkA??A}BCkEAkECaD???g@CiECiEEiE?c@?o@?]Aa@?w@AoD???YEkEAkECiEA_A??AiCCkECmD???[A_CCiD"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -416,10 +397,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           },
           "generalizedCost" : 285,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "}rztGlnwkVM??C?[?SC_D?M?E?MCgD?A?O?C?M?a@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -463,7 +441,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1278,
+      "duration" : 1279,
       "elevationGained" : 0.0,
       "elevationLost" : 0.0,
       "endTime" : "2009-10-21T23:37:59.000+00:00",
@@ -472,28 +450,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2538,
+      "generalizedCost" : 2561,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -502,24 +473,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           "distance" : 565.96,
           "endTime" : "2009-10-21T23:23:59.000+00:00",
           "from" : {
-            "departure" : "2009-10-21T23:16:41.000+00:00",
+            "departure" : "2009-10-21T23:16:40.000+00:00",
             "lat" : 45.52832,
             "lon" : -122.70059,
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 865,
+          "generalizedCost" : 879,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 34,
-            "points" : "}f{tGv}{kVjCAjCEnCCFCFErACj@CLMHGFJLNNNDBDBDBF@FBLBH@FBDBNHNJLDPLb@Z^XPNNTBQT{ARJEP"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
           "rentedBike" : false,
           "route" : "",
-          "startTime" : "2009-10-21T23:16:41.000+00:00",
+          "startTime" : "2009-10-21T23:16:40.000+00:00",
           "steps" : [
             {
               "absoluteDirection" : "SOUTH",
@@ -745,10 +713,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 57,
-            "points" : "gkztGz_|kVTmALiBt@mJJ_DBoA??@e@D}AFyDBgADwB??@]BaADgCDmC??By@FiEJoEBuA??DsBD}BBiADmC@y@AiB???Y?g@As@?_@?YAeB@uD???{@G{D?mECeBAu@??Ai@CoEASAuDAmB???MCqEA_B??A{ACsEAwB"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -794,12 +759,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "0"
           },
-          "generalizedCost" : 472,
+          "generalizedCost" : 479,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 18,
-            "points" : "qeztGn|vkVK@?v@@f@?RWBK@kBBI?K?wBBI?K?I?mBBK@?M?a@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -871,14 +833,14 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           "walkingBike" : false
         }
       ],
-      "startTime" : "2009-10-21T23:16:41.000+00:00",
+      "startTime" : "2009-10-21T23:16:40.000+00:00",
       "tooSloped" : false,
       "transfers" : 0,
       "transitTime" : 601,
       "waitingTime" : 0,
       "walkDistance" : 874.2,
       "walkLimitExceeded" : false,
-      "walkTime" : 677
+      "walkTime" : 678
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
@@ -891,28 +853,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 1804,
+      "generalizedCost" : 1808,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -927,12 +882,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 336,
+          "generalizedCost" : 339,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 6,
-            "points" : "}f{tGv}{kVC?mCBmCD@zCN?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1099,10 +1051,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 60,
-            "points" : "yo{tG|b|kVC}CEuKGwI???}@G{J???YGsKEuKCuD???UCiECeEAgA?{@AkA?WAwDE{C???i@CiECkECcD??Ae@?mE{BDQ@q@@??{ADCsDbBiB`DaEt@_AVANIX?tBCLK`@c@\\c@l@w@??\\c@FKDCFEXCCgEvBEVAlCClCEnCECoD"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -1150,10 +1099,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           },
           "generalizedCost" : 77,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 3,
-            "points" : "ksztGh{vkVI?@~B"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1206,28 +1152,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              3
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 2232,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -1242,12 +1181,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1328,12 +1264,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tGl|{kVV@GsJEuKE}HAwAAo@"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -1401,12 +1334,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 53,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 5,
-            "points" : "ic{tG~uzkV@n@M@C??H"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1560,10 +1490,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 39,
-            "points" : "{c{tGnwzkVR?lCEvBC??VAlCClCEAkA??A}BCkEAkECaD???g@CiECiEEiE?c@?o@?]Aa@?w@AoD???YEkEAkECiEA_A??AiCCkECmD???[A_CCiD"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -1611,10 +1538,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           },
           "generalizedCost" : 285,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "}rztGlnwkVM??C?[?SC_D?M?E?MCgD?A?O?C?M?a@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1667,28 +1591,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              3
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2208,
+      "generalizedCost" : 2232,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -1703,12 +1620,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -1789,12 +1703,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tGl|{kVV@GsJEuKE}HAwAAo@"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -1862,12 +1773,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 49,
+          "generalizedCost" : 53,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 5,
-            "points" : "ic{tG~uzkV@n@M@C??H"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2021,10 +1929,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 39,
-            "points" : "{c{tGnwzkVR?lCEvBC??VAlCClCEAkA??A}BCkEAkECaD???g@CiECiEEiE?c@?o@?]Aa@?w@AoD???YEkEAkECiEA_A??AiCCkECmD???[A_CCiD"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -2072,10 +1977,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           },
           "generalizedCost" : 285,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "}rztGlnwkVM??C?[?SC_D?M?E?MCgD?A?O?C?M?a@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2128,28 +2030,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 1804,
+      "generalizedCost" : 1808,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2164,12 +2059,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 336,
+          "generalizedCost" : 339,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 6,
-            "points" : "}f{tGv}{kVC?mCBmCD@zCN?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2336,10 +2228,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
               "zoneId" : "0"
             }
           ],
-          "legGeometry" : {
-            "length" : 60,
-            "points" : "yo{tG|b|kVC}CEuKGwI???}@G{J???YGsKEuKCuD???UCiECeEAgA?{@AkA?WAwDE{C???i@CiECkECcD??Ae@?mE{BDQ@q@@??{ADCsDbBiB`DaEt@_AVANIX?tBCLK`@c@\\c@l@w@??\\c@FKDCFEXCCgEvBEVAlCClCEnCECoD"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -2387,10 +2276,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.accessBikeR
           },
           "generalizedCost" : 77,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 3,
-            "points" : "ksztGh{vkVI?@~B"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2448,7 +2334,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 1036,
+      "generalizedCost" : 1064,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2463,12 +2349,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2549,12 +2432,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 409,
+          "generalizedCost" : 423,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tGl|{kVV@GsJEuKE}HAwAAo@"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -2622,12 +2502,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 338,
+          "generalizedCost" : 344,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "ic{tG~uzkVEcJlCE?C"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2711,7 +2588,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 830,
+      "generalizedCost" : 869,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2726,12 +2603,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -2812,12 +2686,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 541,
+          "generalizedCost" : 573,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 11,
-            "points" : "ic{tGl|{kVV@GsJL?F?tBCEuK?g@GmJEuK?C"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -2914,7 +2785,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
         "details" : { },
         "fare" : { }
       },
-      "generalizedCost" : 829,
+      "generalizedCost" : 868,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -2929,12 +2800,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 288,
+          "generalizedCost" : 295,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "}f{tGv}{kVjCA?e@WA"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3015,12 +2883,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.directBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 540,
+          "generalizedCost" : 572,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 10,
-            "points" : "ic{tGl|{kVV@GsJEuKE}HAwAAo@EcJlCE?C"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -3118,28 +2983,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2119,
+      "generalizedCost" : 2150,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -3154,12 +3012,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 261,
+          "generalizedCost" : 267,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 10,
-            "points" : "ssztGh_wkV?`@?LK?uBBK??F?JBbDN?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3352,10 +3207,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 39,
-            "points" : "kwztGhgwkVQ?kC@@zD???PBjE?`B??@X@jEBjD???\\BhEBpD???XBhE@nD??@Z?hEBtA?h@@h@??@Z@nEBhEBhD???`@FtKDhH??@hBoCD}BB"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -3401,12 +3253,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 167,
+          "generalizedCost" : 171,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "wb{tG`wzkV?LO?Ao@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3474,12 +3323,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 399,
+          "generalizedCost" : 413,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tG~uzkV@n@@vAD|HDtKFrJWA"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -3547,12 +3393,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 168,
+          "generalizedCost" : 175,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "ic{tGl|{kVV@?d@kC@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3622,37 +3465,30 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1260,
+      "duration" : 1261,
       "elevationGained" : 0.0,
       "elevationLost" : 0.0,
-      "endTime" : "2009-10-21T23:35:16.000+00:00",
+      "endTime" : "2009-10-21T23:35:17.000+00:00",
       "fare" : {
         "details" : { },
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2503,
+      "generalizedCost" : 2521,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -3667,12 +3503,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 442,
+          "generalizedCost" : 449,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 17,
-            "points" : "ssztGh_wkV?`@?LJAlBCH?J?H?vBCJ?H?jBCJA?D@L?lAE?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3878,10 +3711,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 56,
-            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC??APu@lJMhBI`@"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -3915,7 +3745,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "arrivalDelay" : 0,
           "departureDelay" : 0,
           "distance" : 563.7,
-          "endTime" : "2009-10-21T23:35:16.000+00:00",
+          "endTime" : "2009-10-21T23:35:17.000+00:00",
           "from" : {
             "arrival" : "2009-10-21T23:28:03.000+00:00",
             "departure" : "2009-10-21T23:28:03.000+00:00",
@@ -3927,12 +3757,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 858,
+          "generalizedCost" : 869,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 34,
-            "points" : "ikztGh~{kVNDEVUzACPOUQO_@Yc@[QMMEOKOIECGCIAMCGCGAECECECOOMOGKIFMLk@BsABGDGBoCBkCDkC@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -3994,7 +3821,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             }
           ],
           "to" : {
-            "arrival" : "2009-10-21T23:35:16.000+00:00",
+            "arrival" : "2009-10-21T23:35:17.000+00:00",
             "lat" : 45.52832,
             "lon" : -122.70059,
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
@@ -4011,7 +3838,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
       "waitingTime" : 0,
       "walkDistance" : 851.52,
       "walkLimitExceeded" : false,
-      "walkTime" : 657
+      "walkTime" : 658
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
@@ -4024,28 +3851,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2351,
+      "generalizedCost" : 2368,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4060,12 +3880,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 392,
+          "generalizedCost" : 402,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "ssztGh_wkV?`@?LK?uBBK?K@sBBM??D?L@\\?lCC??E"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -4258,10 +4075,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 53,
-            "points" : "i|ztG|fwkV?LqCFmCDYBGDEBGJkAzAQR??KNa@b@MJuBBY?OHW@u@~@aD`EcBhBBrD@xC??@l@BlE@lD???XBjEBpD???VBlE?dA@t@?b@?h@BfEBrD???VBhEFtKDvJ??@\\DnJ???d@FtKmCBo@@"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -4307,12 +4121,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 881,
+          "generalizedCost" : 888,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 12,
-            "points" : "}~{tGnq{kV?LVAF?J?FtKlCClCEnCElCElCCB?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -4391,28 +4202,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2119,
+      "generalizedCost" : 2150,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4427,12 +4231,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 261,
+          "generalizedCost" : 267,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 10,
-            "points" : "ssztGh_wkV?`@?LK?uBBK??F?JBbDN?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -4625,10 +4426,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 39,
-            "points" : "kwztGhgwkVQ?kC@@zD???PBjE?`B??@X@jEBjD???\\BhEBpD???XBhE@nD??@Z?hEBtA?h@@h@??@Z@nEBhEBhD???`@FtKDhH??@hBoCD}BB"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -4674,12 +4472,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 167,
+          "generalizedCost" : 171,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "wb{tG`wzkV?LO?Ao@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -4747,12 +4542,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 399,
+          "generalizedCost" : 413,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 7,
-            "points" : "ic{tG~uzkV@n@@vAD|HDtKFrJWA"
-          },
+          "legGeometry" : { },
           "mode" : "BICYCLE",
           "pathway" : false,
           "realTime" : false,
@@ -4820,12 +4612,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             ],
             "vertexType" : "BIKESHARE"
           },
-          "generalizedCost" : 168,
+          "generalizedCost" : 175,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 4,
-            "points" : "ic{tGl|{kVV@?d@kC@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -4895,37 +4684,30 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
-      "duration" : 1320,
+      "duration" : 1321,
       "elevationGained" : 0.0,
       "elevationLost" : 0.0,
-      "endTime" : "2009-10-21T23:51:16.000+00:00",
+      "endTime" : "2009-10-21T23:51:17.000+00:00",
       "fare" : {
         "details" : { },
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2563,
+      "generalizedCost" : 2581,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -4940,12 +4722,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 442,
+          "generalizedCost" : 449,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 17,
-            "points" : "ssztGh_wkV?`@?LJAlBCH?J?H?vBCJ?H?jBCJA?D@L?lAE?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -5151,10 +4930,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 56,
-            "points" : "efztGhcwkV@rBBzDBpE@~A???Z@tD@RBnEB|A???@BdB?lEBjA??BnBApF@dB?X?^@r@?f@@bCAx@EtB???VChAE|BGnD??AXKnEGnD???XGjD??AZEfCC`AEzB??AXCfAGxDE|AEtBIlC??APu@lJMhBI`@"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -5188,7 +4964,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
           "arrivalDelay" : 0,
           "departureDelay" : 0,
           "distance" : 563.7,
-          "endTime" : "2009-10-21T23:51:16.000+00:00",
+          "endTime" : "2009-10-21T23:51:17.000+00:00",
           "from" : {
             "arrival" : "2009-10-21T23:44:03.000+00:00",
             "departure" : "2009-10-21T23:44:03.000+00:00",
@@ -5200,12 +4976,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 858,
+          "generalizedCost" : 869,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 34,
-            "points" : "ikztGh~{kVNDEVUzACPOUQO_@Yc@[QMMEOKOIECGCIAMCGCGAECECECOOMOGKIFMLk@BsABGDGBoCBkCDkC@"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -5267,7 +5040,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             }
           ],
           "to" : {
-            "arrival" : "2009-10-21T23:51:16.000+00:00",
+            "arrival" : "2009-10-21T23:51:17.000+00:00",
             "lat" : 45.52832,
             "lon" : -122.70059,
             "name" : "SW Johnson St. & NW 24th Ave. (P1)",
@@ -5284,7 +5057,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
       "waitingTime" : 0,
       "walkDistance" : 851.52,
       "walkLimitExceeded" : false,
-      "walkTime" : 657
+      "walkTime" : 658
     },
     {
       "arrivedAtDestinationWithRentedBicycle" : false,
@@ -5297,28 +5070,21 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
         "fare" : { },
         "legProducts" : [
           {
-            "legIndices" : [
-              1
-            ],
-            "products" : [
-              {
-                "amount" : {
-                  "cents" : 200,
-                  "currency" : {
-                    "currency" : "USD",
-                    "currencyCode" : "USD",
-                    "defaultFractionDigits" : 2,
-                    "symbol" : "$"
-                  }
-                },
-                "id" : "prt:8",
-                "name" : "regular"
+            "amount" : {
+              "cents" : 200,
+              "currency" : {
+                "currency" : "USD",
+                "currencyCode" : "USD",
+                "defaultFractionDigits" : 2,
+                "symbol" : "$"
               }
-            ]
+            },
+            "id" : "prt:8",
+            "name" : "regular"
           }
         ]
       },
-      "generalizedCost" : 2351,
+      "generalizedCost" : 2368,
       "legs" : [
         {
           "agencyTimeZoneOffset" : -25200000,
@@ -5333,12 +5099,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "name" : "NW Everett St. & NW 5th Ave. (P3)",
             "vertexType" : "NORMAL"
           },
-          "generalizedCost" : 392,
+          "generalizedCost" : 402,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 15,
-            "points" : "ssztGh_wkV?`@?LK?uBBK?K@sBBM??D?L@\\?lCC??E"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,
@@ -5531,10 +5294,7 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
               "zoneId" : "1"
             }
           ],
-          "legGeometry" : {
-            "length" : 53,
-            "points" : "i|ztG|fwkV?LqCFmCDYBGDEBGJkAzAQR??KNa@b@MJuBBY?OHW@u@~@aD`EcBhBBrD@xC??@l@BlE@lD???XBjEBpD???VBlE?dA@t@?b@?h@BfEBrD???VBhEFtKDvJ??@\\DnJ???d@FtKmCBo@@"
-          },
+          "legGeometry" : { },
           "mode" : "BUS",
           "pathway" : false,
           "realTime" : false,
@@ -5580,12 +5340,9 @@ org.opentripplanner.routing.algorithm.mapping.BikeRentalSnapshotTest.egressBikeR
             "vertexType" : "TRANSIT",
             "zoneId" : "1"
           },
-          "generalizedCost" : 881,
+          "generalizedCost" : 888,
           "interlineWithPreviousLeg" : false,
-          "legGeometry" : {
-            "length" : 12,
-            "points" : "}~{tGnq{kV?LVAF?J?FtKlCClCEnCElCElCCB?"
-          },
+          "legGeometry" : { },
           "mode" : "WALK",
           "pathway" : false,
           "realTime" : false,

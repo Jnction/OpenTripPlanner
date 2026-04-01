@@ -4,28 +4,35 @@ import static java.time.Duration.ZERO;
 import static java.time.Duration.ofMinutes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.opentripplanner.model.plan.TestItineraryBuilder.newItinerary;
 import static org.opentripplanner.model.plan.TestItineraryBuilder.newTime;
 
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.opentripplanner.framework.model.Cost;
+import org.opentripplanner.core.model.basic.Cost;
 import org.opentripplanner.framework.model.TimeAndCost;
 import org.opentripplanner.model.SystemNotice;
+import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
 import org.opentripplanner.transit.model.basic.TransitMode;
+import org.opentripplanner.transit.model.timetable.ScheduledTripTimes;
 
 public class ItineraryTest implements PlanTestConstants {
 
   private static final Cost COST = Cost.costOfSeconds(720);
+  private static final double DISTANCE_DELTA = 0.01;
+  // Geometry-based distance from PlanTestConstants A (5.0, 8.0) to B (6.0, 8.5)
+  private static final double A_TO_B_DISTANCE = 124205.32;
 
   @Test
   void testDerivedFieldsWithWalkingOnly() {
-    Itinerary result = newItinerary(A, T11_00).walk(D5m, B).build();
+    Itinerary result = newItinerary(A, T11_00).walk(D5_m, B).build();
 
     // Expected fields on itinerary set
     assertEquals(ofMinutes(5), result.totalDuration());
@@ -37,12 +44,13 @@ public class ItineraryTest implements PlanTestConstants {
     assertTrue(result.isWalkOnly());
 
     // Expected fields on walking leg set
-    assertSameLocation(A, result.firstLeg().getFrom());
-    assertEquals(newTime(T11_00), result.firstLeg().getStartTime());
-    assertEquals(newTime(T11_05), result.firstLeg().getEndTime());
+    var firstLeg = result.legs().getFirst();
+    assertSameLocation(A, firstLeg.from());
+    assertEquals(newTime(T11_00), firstLeg.startTime());
+    assertEquals(newTime(T11_05), firstLeg.endTime());
     assertEquals(TraverseMode.WALK, result.streetLeg(0).getMode());
-    assertEquals(420.0d, result.firstLeg().getDistanceMeters(), 1E-3);
-    assertSameLocation(B, result.lastLeg().getTo());
+    assertEquals(420.0d, firstLeg.distanceMeters(), 1E-3);
+    assertSameLocation(B, result.legs().getLast().to());
 
     assertEquals("A ~ Walk 5m ~ B [C₁600]", result.toStr());
   }
@@ -60,13 +68,14 @@ public class ItineraryTest implements PlanTestConstants {
     assertFalse(result.isWalkOnly());
 
     // Expected fields on bus leg set
-    assertSameLocation(A, result.firstLeg().getFrom());
-    assertSameLocation(B, result.firstLeg().getTo());
-    assertEquals(newTime(T11_00), result.firstLeg().getStartTime());
-    assertEquals(newTime(T11_10), result.firstLeg().getEndTime());
-    assertEquals(TransitMode.BUS, result.transitLeg(0).getMode());
-    assertEquals(TimetableRepositoryForTest.id("55"), result.firstLeg().getTrip().getId());
-    assertEquals(7500, result.firstLeg().getDistanceMeters(), 1E-3);
+    var firstLeg = result.legs().getFirst();
+    assertSameLocation(A, firstLeg.from());
+    assertSameLocation(B, firstLeg.to());
+    assertEquals(newTime(T11_00), firstLeg.startTime());
+    assertEquals(newTime(T11_10), firstLeg.endTime());
+    assertEquals(TransitMode.BUS, result.transitLeg(0).mode());
+    assertEquals(TimetableRepositoryForTest.id("55"), firstLeg.trip().getId());
+    assertEquals(A_TO_B_DISTANCE, firstLeg.distanceMeters(), DISTANCE_DELTA);
 
     assertEquals("A ~ BUS 55 11:00 11:10 ~ B [C₁720]", result.toStr());
   }
@@ -84,13 +93,14 @@ public class ItineraryTest implements PlanTestConstants {
     assertFalse(result.isWalkOnly());
 
     // Expected fields on bus leg set
-    assertSameLocation(A, result.firstLeg().getFrom());
-    assertSameLocation(B, result.firstLeg().getTo());
-    assertEquals(newTime(T11_05), result.firstLeg().getStartTime());
-    assertEquals(newTime(T11_15), result.firstLeg().getEndTime());
-    assertEquals(TransitMode.RAIL, result.transitLeg(0).getMode());
-    assertEquals(TimetableRepositoryForTest.id("20"), result.firstLeg().getTrip().getId());
-    assertEquals(15_000, result.firstLeg().getDistanceMeters(), 1E-3);
+    var firstLeg = result.legs().getFirst();
+    assertSameLocation(A, firstLeg.from());
+    assertSameLocation(B, firstLeg.to());
+    assertEquals(newTime(T11_05), firstLeg.startTime());
+    assertEquals(newTime(T11_15), firstLeg.endTime());
+    assertEquals(TransitMode.RAIL, result.transitLeg(0).mode());
+    assertEquals(TimetableRepositoryForTest.id("20"), firstLeg.trip().getId());
+    assertEquals(A_TO_B_DISTANCE, firstLeg.distanceMeters(), DISTANCE_DELTA);
 
     assertEquals("A ~ RAIL R2 11:05 11:15 ~ B [C₁720]", result.toStr());
   }
@@ -98,7 +108,7 @@ public class ItineraryTest implements PlanTestConstants {
   @Test
   void testDerivedFieldsWithWalAccessAndTwoTransitLegs() {
     Itinerary itinerary = TestItineraryBuilder.newItinerary(A, T11_02)
-      .walk(D1m, B)
+      .walk(D1_m, B)
       .bus(21, T11_05, T11_10, C)
       .rail(110, T11_15, T11_30, D)
       .build();
@@ -118,10 +128,10 @@ public class ItineraryTest implements PlanTestConstants {
   @Test
   void testDerivedFieldsWithBusAndWalkingAccessAndEgress() {
     Itinerary result = newItinerary(A, T11_05)
-      .walk(D2m, B)
+      .walk(D2_m, B)
       // 3 minutes wait
       .bus(1, T11_10, T11_20, C)
-      .walk(D3m, D)
+      .walk(D3_m, D)
       .build();
 
     assertEquals(ofMinutes(18), result.totalDuration());
@@ -139,12 +149,12 @@ public class ItineraryTest implements PlanTestConstants {
   @Test
   void walkBusBusWalkTrainWalk() {
     Itinerary result = newItinerary(A, T11_00)
-      .walk(D2m, B)
+      .walk(D2_m, B)
       .bus(55, T11_04, T11_14, C)
       .bus(21, T11_16, T11_20, D)
-      .walk(D3m, E)
+      .walk(D3_m, E)
       .rail(20, T11_30, T11_50, F)
-      .walk(D1m, G)
+      .walk(D1_m, G)
       .build();
 
     assertEquals(ofMinutes(51), result.totalDuration());
@@ -153,19 +163,23 @@ public class ItineraryTest implements PlanTestConstants {
     assertEquals(ofMinutes(6), result.totalStreetDuration());
     assertEquals(ofMinutes(11), result.totalWaitingDuration());
     assertFalse(result.isWalkOnly());
-    assertSameLocation(A, result.firstLeg().getFrom());
-    assertSameLocation(G, result.lastLeg().getTo());
+    assertSameLocation(A, result.legs().getFirst().from());
+    assertSameLocation(G, result.legs().getLast().to());
 
     assertEquals(
       "A ~ Walk 2m ~ B ~ BUS 55 11:04 11:14 ~ C ~ BUS 21 11:16 11:20 ~ D " +
-      "~ Walk 3m ~ E ~ RAIL R2 11:30 11:50 ~ F ~ Walk 1m ~ G [C₁3_648]",
+        "~ Walk 3m ~ E ~ RAIL R2 11:30 11:50 ~ F ~ Walk 1m ~ G [C₁3_648]",
       result.toStr()
     );
   }
 
   @Test
   void walkSeparateFromBike() {
-    var itin = newItinerary(A, T11_00).walk(D2m, B).bicycle(T11_05, T11_15, D).walk(D3m, E).build();
+    var itin = newItinerary(A, T11_00)
+      .walk(D2_m, B)
+      .bicycle(T11_05, T11_15, D)
+      .walk(D3_m, E)
+      .build();
 
     assertEquals(ofMinutes(15), itin.totalStreetDuration());
     assertEquals(ofMinutes(5), itin.totalWalkDuration());
@@ -176,7 +190,7 @@ public class ItineraryTest implements PlanTestConstants {
 
   @Test
   void walkSeparateFromCar() {
-    var itin = newItinerary(A, T11_00).walk(D2m, B).carHail(D10m, D).walk(D3m, E).build();
+    var itin = newItinerary(A, T11_00).walk(D2_m, B).carHail(D10_m, D).walk(D3_m, E).build();
 
     assertEquals(ofMinutes(15), itin.totalStreetDuration());
     assertEquals(ofMinutes(5), itin.totalWalkDuration());
@@ -186,30 +200,60 @@ public class ItineraryTest implements PlanTestConstants {
   }
 
   @Test
-  void legIndex() {
-    var itinerary = newItinerary(A, T11_00)
-      .walk(D2m, B)
-      .bus(55, T11_04, T11_14, C)
-      .bus(21, T11_16, T11_20, D)
-      .walk(D3m, E)
-      .rail(20, T11_30, T11_50, F)
-      .walk(D1m, G)
-      .build();
-
-    var leg = itinerary.legs().get(0);
-    var oneHourLater = leg.withTimeShift(Duration.ofHours(1));
-
-    assertNotSame(leg, oneHourLater);
-
-    assertEquals(0, itinerary.findLegIndex(leg));
-    assertEquals(0, itinerary.findLegIndex(oneHourLater));
-  }
-
-  @Test
   void hasSystemTag() {
     var subject = newItinerary(A).bus(1, T11_04, T11_14, B).build();
     subject.flagForDeletion(new SystemNotice("MY-TAG", "Text"));
     assertTrue(subject.hasSystemNoticeTag("MY-TAG"));
+  }
+
+  @Test
+  void normalization() {
+    var zoneId = ZoneId.of("Europe/Oslo");
+    var model = TimetableRepositoryForTest.of();
+    var stopA = model.stop("A", 60.0, 10.0).build();
+    var stopB = model.stop("B", 60.0, 10.01).build();
+    var stopPattern = TimetableRepositoryForTest.stopPattern(stopA, stopB);
+    var trip = TimetableRepositoryForTest.trip("trip1").build();
+    var tripPattern = TimetableRepositoryForTest.tripPattern("p", trip.getRoute())
+      .withStopPattern(stopPattern)
+      .build();
+
+    var tripTimes = ScheduledTripTimes.of().withArrivalTimes("13:00 14:00").withTrip(trip).build();
+    var startTime = ZonedDateTime.of(2025, 10, 20, 13, 0, 0, 499_000_000, zoneId);
+    var endTime = ZonedDateTime.of(2025, 10, 20, 13, 59, 59, 500_000_000, zoneId);
+    var c = Cost.costOfCentiSeconds(120074);
+
+    var subject = Itinerary.ofDirect(
+      List.of(
+        ScheduledTransitLeg.of()
+          .withStartTime(startTime)
+          .withEndTime(endTime)
+          .withTripTimes(tripTimes)
+          .withTripPattern(tripPattern)
+          .withBoardStopIndexInPattern(0)
+          .withAlightStopIndexInPattern(1)
+          .withServiceDate(startTime.toLocalDate())
+          .withZoneId(zoneId)
+          .build()
+      )
+    )
+      .withGeneralizedCost(c)
+      .withAccessPenalty(new TimeAndCost(Duration.ofMillis(1_345), Cost.costOfCentiSeconds(1000)))
+      .build();
+
+    // Round 12_074 to
+    assertEquals(120_100, subject.generalizedCostIncludingPenalty().toCentiSeconds());
+
+    // Normaized with 10s access-penalty
+    assertEquals(1191, subject.generalizedCost());
+
+    // Normaized start-time
+    assertEquals("2025-10-20T13:00+02:00[Europe/Oslo]", subject.startTime().toString());
+    assertEquals("2025-10-20T11:00:00Z", subject.startTimeAsInstant().toString());
+
+    // Normaized end-time
+    assertEquals("2025-10-20T14:00+02:00[Europe/Oslo]", subject.endTime().toString());
+    assertEquals("2025-10-20T12:00:00Z", subject.endTimeAsInstant().toString());
   }
 
   @Nested

@@ -1,6 +1,7 @@
 package org.opentripplanner.graph_builder.module.osm;
 
-import java.util.ArrayList;
+import static org.opentripplanner.graph_builder.module.osm.LinearBarrierNodeType.SPLIT;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -14,28 +15,27 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.opentripplanner.astar.model.GraphPath;
 import org.opentripplanner.astar.model.ShortestPathTree;
 import org.opentripplanner.astar.spi.SkipEdgeStrategy;
-import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.framework.application.OTPRequestTimeoutException;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
 import org.opentripplanner.graph_builder.services.osm.EdgeNamer;
 import org.opentripplanner.osm.model.OsmEntity;
 import org.opentripplanner.osm.model.OsmNode;
 import org.opentripplanner.osm.model.OsmRelation;
 import org.opentripplanner.osm.model.OsmRelationMember;
+import org.opentripplanner.osm.model.TraverseDirection;
 import org.opentripplanner.osm.wayproperty.WayProperties;
-import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.api.request.request.StreetRequest;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildRepository;
 import org.opentripplanner.service.osminfo.model.Platform;
+import org.opentripplanner.street.geometry.GeometryUtils;
+import org.opentripplanner.street.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.street.model.StreetTraversalPermission;
 import org.opentripplanner.street.model.edge.Area;
 import org.opentripplanner.street.model.edge.AreaEdge;
@@ -46,8 +46,8 @@ import org.opentripplanner.street.model.edge.StreetEdge;
 import org.opentripplanner.street.model.vertex.IntersectionVertex;
 import org.opentripplanner.street.model.vertex.OsmVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
-import org.opentripplanner.street.model.vertex.VertexFactory;
 import org.opentripplanner.street.search.StreetSearchBuilder;
+import org.opentripplanner.street.search.request.StreetSearchRequest;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.DominanceFunctions;
 import org.slf4j.Logger;
@@ -64,9 +64,6 @@ class WalkableAreaBuilder {
 
   private final VertexGenerator vertexBuilder;
 
-  private final HashMap<Coordinate, IntersectionVertex> areaBoundaryVertexForCoordinate =
-    new HashMap<>();
-
   private final boolean platformEntriesLinking;
 
   private final List<OsmVertex> platformLinkingPoints;
@@ -75,7 +72,7 @@ class WalkableAreaBuilder {
   private final SafetyValueNormalizer normalizer;
 
   // template for AreaEdge names
-  private static final String labelTemplate = "way (area) %s from %s to %s";
+  private static final String LABEL_TEMPLATE = "way (area) %s from %s to %s";
 
   private static final Logger LOG = LoggerFactory.getLogger(WalkableAreaBuilder.class);
 
@@ -103,12 +100,12 @@ class WalkableAreaBuilder {
     this.boardingLocationRefTags = boardingLocationRefTags;
     this.platformLinkingPoints = platformEntriesLinking
       ? graph
-        .getVertices()
-        .stream()
-        .filter(OsmVertex.class::isInstance)
-        .map(OsmVertex.class::cast)
-        .filter(this::isPlatformLinkingPoint)
-        .collect(Collectors.toList())
+          .getVertices()
+          .stream()
+          .filter(OsmVertex.class::isInstance)
+          .map(OsmVertex.class::cast)
+          .filter(this::isPlatformLinkingPoint)
+          .collect(Collectors.toList())
       : List.of();
   }
 
@@ -191,9 +188,10 @@ class WalkableAreaBuilder {
       HashSet<IntersectionVertex> platformLinkingVertices = new HashSet<>();
       HashSet<IntersectionVertex> visibilityVertices = new HashSet<>();
       GeometryFactory geometryFactory = GeometryUtils.getGeometryFactory();
-      OsmEntity areaEntity = group.getSomeOsmObject();
 
       for (OsmArea area : group.areas) {
+        OsmEntity areaEntity = area.parent;
+
         // test if area is inside the current ring
         if (!group.isSimpleAreaGroup()) {
           if (!polygon.contains(area.jtsMultiPolygon)) {
@@ -205,7 +203,7 @@ class WalkableAreaBuilder {
         // which otherwise would be pruned as unconnected island
         Collection<OsmNode> entrances = osmdb.getStopsInArea(area.parent);
         for (OsmNode node : entrances) {
-          var vertex = vertexBuilder.getVertexForOsmNode(node, areaEntity);
+          var vertex = vertexBuilder.getVertexForOsmNode(node, areaEntity, SPLIT);
           platformLinkingVertices.add(vertex);
           visibilityVertices.add(vertex);
           startingVertices.add(vertex);
@@ -250,10 +248,10 @@ class WalkableAreaBuilder {
               outerRing.isNodeConvex(i) ||
               (linkPointsAdded && (i == 0 || i == outerRing.nodes.size() / 2))
             ) {
-              visibilityVertices.add(vertexBuilder.getVertexForOsmNode(node, areaEntity));
+              visibilityVertices.add(vertexBuilder.getVertexForOsmNode(node, areaEntity, SPLIT));
             }
             if (isStartingNode(node, osmWayIds)) {
-              var v = vertexBuilder.getVertexForOsmNode(node, areaEntity);
+              var v = vertexBuilder.getVertexForOsmNode(node, areaEntity, SPLIT);
               startingVertices.add(v);
               visibilityVertices.add(v);
             }
@@ -274,10 +272,10 @@ class WalkableAreaBuilder {
               // area or a convex point, i.e. the angle is over 180 degrees.
               // For holes, we must swap the convexity condition
               if (!innerRing.isNodeConvex(j)) {
-                visibilityVertices.add(vertexBuilder.getVertexForOsmNode(node, areaEntity));
+                visibilityVertices.add(vertexBuilder.getVertexForOsmNode(node, areaEntity, SPLIT));
               }
               if (isStartingNode(node, osmWayIds)) {
-                var v = vertexBuilder.getVertexForOsmNode(node, areaEntity);
+                var v = vertexBuilder.getVertexForOsmNode(node, areaEntity, SPLIT);
                 startingVertices.add(v);
                 visibilityVertices.add(v);
               }
@@ -368,7 +366,9 @@ class WalkableAreaBuilder {
     Set<Edge> edges,
     Set<Edge> edgesToKeep
   ) {
-    if (edges.isEmpty()) return;
+    if (edges.isEmpty()) {
+      return;
+    }
     StreetMode mode;
     StreetEdge firstEdge = (StreetEdge) edges.iterator().next();
 
@@ -379,15 +379,16 @@ class WalkableAreaBuilder {
     } else {
       mode = StreetMode.CAR;
     }
-    RouteRequest options = new RouteRequest();
+    // TODO: This is incorrect, the configured defaults are not used.
+    var request = StreetSearchRequest.of().withMode(mode).build();
     Set<Edge> usedEdges = new HashSet<>();
     for (Vertex vertex : startingVertices) {
       ShortestPathTree<State, Edge, Vertex> spt = StreetSearchBuilder.of()
-        .setSkipEdgeStrategy(new ListedEdgesOnly(edges))
-        .setDominanceFunction(new DominanceFunctions.EarliestArrival())
-        .setRequest(options)
-        .setStreetRequest(new StreetRequest(mode))
-        .setFrom(vertex)
+        .withPreStartHook(OTPRequestTimeoutException::checkForTimeout)
+        .withSkipEdgeStrategy(new ListedEdgesOnly(edges))
+        .withDominanceFunction(new DominanceFunctions.EarliestArrival())
+        .withRequest(request)
+        .withFrom(vertex)
         .getShortestPathTree();
 
       for (Vertex endVertex : startingVertices) {
@@ -418,7 +419,7 @@ class WalkableAreaBuilder {
 
   private WayProperties findAreaProperties(OsmEntity entity) {
     if (!wayPropertiesCache.containsKey(entity)) {
-      var wayData = entity.getOsmProvider().getWayPropertySet().getDataForWay(entity);
+      var wayData = entity.getOsmProvider().getWayPropertySet().getDataForEntity(entity);
       wayPropertiesCache.put(entity, wayData);
       return wayData;
     } else {
@@ -435,8 +436,8 @@ class WalkableAreaBuilder {
   ) {
     OsmNode node = ring.nodes.get(i);
     OsmNode nextNode = ring.nodes.get((i + 1) % ring.nodes.size());
-    IntersectionVertex v1 = vertexBuilder.getVertexForOsmNode(node, area.parent);
-    IntersectionVertex v2 = vertexBuilder.getVertexForOsmNode(nextNode, area.parent);
+    IntersectionVertex v1 = vertexBuilder.getVertexForOsmNode(node, area.parent, SPLIT);
+    IntersectionVertex v2 = vertexBuilder.getVertexForOsmNode(nextNode, area.parent, SPLIT);
 
     if (shouldSkipEdge(v1, v2, alreadyAddedEdges)) {
       return Set.of();
@@ -489,15 +490,18 @@ class WalkableAreaBuilder {
       return Set.of();
     }
     String label = String.format(
-      labelTemplate,
+      LABEL_TEMPLATE,
       parent.getId(),
       vertex1.getLabel(),
       vertex2.getLabel()
     );
 
-    float carSpeed = parent.getOsmProvider().getOsmTagMapper().getCarSpeedForWay(parent, false);
+    float carSpeed = parent
+      .getOsmProvider()
+      .getOsmTagMapper()
+      .getCarSpeedForWay(parent, TraverseDirection.DIRECTIONLESS, issueStore);
 
-    I18NString name = namer.getNameForWay(parent, label);
+    I18NString name = namer.getName(parent, label);
     AreaEdgeBuilder streetEdgeBuilder = new AreaEdgeBuilder()
       .withFromVertex(vertex1)
       .withToVertex(vertex2)
@@ -512,8 +516,8 @@ class WalkableAreaBuilder {
       .withWheelchairAccessible(wheelchairAccessible)
       .withLink(parent.isLink());
 
-    label = String.format(labelTemplate, parent.getId(), vertex2.getLabel(), vertex1.getLabel());
-    name = namer.getNameForWay(parent, label);
+    label = String.format(LABEL_TEMPLATE, parent.getId(), vertex2.getLabel(), vertex1.getLabel());
+    name = namer.getName(parent, label);
     AreaEdgeBuilder backStreetEdgeBuilder = new AreaEdgeBuilder()
       .withFromVertex(vertex2)
       .withToVertex(vertex1)
@@ -530,7 +534,7 @@ class WalkableAreaBuilder {
 
     AreaEdge street = streetEdgeBuilder.buildAndConnect();
     AreaEdge backStreet = backStreetEdgeBuilder.buildAndConnect();
-    normalizer.applyWayProperties(street, backStreet, wayData, parent);
+    normalizer.applyWayProperties(street, backStreet, wayData, wayData, parent);
     return Set.of(street, backStreet);
   }
 
@@ -545,16 +549,13 @@ class WalkableAreaBuilder {
       OsmEntity areaEntity = area.parent;
 
       String id = "way (area) " + areaEntity.getId();
-      I18NString name = namer.getNameForWay(areaEntity, id);
+      I18NString name = namer.getName(areaEntity, id);
       namedArea.setName(name);
 
       WayProperties wayData = findAreaProperties(areaEntity);
-      double bicycleSafety = wayData.bicycleSafety().forward();
-      namedArea.setBicycleSafetyMultiplier(bicycleSafety);
-
-      double walkSafety = wayData.walkSafety().forward();
-      namedArea.setWalkSafetyMultiplier(walkSafety);
-      namedArea.setOriginalEdges(intersection);
+      namedArea.setBicycleSafety((float) wayData.bicycleSafety());
+      namedArea.setWalkSafety((float) wayData.walkSafety());
+      namedArea.setGeometry(intersection);
       namedArea.setPermission(wayData.getPermission());
       areaGroup.addArea(namedArea);
 

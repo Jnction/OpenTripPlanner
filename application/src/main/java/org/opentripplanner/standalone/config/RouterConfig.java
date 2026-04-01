@@ -8,7 +8,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import java.io.Serializable;
 import java.util.List;
+import org.opentripplanner.apis.gtfs.GtfsApiParameters;
 import org.opentripplanner.ext.flex.FlexParameters;
+import org.opentripplanner.ext.ojp.config.OjpApiConfig;
+import org.opentripplanner.ext.ojp.config.TriasApiConfig;
+import org.opentripplanner.ext.ojp.parameters.OjpApiParameters;
+import org.opentripplanner.ext.ojp.parameters.TriasApiParameters;
 import org.opentripplanner.ext.ridehailing.RideHailingServiceParameters;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.standalone.config.framework.json.NodeAdapter;
@@ -18,6 +23,7 @@ import org.opentripplanner.standalone.config.routerconfig.TransitRoutingConfig;
 import org.opentripplanner.standalone.config.routerconfig.UpdatersConfig;
 import org.opentripplanner.standalone.config.routerconfig.VectorTileConfig;
 import org.opentripplanner.standalone.config.sandbox.FlexConfig;
+import org.opentripplanner.standalone.config.sandbox.GtfsApiConfig;
 import org.opentripplanner.standalone.config.sandbox.TransmodelAPIConfig;
 import org.opentripplanner.updater.UpdatersParameters;
 import org.slf4j.Logger;
@@ -48,7 +54,10 @@ public class RouterConfig implements Serializable {
   private final RideHailingServicesConfig rideHailingConfig;
   private final FlexConfig flexConfig;
   private final TransmodelAPIConfig transmodelApi;
+  private final GtfsApiConfig gtfsApi;
   private final VectorTileConfig vectorTileConfig;
+  private final TriasApiParameters triasApiParameters;
+  private final OjpApiParameters ojpApiParameters;
 
   public RouterConfig(JsonNode node, String source, boolean logUnusedParams) {
     this(new NodeAdapter(node, source), logUnusedParams);
@@ -66,12 +75,18 @@ public class RouterConfig implements Serializable {
 
     this.server = new ServerConfig("server", root);
     this.transmodelApi = new TransmodelAPIConfig("transmodelApi", root);
-    this.routingRequestDefaults = mapDefaultRouteRequest("routingDefaults", root);
-    this.transitConfig = new TransitRoutingConfig("transit", root, routingRequestDefaults);
-    this.routingRequestDefaults.initMaxSearchWindow(transitConfig.maxSearchWindow());
+    this.gtfsApi = new GtfsApiConfig("gtfsApi", root);
+    var request = mapDefaultRouteRequest("routingDefaults", root);
+    this.transitConfig = new TransitRoutingConfig("transit", root, request);
+    this.routingRequestDefaults = request
+      .copyOf()
+      .withMaxSearchWindow(transitConfig.maxSearchWindow())
+      .buildDefault();
     this.updatersParameters = new UpdatersConfig(root);
     this.rideHailingConfig = new RideHailingServicesConfig(root);
     this.vectorTileConfig = VectorTileConfig.mapVectorTilesParameters(root, "vectorTiles");
+    this.triasApiParameters = TriasApiConfig.mapParameters("triasApi", root);
+    this.ojpApiParameters = OjpApiConfig.mapParameters("ojpApi", root);
     this.flexConfig = new FlexConfig(root, "flex");
 
     if (logUnusedParams && LOG.isWarnEnabled()) {
@@ -129,6 +144,18 @@ public class RouterConfig implements Serializable {
 
   public FlexParameters flexParameters() {
     return flexConfig;
+  }
+
+  public TriasApiParameters triasApiParameters() {
+    return triasApiParameters;
+  }
+
+  public OjpApiParameters ojpApiParameters() {
+    return ojpApiParameters;
+  }
+
+  public GtfsApiParameters gtfsApiParameters() {
+    return gtfsApi;
   }
 
   public NodeAdapter asNodeAdapter() {
