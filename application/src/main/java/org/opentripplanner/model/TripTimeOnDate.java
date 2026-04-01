@@ -9,12 +9,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
-import org.opentripplanner.framework.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.I18NString;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.StopLocation;
 import org.opentripplanner.transit.model.timetable.OccupancyStatus;
 import org.opentripplanner.transit.model.timetable.RealTimeState;
 import org.opentripplanner.transit.model.timetable.StopTimeKey;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.Trip;
 import org.opentripplanner.transit.model.timetable.TripTimes;
 import org.opentripplanner.transit.model.timetable.booking.BookingInfo;
@@ -250,14 +251,14 @@ public class TripTimeOnDate {
    * Returns the actual arrival time if available. Otherwise -1 is returned.
    */
   public int getActualArrival() {
-    return isRecordedStop() ? tripTimes.getArrivalTime(stopPosition) : UNDEFINED;
+    return hasArrived() ? tripTimes.getArrivalTime(stopPosition) : UNDEFINED;
   }
 
   /**
    * Returns the actual departure time if available. Otherwise -1 is returned.
    */
   public int getActualDeparture() {
-    return isRecordedStop() ? tripTimes.getDepartureTime(stopPosition) : UNDEFINED;
+    return hasDeparted() ? tripTimes.getDepartureTime(stopPosition) : UNDEFINED;
   }
 
   public int getArrivalDelay() {
@@ -283,6 +284,10 @@ public class TripTimeOnDate {
     );
   }
 
+  public boolean isExtraCall() {
+    return tripTimes.isExtraCall(stopPosition);
+  }
+
   public boolean isPredictionInaccurate() {
     return tripTimes.isPredictionInaccurate(stopPosition);
   }
@@ -300,12 +305,14 @@ public class TripTimeOnDate {
     return tripTimes.isNoDataStop(stopPosition);
   }
 
-  /**
-   * Is the real-time time a recorded time (i.e. has the vehicle already passed the stop).
-   * This information is currently only available from SIRI feeds.
-   */
-  public boolean isRecordedStop() {
-    return tripTimes.isRecordedStop(stopPosition);
+  /// True if there is realtime information indicating that the trip has arrived at the stop.
+  public boolean hasArrived() {
+    return tripTimes.hasArrived(stopPosition);
+  }
+
+  /// True if there is realtime information indicating that the trip has departed from the stop.
+  public boolean hasDeparted() {
+    return tripTimes.hasDeparted(stopPosition);
   }
 
   public RealTimeState getRealTimeState() {
@@ -387,7 +394,9 @@ public class TripTimeOnDate {
 
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     TripTimeOnDate that = (TripTimeOnDate) o;
     return (
       stopPosition == that.stopPosition &&

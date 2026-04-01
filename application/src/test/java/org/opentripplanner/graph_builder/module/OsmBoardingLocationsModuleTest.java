@@ -16,16 +16,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.opentripplanner.framework.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.framework.i18n.I18NString;
-import org.opentripplanner.framework.i18n.NonLocalizedString;
-import org.opentripplanner.graph_builder.module.osm.OsmModule;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.NonLocalizedString;
+import org.opentripplanner.graph_builder.module.osm.OsmModuleTestFactory;
 import org.opentripplanner.osm.DefaultOsmProvider;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.linking.VertexLinkerTestFactory;
 import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildRepository;
 import org.opentripplanner.service.osminfo.internal.DefaultOsmInfoGraphBuildService;
-import org.opentripplanner.service.vehicleparking.internal.DefaultVehicleParkingRepository;
+import org.opentripplanner.street.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.street.graph.Graph;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.street.model.edge.BoardingLocationToStopLink;
 import org.opentripplanner.street.model.edge.Edge;
@@ -33,11 +32,10 @@ import org.opentripplanner.street.model.edge.StreetEdge;
 import org.opentripplanner.street.model.vertex.OsmBoardingLocationVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
-import org.opentripplanner.street.model.vertex.VertexFactory;
 import org.opentripplanner.street.model.vertex.VertexLabel;
+import org.opentripplanner.streetadapter.VertexFactory;
 import org.opentripplanner.test.support.ResourceLoader;
 import org.opentripplanner.transit.model._data.TimetableRepositoryForTest;
-import org.opentripplanner.transit.model.framework.Deduplicator;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.service.TimetableRepository;
 
@@ -89,9 +87,8 @@ class OsmBoardingLocationsModuleTest {
       .withRegularStops(List.of(platform, busStop, floatingBusStop))
       .build();
 
-    var deduplicator = new Deduplicator();
     var graph = new Graph();
-    var timetableRepository = new TimetableRepository(siteRepo, deduplicator);
+    var timetableRepository = new TimetableRepository(siteRepo);
     var factory = new VertexFactory(graph);
 
     var provider = new DefaultOsmProvider(file, false);
@@ -103,8 +100,10 @@ class OsmBoardingLocationsModuleTest {
       new NonLocalizedString("bus stop not connected to street network")
     );
     var osmInfoRepository = new DefaultOsmInfoGraphBuildRepository();
-    var vehicleParkingRepository = new DefaultVehicleParkingRepository();
-    var osmModule = OsmModule.of(provider, graph, osmInfoRepository, vehicleParkingRepository)
+    var osmModule = OsmModuleTestFactory.of(provider)
+      .withGraph(graph)
+      .withOsmInfoGraphBuildRepository(osmInfoRepository)
+      .builder()
       .withBoardingAreaRefTags(Set.of("ref", "ref:IFOPT"))
       .withAreaVisibility(areaVisibility)
       .build();
@@ -132,7 +131,9 @@ class OsmBoardingLocationsModuleTest {
     ).buildGraph();
 
     var boardingLocations = graph.getVerticesOfType(OsmBoardingLocationVertex.class);
-    assertEquals(5, boardingLocations.size()); // 3 nodes connected to the street network, plus one "floating" and one area centroid created by the module
+    // 3 nodes connected to the street network, plus one "floating" and one area centroid created by
+    // the module
+    assertEquals(5, boardingLocations.size());
 
     assertEquals(1, platformVertex.getIncoming().size());
     assertEquals(1, platformVertex.getOutgoing().size());
@@ -207,15 +208,15 @@ class OsmBoardingLocationsModuleTest {
   void testLinearPlatforms() {
     var graph = new Graph();
     var osmInfoRepository = new DefaultOsmInfoGraphBuildRepository();
-    var osmModule = OsmModule.of(
+    var osmModule = OsmModuleTestFactory.of(
       new DefaultOsmProvider(
         ResourceLoader.of(OsmBoardingLocationsModuleTest.class).file("moorgate.osm.pbf"),
         false
-      ),
-      graph,
-      osmInfoRepository,
-      new DefaultVehicleParkingRepository()
+      )
     )
+      .withGraph(graph)
+      .withOsmInfoGraphBuildRepository(osmInfoRepository)
+      .builder()
       .withBoardingAreaRefTags(Set.of("naptan:AtcoCode"))
       .build();
     osmModule.buildGraph();
@@ -302,7 +303,7 @@ class OsmBoardingLocationsModuleTest {
       .build();
     new OsmBoardingLocationsModule(
       graph,
-      new TimetableRepository(siteRepo, new Deduplicator()),
+      new TimetableRepository(siteRepo),
       VertexLinkerTestFactory.of(graph),
       new DefaultOsmInfoGraphBuildService(osmInfoRepository)
     ).buildGraph();
@@ -388,7 +389,7 @@ class OsmBoardingLocationsModuleTest {
 
     assertTrue(
       (getEdge(beginning, vertex).isPresent() && getEdge(vertex, end).isPresent()) ||
-      (getEdge(end, vertex).isPresent() && getEdge(vertex, beginning).isPresent())
+        (getEdge(end, vertex).isPresent() && getEdge(vertex, beginning).isPresent())
     );
   }
 

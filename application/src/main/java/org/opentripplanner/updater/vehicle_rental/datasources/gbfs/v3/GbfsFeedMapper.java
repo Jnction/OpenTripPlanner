@@ -17,9 +17,9 @@ import org.mobilitydata.gbfs.v3_0.system_information.GBFSSystemInformation;
 import org.mobilitydata.gbfs.v3_0.vehicle_status.GBFSVehicleStatus;
 import org.mobilitydata.gbfs.v3_0.vehicle_types.GBFSVehicleType;
 import org.mobilitydata.gbfs.v3_0.vehicle_types.GBFSVehicleTypes;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.TranslatedString;
 import org.opentripplanner.framework.application.OTPFeature;
-import org.opentripplanner.framework.i18n.I18NString;
-import org.opentripplanner.framework.i18n.TranslatedString;
 import org.opentripplanner.service.vehiclerental.model.GeofencingZone;
 import org.opentripplanner.service.vehiclerental.model.RentalVehicleType;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace;
@@ -64,11 +64,19 @@ public class GbfsFeedMapper
       var stationStatus = loader.getFeed(GBFSStationStatus.class);
       if (stationInformation != null && stationStatus != null) {
         // Index all the station status entries on their station ID.
+        // in case of duplicates entries (stations with identical unique id),
+        // only the first occurrence is kept.
         Map<String, GBFSStation> statusLookup = stationStatus
           .getData()
           .getStations()
           .stream()
-          .collect(Collectors.toMap(GBFSStation::getStationId, Function.identity()));
+          .collect(
+            Collectors.toMap(
+              GBFSStation::getStationId,
+              Function.identity(),
+              (gbfsStation1, gbfsStation2) -> gbfsStation1
+            )
+          );
         GbfsStationStatusMapper stationStatusMapper = new GbfsStationStatusMapper(
           statusLookup,
           vehicleTypes
@@ -167,11 +175,7 @@ public class GbfsFeedMapper
       return null;
     }
 
-    return TranslatedString.getI18NString(
-      name.stream().collect(toMap(language, text)),
-      true,
-      false
-    );
+    return TranslatedString.getI18NString(name.stream().collect(toMap(language, text)), false);
   }
 
   static <X> I18NString localizedString(

@@ -16,15 +16,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import org.opentripplanner.model.Timetable;
 import org.opentripplanner.model.TripTimeOnDate;
 import org.opentripplanner.model.plan.Leg;
-import org.opentripplanner.model.plan.leg.LegConstructionSupport;
 import org.opentripplanner.model.plan.leg.ScheduledTransitLeg;
 import org.opentripplanner.model.plan.leg.ScheduledTransitLegBuilder;
 import org.opentripplanner.transit.model.network.TripPattern;
 import org.opentripplanner.transit.model.site.Station;
 import org.opentripplanner.transit.model.site.StopLocation;
+import org.opentripplanner.transit.model.timetable.Timetable;
 import org.opentripplanner.transit.model.timetable.TripIdAndServiceDate;
 import org.opentripplanner.transit.model.timetable.TripOnServiceDate;
 import org.opentripplanner.transit.model.timetable.TripTimes;
@@ -242,9 +241,6 @@ public class AlternativeLegs {
       .withServiceDate(serviceDay)
       .withZoneId(timeZone)
       .withTripOnServiceDate(tripOnServiceDate)
-      .withDistanceMeters(
-        LegConstructionSupport.computeDistanceMeters(pattern, boardingPosition, alightingPosition)
-      )
       .build();
   }
 

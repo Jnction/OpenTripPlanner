@@ -16,13 +16,13 @@ import java.util.Set;
 import org.opentripplanner.astar.model.ShortestPathTree;
 import org.opentripplanner.astar.strategy.DurationSkipEdgeStrategy;
 import org.opentripplanner.astar.strategy.MaxCountTerminationStrategy;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.framework.application.OTPRequestTimeoutException;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
-import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.routing.graphfinder.NearbyStop;
 import org.opentripplanner.routing.graphfinder.NearbyStopFactory;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.ExtensionRequestContext;
 import org.opentripplanner.street.model.edge.StreetEdge;
@@ -34,7 +34,7 @@ import org.opentripplanner.street.search.StreetSearchBuilder;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.DominanceFunctions;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.streetadapter.StreetSearchRequestMapper;
 import org.opentripplanner.transit.model.site.AreaStop;
 
 public class StreetNearbyStopFinder implements NearbyStopFinder {
@@ -87,10 +87,10 @@ public class StreetNearbyStopFinder implements NearbyStopFinder {
   public Collection<NearbyStop> findNearbyStops(
     Vertex vertex,
     RouteRequest routingRequest,
-    StreetRequest streetRequest,
+    StreetMode streetMode,
     boolean reverseDirection
   ) {
-    return findNearbyStops(Set.of(vertex), routingRequest, streetRequest, reverseDirection);
+    return findNearbyStops(Set.of(vertex), routingRequest, streetMode, reverseDirection);
   }
 
   /**
@@ -104,7 +104,7 @@ public class StreetNearbyStopFinder implements NearbyStopFinder {
   public Collection<NearbyStop> findNearbyStops(
     Set<Vertex> originVertices,
     RouteRequest request,
-    StreetRequest streetRequest,
+    StreetMode streetMode,
     boolean reverseDirection
   ) {
     OTPRequestTimeoutException.checkForTimeout();
@@ -113,27 +113,30 @@ public class StreetNearbyStopFinder implements NearbyStopFinder {
       Sets.difference(originVertices, ignoreVertices),
       reverseDirection,
       request,
-      streetRequest
+      streetMode
     );
 
     // Return only the origin vertices if there are no valid street modes
     if (
-      streetRequest.mode() == StreetMode.NOT_SET ||
-      (maxStopCount > 0 && stopsFound.size() >= maxStopCount)
+      streetMode == StreetMode.NOT_SET || (maxStopCount > 0 && stopsFound.size() >= maxStopCount)
     ) {
       return stopsFound;
     }
     stopsFound = new ArrayList<>(stopsFound);
 
     var streetSearch = StreetSearchBuilder.of()
+      .withPreStartHook(OTPRequestTimeoutException::checkForTimeout)
       .withSkipEdgeStrategy(new DurationSkipEdgeStrategy<>(durationLimit))
       .withDominanceFunction(new DominanceFunctions.MinimumWeight())
-      .withRequest(request)
+      .withRequest(
+        StreetSearchRequestMapper.map(request)
+          .withMode(streetMode)
+          .withExtensionRequestContexts(extensionRequestContexts)
+          .build()
+      )
       .withArriveBy(reverseDirection)
-      .withStreetRequest(streetRequest)
       .withFrom(reverseDirection ? null : originVertices)
-      .withTo(reverseDirection ? originVertices : null)
-      .withExtensionRequestContexts(extensionRequestContexts);
+      .withTo(reverseDirection ? originVertices : null);
 
     if (maxStopCount > 0) {
       streetSearch.withTerminationStrategy(

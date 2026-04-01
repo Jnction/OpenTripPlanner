@@ -3,15 +3,16 @@ package org.opentripplanner.ext.flex.trip;
 import static org.opentripplanner.model.StopTime.MISSING_VALUE;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.flex.flexpathcalculator.FlexPathCalculator;
 import org.opentripplanner.ext.flex.flexpathcalculator.ScheduledFlexPathCalculator;
 import org.opentripplanner.model.PickDrop;
 import org.opentripplanner.model.StopTime;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.framework.TransitBuilder;
 import org.opentripplanner.transit.model.site.GroupStop;
 import org.opentripplanner.transit.model.site.StopLocation;
@@ -28,6 +29,8 @@ public class ScheduledDeviatedTrip
 
   private final BookingInfo[] dropOffBookingInfos;
   private final BookingInfo[] pickupBookingInfos;
+
+  private final long maxSpanDays;
 
   ScheduledDeviatedTrip(ScheduledDeviatedTripBuilder builder) {
     super(builder);
@@ -46,6 +49,13 @@ public class ScheduledDeviatedTrip
       this.dropOffBookingInfos[i] = stopTimes.get(i).getDropOffBookingInfo();
       this.pickupBookingInfos[i] = stopTimes.get(i).getPickupBookingInfo();
     }
+
+    var latestArrivalTime = Arrays.stream(this.stopTimes)
+      .mapToInt(st -> st.arrivalTime)
+      .max()
+      .orElse(0);
+
+    this.maxSpanDays = Duration.ofSeconds(latestArrivalTime).toDays();
   }
 
   public static ScheduledDeviatedTripBuilder of(FeedScopedId id) {
@@ -96,6 +106,11 @@ public class ScheduledDeviatedTrip
   @Override
   public int latestArrivalTime(int stopIndex) {
     return stopTimes[stopIndex].arrivalTime;
+  }
+
+  @Override
+  public long maxSpanDays() {
+    return maxSpanDays;
   }
 
   @Override

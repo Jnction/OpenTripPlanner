@@ -14,15 +14,16 @@ import org.opentripplanner.framework.application.OTPRequestTimeoutException;
 import org.opentripplanner.routing.api.request.RouteRequest;
 import org.opentripplanner.routing.api.request.preference.StreetPreferences;
 import org.opentripplanner.routing.error.PathNotFoundException;
+import org.opentripplanner.routing.linking.LinkingContext;
 import org.opentripplanner.street.model.StreetConstants;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.ExtensionRequestContext;
 import org.opentripplanner.street.model.vertex.Vertex;
+import org.opentripplanner.street.search.EuclideanRemainingWeightHeuristic;
 import org.opentripplanner.street.search.StreetSearchBuilder;
-import org.opentripplanner.street.search.TemporaryVerticesContainer;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.strategy.DominanceFunctions;
-import org.opentripplanner.street.search.strategy.EuclideanRemainingWeightHeuristic;
+import org.opentripplanner.streetadapter.StreetSearchRequestMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +86,7 @@ public class GraphPathFinder {
     StreetPreferences preferences = request.preferences().street();
 
     StreetSearchBuilder aStar = StreetSearchBuilder.of()
+      .withPreStartHook(OTPRequestTimeoutException::checkForTimeout)
       .withHeuristic(new EuclideanRemainingWeightHeuristic(maxCarSpeed))
       .withSkipEdgeStrategy(
         new DurationSkipEdgeStrategy(
@@ -93,11 +95,14 @@ public class GraphPathFinder {
       )
       // FORCING the dominance function to weight only
       .withDominanceFunction(new DominanceFunctions.MinimumWeight())
-      .withRequest(request)
-      .withStreetRequest(request.journey().direct())
+      .withRequest(
+        StreetSearchRequestMapper.map(request)
+          .withExtensionRequestContexts(extensionRequestContexts)
+          .withMode(request.journey().direct().mode())
+          .build()
+      )
       .withFrom(from)
-      .withTo(to)
-      .withExtensionRequestContexts(extensionRequestContexts);
+      .withTo(to);
 
     // If the search has a traverseVisitor(GraphVisualizer) attached to it, set it as a callback
     // for the AStar search
@@ -123,12 +128,12 @@ public class GraphPathFinder {
    */
   public List<GraphPath<State, Edge, Vertex>> graphPathFinderEntryPoint(
     RouteRequest request,
-    TemporaryVerticesContainer vertexContainer
+    LinkingContext linkingContext
   ) {
     return graphPathFinderEntryPoint(
       request,
-      vertexContainer.getFromVertices(),
-      vertexContainer.getToVertices()
+      linkingContext.findVertices(request.from()),
+      linkingContext.findVertices(request.to())
     );
   }
 

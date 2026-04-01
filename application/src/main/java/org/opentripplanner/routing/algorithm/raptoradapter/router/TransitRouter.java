@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.ridehailing.RideHailingAccessShifter;
 import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.graph_builder.module.nearbystops.TransitServiceResolver;
@@ -31,23 +32,23 @@ import org.opentripplanner.routing.algorithm.raptoradapter.transit.RaptorTransit
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.RoutingAccessEgress;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.TripSchedule;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.mappers.AccessEgressMapper;
+import org.opentripplanner.routing.algorithm.raptoradapter.transit.mappers.DirectTransitRequestMapper;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.mappers.RaptorRequestMapper;
+import org.opentripplanner.routing.algorithm.raptoradapter.transit.request.DefaultTransitDataProviderFilter;
 import org.opentripplanner.routing.algorithm.raptoradapter.transit.request.RaptorRoutingRequestTransitData;
-import org.opentripplanner.routing.algorithm.raptoradapter.transit.request.RouteRequestTransitDataProviderFilter;
 import org.opentripplanner.routing.algorithm.transferoptimization.configure.TransferOptimizationServiceConfigurator;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.request.StreetRequest;
 import org.opentripplanner.routing.api.response.InputField;
 import org.opentripplanner.routing.api.response.RoutingError;
 import org.opentripplanner.routing.api.response.RoutingErrorCode;
 import org.opentripplanner.routing.error.RoutingValidationException;
 import org.opentripplanner.routing.framework.DebugTimingAggregator;
+import org.opentripplanner.routing.linking.LinkingContext;
 import org.opentripplanner.routing.via.ViaCoordinateTransferFactory;
 import org.opentripplanner.standalone.api.OtpServerRequestContext;
-import org.opentripplanner.street.search.TemporaryVerticesContainer;
+import org.opentripplanner.street.model.StreetMode;
 import org.opentripplanner.transit.model.framework.EntityNotFoundException;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 import org.opentripplanner.transit.model.network.grouppriority.TransitGroupPriorityService;
 import org.opentripplanner.transit.model.site.StopLocation;
 
@@ -61,8 +62,8 @@ public class TransitRouter {
   private final DebugTimingAggregator debugTimingAggregator;
   private final ZonedDateTime transitSearchTimeZero;
   private final AdditionalSearchDays additionalSearchDays;
-  private final TemporaryVerticesContainer temporaryVerticesContainer;
   private final ViaCoordinateTransferFactory viaTransferResolver;
+  private final LinkingContext linkingContext;
   private final AccessEgressRouter accessEgressRouter;
 
   private TransitRouter(
@@ -71,7 +72,8 @@ public class TransitRouter {
     TransitGroupPriorityService transitGroupPriorityService,
     ZonedDateTime transitSearchTimeZero,
     AdditionalSearchDays additionalSearchDays,
-    DebugTimingAggregator debugTimingAggregator
+    DebugTimingAggregator debugTimingAggregator,
+    LinkingContext linkingContext
   ) {
     this.request = request;
     this.serverContext = serverContext;
@@ -79,8 +81,8 @@ public class TransitRouter {
     this.transitSearchTimeZero = transitSearchTimeZero;
     this.additionalSearchDays = additionalSearchDays;
     this.debugTimingAggregator = debugTimingAggregator;
-    this.temporaryVerticesContainer = createTemporaryVerticesContainer(request, serverContext);
     this.viaTransferResolver = serverContext.viaTransferResolver();
+    this.linkingContext = linkingContext;
     this.accessEgressRouter = new AccessEgressRouter(
       new TransitServiceResolver(serverContext.transitService())
     );
@@ -92,7 +94,8 @@ public class TransitRouter {
     TransitGroupPriorityService priorityGroupConfigurator,
     ZonedDateTime transitSearchTimeZero,
     AdditionalSearchDays additionalSearchDays,
-    DebugTimingAggregator debugTimingAggregator
+    DebugTimingAggregator debugTimingAggregator,
+    LinkingContext linkingContext
   ) {
     TransitRouter transitRouter = new TransitRouter(
       request,
@@ -100,18 +103,11 @@ public class TransitRouter {
       priorityGroupConfigurator,
       transitSearchTimeZero,
       additionalSearchDays,
-      debugTimingAggregator
+      debugTimingAggregator,
+      linkingContext
     );
 
-    return transitRouter.routeAndCleanupAfter();
-  }
-
-  private TransitRouterResult routeAndCleanupAfter() {
-    // try(auto-close):
-    //   Make sure we clean up graph by removing temp-edges from the graph before we exit.
-    try (temporaryVerticesContainer) {
-      return route();
-    }
+    return transitRouter.route();
   }
 
   private TransitRouterResult route() {
@@ -141,7 +137,8 @@ public class TransitRouter {
     );
 
     // Prepare transit search
-    var raptorRequest = RaptorRequestMapper.<TripSchedule>mapRequest(
+
+    var mapper = RaptorRequestMapper.<TripSchedule>of(
       request,
       transitSearchTimeZero,
       serverContext.raptorConfig().isMultiThreaded(),
@@ -149,10 +146,12 @@ public class TransitRouter {
       accessEgresses.getEgresses(),
       serverContext.meterRegistry(),
       viaTransferResolver,
-      this::listStopIndexes
+      this::listStopIndexes,
+      linkingContext
     );
+    var raptorRequest = mapper.mapRaptorRequest();
 
-    // Route transit
+    // Transit routing using Raptor
     var raptorService = new RaptorService<>(
       serverContext.raptorConfig(),
       createExtraMcRouterSearch(accessEgresses, raptorTransitData)
@@ -161,9 +160,26 @@ public class TransitRouter {
 
     checkIfTransitConnectionExists(transitResponse);
 
+    Collection<RaptorPath<TripSchedule>> paths = transitResponse.paths();
+
     debugTimingAggregator.finishedRaptorSearch();
 
-    Collection<RaptorPath<TripSchedule>> paths = transitResponse.paths();
+    // Route Direct transit
+    var directRequest = DirectTransitRequestMapper.map(
+      request,
+      transitResponse.requestUsed().searchParams()
+    );
+    if (directRequest.isPresent()) {
+      debugTimingAggregator.startedDirectTransitSearch();
+      var directPaths = raptorService.findAllDirectTransit(
+        directRequest.get(),
+        requestTransitDataProvider
+      );
+      paths = new ArrayList<>(paths);
+      paths.addAll(directPaths);
+      debugTimingAggregator.finishedDirectTransitSearch();
+    }
+    debugTimingAggregator.startedItineraryCreation();
 
     // TODO VIA - Temporarily turn OptimizeTransfers OFF for VIA search until the service support via
     //            Remove '&& !request.isViaSearch()'
@@ -177,13 +193,13 @@ public class TransitRouter {
       var service = TransferOptimizationServiceConfigurator.createOptimizeTransferService(
         raptorTransitData::getStopByIndex,
         requestTransitDataProvider.stopNameResolver(),
-        serverContext.transitService().getTransferService(),
+        serverContext.transitService().getConstrainedTransferService(),
         requestTransitDataProvider,
         raptorTransitData.getStopBoardAlightTransferCosts(),
         request.preferences().transfer().optimization(),
         raptorRequest.searchParams().viaLocations()
       );
-      paths = service.optimize(transitResponse.paths());
+      paths = service.optimize(paths);
     }
 
     // Create itineraries
@@ -191,6 +207,7 @@ public class TransitRouter {
     RaptorPathToItineraryMapper<TripSchedule> itineraryMapper = new RaptorPathToItineraryMapper<>(
       serverContext.graph(),
       serverContext.transitService(),
+      serverContext.streetDetailsService(),
       raptorTransitData,
       transitSearchTimeZero,
       request
@@ -277,12 +294,12 @@ public class TransitRouter {
 
     var nearbyStops = accessEgressRouter.findAccessEgresses(
       accessRequest,
-      temporaryVerticesContainer,
-      streetRequest,
+      streetRequest.mode(),
       serverContext.listExtensionRequestContexts(accessRequest),
       type,
       durationLimit,
-      stopCountLimit
+      stopCountLimit,
+      linkingContext
     );
     var accessEgresses = AccessEgressMapper.mapNearbyStops(nearbyStops, type);
     accessEgresses = timeshiftRideHailing(streetRequest, type, accessEgresses);
@@ -294,12 +311,12 @@ public class TransitRouter {
       var flexAccessList = FlexAccessEgressRouter.routeAccessEgress(
         accessRequest,
         accessEgressRouter,
-        temporaryVerticesContainer,
         serverContext,
         additionalSearchDays,
         serverContext.flexParameters(),
         serverContext.listExtensionRequestContexts(accessRequest),
-        type
+        type,
+        linkingContext
       );
 
       results.addAll(AccessEgressMapper.mapFlexAccessEgresses(flexAccessList, type));
@@ -343,7 +360,7 @@ public class TransitRouter {
       transitSearchTimeZero,
       additionalSearchDays.additionalSearchDaysInPast(),
       additionalSearchDays.additionalSearchDaysInFuture(),
-      new RouteRequestTransitDataProviderFilter(request),
+      DefaultTransitDataProviderFilter.ofRequest(request),
       request
     );
   }
@@ -379,21 +396,6 @@ public class TransitRouter {
         List.of(new RoutingError(RoutingErrorCode.NO_TRANSIT_CONNECTION, null))
       );
     }
-  }
-
-  private TemporaryVerticesContainer createTemporaryVerticesContainer(
-    RouteRequest request,
-    OtpServerRequestContext serverContext
-  ) {
-    return new TemporaryVerticesContainer(
-      serverContext.graph(),
-      serverContext.vertexLinker(),
-      serverContext.transitService()::findStopOrChildIds,
-      request.from(),
-      request.to(),
-      request.journey().access().mode(),
-      request.journey().egress().mode()
-    );
   }
 
   private IntStream listStopIndexes(FeedScopedId stopLocationId) {

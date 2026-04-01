@@ -8,10 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.FileNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.ext.emission.EmissionTestData;
 import org.opentripplanner.framework.csv.HeadersDoNotMatch;
 import org.opentripplanner.graph_builder.issue.service.DefaultDataImportIssueStore;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
 
 class RouteDataReaderTest implements EmissionTestData {
 
@@ -72,7 +72,7 @@ class RouteDataReaderTest implements EmissionTestData {
     var subject = new RouteDataReader(emissionOnTripHops(), issueStore);
     var ex = assertThrows(HeadersDoNotMatch.class, () -> subject.read(FEED_ID, null));
     assertThat(ex.getMessage()).containsMatch(
-      "The header does not match the expected values for csv file:.*em-on-trip-hops\\.txt"
+      "The header does not match the expected values. File:.*em-on-trip-hops\\.txt"
     );
   }
 }

@@ -6,8 +6,8 @@ import static org.opentripplanner.utils.lang.ObjectUtils.ifNotNull;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.function.Consumer;
-import org.opentripplanner.framework.model.Cost;
-import org.opentripplanner.framework.model.Units;
+import org.opentripplanner.core.model.basic.Cost;
+import org.opentripplanner.utils.lang.Units;
 import org.opentripplanner.utils.tostring.ToStringBuilder;
 
 /**
@@ -118,8 +118,12 @@ public final class WalkPreferences implements Serializable {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     WalkPreferences that = (WalkPreferences) o;
     return (
       doubleEquals(that.speed, speed) &&

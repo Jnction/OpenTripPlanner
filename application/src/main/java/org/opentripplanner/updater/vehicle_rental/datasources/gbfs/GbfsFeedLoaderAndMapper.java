@@ -4,12 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Map;
+import org.opentripplanner.framework.io.HttpHeaders;
 import org.opentripplanner.framework.io.OtpHttpClientFactory;
 import org.opentripplanner.framework.json.JsonUtils;
 import org.opentripplanner.service.vehiclerental.model.GeofencingZone;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace;
-import org.opentripplanner.updater.spi.UpdaterConstructionException;
 import org.opentripplanner.updater.vehicle_rental.datasources.params.GbfsVehicleRentalDataSourceParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,16 +27,11 @@ public class GbfsFeedLoaderAndMapper {
   public GbfsFeedLoaderAndMapper(
     GbfsVehicleRentalDataSourceParameters params,
     OtpHttpClientFactory otpHttpClientFactory
-  ) {
-    URI uri;
-    try {
-      uri = new URI(params.url());
-    } catch (URISyntaxException e) {
-      throw new UpdaterConstructionException("Invalid url " + params.url());
-    }
+  ) throws URISyntaxException {
+    URI uri = new URI(params.url());
 
     var client = otpHttpClientFactory.create(LOG);
-    var gbfsNode = client.getAndMapAsJsonNode(uri, Map.of(), new ObjectMapper());
+    var gbfsNode = client.getAndMapAsJsonNode(uri, HttpHeaders.empty(), new ObjectMapper());
     var gbfsFeedVersion = JsonUtils.asText(gbfsNode, "version").orElse(null);
 
     switch (gbfsFeedVersion) {

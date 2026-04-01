@@ -6,12 +6,16 @@ import static org.opentripplanner.updater.vehicle_rental.datasources.gbfs.v3.Gbf
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.mobilitydata.gbfs.v3_0.station_information.*;
+import org.mobilitydata.gbfs.v3_0.station_information.GBFSName;
+import org.mobilitydata.gbfs.v3_0.station_information.GBFSRentalUris;
+import org.mobilitydata.gbfs.v3_0.station_information.GBFSShortName;
+import org.mobilitydata.gbfs.v3_0.station_information.GBFSStation;
+import org.opentripplanner.core.model.id.FeedScopedId;
 import org.opentripplanner.service.vehiclerental.model.RentalVehicleType;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalStation;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalStationUris;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalSystem;
-import org.opentripplanner.transit.model.framework.FeedScopedId;
+import org.opentripplanner.updater.vehicle_rental.datasources.gbfs.support.UnknownVehicleTypeFilter;
 import org.opentripplanner.utils.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +28,7 @@ class GbfsStationInformationMapper {
   private final Map<String, RentalVehicleType> vehicleTypes;
   private final boolean allowKeepingRentedVehicleAtDestination;
   private final boolean overloadingAllowed;
+  private final UnknownVehicleTypeFilter vehicleTypeFilter;
 
   public GbfsStationInformationMapper(
     VehicleRentalSystem system,
@@ -35,6 +40,7 @@ class GbfsStationInformationMapper {
     this.vehicleTypes = vehicleTypes;
     this.allowKeepingRentedVehicleAtDestination = allowKeepingRentedVehicleAtDestination;
     this.overloadingAllowed = overloadingAllowed;
+    this.vehicleTypeFilter = new UnknownVehicleTypeFilter(vehicleTypes);
   }
 
   public VehicleRentalStation mapStationInformation(GBFSStation station) {
@@ -68,7 +74,19 @@ class GbfsStationInformationMapper {
         station
           .getVehicleTypesCapacity()
           .stream()
-          .flatMap(e -> e.getVehicleTypeIds().stream().map(t -> Map.entry(t, e.getCount())))
+          .flatMap(e ->
+            e
+              .getVehicleTypeIds()
+              .stream()
+              .map(t -> Map.entry(t, e.getCount()))
+          )
+          .filter(e ->
+            vehicleTypeFilter.filterUnknownVehicleType(
+              e.getKey(),
+              station.getStationId(),
+              "vehicle_types_capacity"
+            )
+          )
           .collect(Collectors.toMap(e -> vehicleTypes.get(e.getKey()), Map.Entry::getValue))
       );
     }
@@ -78,7 +96,19 @@ class GbfsStationInformationMapper {
         station
           .getVehicleDocksCapacity()
           .stream()
-          .flatMap(e -> e.getVehicleTypeIds().stream().map(t -> Map.entry(t, e.getCount())))
+          .flatMap(e ->
+            e
+              .getVehicleTypeIds()
+              .stream()
+              .map(t -> Map.entry(t, e.getCount()))
+          )
+          .filter(e ->
+            vehicleTypeFilter.filterUnknownVehicleType(
+              e.getKey(),
+              station.getStationId(),
+              "vehicle_docks_capacity"
+            )
+          )
           .collect(Collectors.toMap(e -> vehicleTypes.get(e.getKey()), Map.Entry::getValue))
       );
     }
@@ -110,7 +140,10 @@ class GbfsStationInformationMapper {
       station.getName() != null &&
       !station.getName().isEmpty() &&
       station.getName().stream().allMatch(Objects::nonNull) &&
-      station.getName().stream().allMatch(gbfsName -> StringUtils.hasValue(gbfsName.getText())) &&
+      station
+        .getName()
+        .stream()
+        .allMatch(gbfsName -> StringUtils.hasValue(gbfsName.getText())) &&
       station
         .getName()
         .stream()

@@ -12,22 +12,22 @@ import javax.annotation.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Point;
-import org.opentripplanner.framework.geometry.GeometryUtils;
-import org.opentripplanner.framework.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.framework.i18n.I18NString;
-import org.opentripplanner.framework.i18n.LocalizedString;
+import org.opentripplanner.core.model.i18n.I18NString;
+import org.opentripplanner.core.model.i18n.LocalizedString;
 import org.opentripplanner.graph_builder.model.GraphBuilderModule;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graphfinder.StopResolver;
-import org.opentripplanner.routing.linking.VertexLinker;
 import org.opentripplanner.service.osminfo.OsmInfoGraphBuildService;
 import org.opentripplanner.service.osminfo.model.Platform;
+import org.opentripplanner.street.geometry.GeometryUtils;
+import org.opentripplanner.street.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.linking.LinkingDirection;
+import org.opentripplanner.street.linking.VertexLinker;
 import org.opentripplanner.street.model.StreetTraversalPermission;
 import org.opentripplanner.street.model.edge.Area;
 import org.opentripplanner.street.model.edge.AreaEdge;
 import org.opentripplanner.street.model.edge.BoardingLocationToStopLink;
 import org.opentripplanner.street.model.edge.Edge;
-import org.opentripplanner.street.model.edge.LinkingDirection;
 import org.opentripplanner.street.model.edge.StreetEdge;
 import org.opentripplanner.street.model.edge.StreetEdgeBuilder;
 import org.opentripplanner.street.model.edge.StreetTransitStopLink;
@@ -35,9 +35,9 @@ import org.opentripplanner.street.model.vertex.OsmBoardingLocationVertex;
 import org.opentripplanner.street.model.vertex.StreetVertex;
 import org.opentripplanner.street.model.vertex.TransitStopVertex;
 import org.opentripplanner.street.model.vertex.Vertex;
-import org.opentripplanner.street.model.vertex.VertexFactory;
 import org.opentripplanner.street.search.TraverseMode;
 import org.opentripplanner.street.search.TraverseModeSet;
+import org.opentripplanner.streetadapter.VertexFactory;
 import org.opentripplanner.transit.model.site.RegularStop;
 import org.opentripplanner.transit.model.site.StationElement;
 import org.opentripplanner.transit.service.TimetableRepository;
@@ -109,12 +109,19 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
           break;
         }
       }
-      if (alreadyLinked) continue;
+      if (alreadyLinked) {
+        continue;
+      }
       // only connect transit stops that are not part of a pathway network
       if (!ts.hasPathways()) {
         var stop = stopResolver.getStop(ts.getId());
         if (!connectVertexToStop(ts, stop, graph)) {
-          LOG.debug("Could not connect {} at {}", ts.getId(), ts.getCoordinate());
+          LOG.debug(
+            "Could not connect {} ({}) at {}",
+            ts.getId(),
+            stop.getCode(),
+            ts.getCoordinate()
+          );
         } else {
           successes++;
         }
@@ -124,9 +131,13 @@ public class OsmBoardingLocationsModule implements GraphBuilderModule {
   }
 
   private boolean connectVertexToStop(TransitStopVertex ts, RegularStop stop, Graph index) {
-    if (connectVertexToNode(ts, stop, index)) return true;
+    if (connectVertexToNode(ts, stop, index)) {
+      return true;
+    }
 
-    if (connectVertexToWay(ts, stop, index)) return true;
+    if (connectVertexToWay(ts, stop, index)) {
+      return true;
+    }
 
     return connectVertexToArea(ts, index);
   }

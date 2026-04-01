@@ -13,13 +13,13 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.mobilitydata.gbfs.v3_0.vehicle_types.GBFSVehicleType;
-import org.opentripplanner.framework.i18n.TranslatedString;
+import org.opentripplanner.core.model.i18n.TranslatedString;
+import org.opentripplanner.framework.io.HttpHeaders;
 import org.opentripplanner.framework.io.OtpHttpClientFactory;
 import org.opentripplanner.service.vehiclerental.model.GeofencingZone;
 import org.opentripplanner.service.vehiclerental.model.RentalVehicleType;
 import org.opentripplanner.service.vehiclerental.model.VehicleRentalPlace;
 import org.opentripplanner.street.model.RentalFormFactor;
-import org.opentripplanner.updater.spi.HttpHeaders;
 import org.opentripplanner.updater.vehicle_rental.datasources.gbfs.GbfsVehicleRentalDataSource;
 import org.opentripplanner.updater.vehicle_rental.datasources.params.GbfsVehicleRentalDataSourceParameters;
 import org.opentripplanner.updater.vehicle_rental.datasources.params.RentalPickupType;
@@ -43,8 +43,9 @@ class GbfsFeedMapperTest {
       false,
       RentalPickupType.ALL
     );
-    var otpHttpClient = new OtpHttpClientFactory()
-      .create(LoggerFactory.getLogger(GbfsFeedMapperTest.class));
+    var otpHttpClient = new OtpHttpClientFactory().create(
+      LoggerFactory.getLogger(GbfsFeedMapperTest.class)
+    );
     var loader = new GbfsFeedLoader(params.url(), params.httpHeaders(), otpHttpClient);
     var mapper = new GbfsFeedMapper(loader, params);
 
@@ -94,7 +95,6 @@ class GbfsFeedMapperTest {
     assertEquals(
       TranslatedString.getI18NString(
         Map.of("en", "Check Technologies", "nl", "Check Technologies (nl)"),
-        false,
         false
       ),
       system.name()
@@ -194,6 +194,66 @@ class GbfsFeedMapperTest {
     assertEquals("Almere Stad", almereStad.name().toString(Locale.forLanguageTag("en")));
     assertEquals("Almere Stad (nl)", almereStad.name().toString(Locale.forLanguageTag("nl")));
     assertEquals("check_almere:fb345775", almereStad.id().toString());
+  }
+
+  @Test
+  void duplicatedStationsDoNotThrowException() {
+    var params = new GbfsVehicleRentalDataSourceParameters(
+      "file:src/test/resources/gbfs/duplicate-stations-v3/gbfs.json",
+      null,
+      false,
+      HttpHeaders.empty(),
+      null,
+      false,
+      false,
+      RentalPickupType.ALL
+    );
+    var otpHttpClient = new OtpHttpClientFactory().create(
+      LoggerFactory.getLogger(GbfsFeedMapperTest.class)
+    );
+    var loader = new GbfsFeedLoader(params.url(), params.httpHeaders(), otpHttpClient);
+    var mapper = new GbfsFeedMapper(loader, params);
+
+    assertTrue(loader.update());
+
+    assertDoesNotThrow(() -> {
+      mapper.getUpdates();
+    });
+  }
+
+  @Test
+  void duplicatedStationsKeepFirstOccurrence() {
+    var params = new GbfsVehicleRentalDataSourceParameters(
+      "file:src/test/resources/gbfs/duplicate-stations-v3/gbfs.json",
+      null,
+      false,
+      HttpHeaders.empty(),
+      null,
+      false,
+      false,
+      RentalPickupType.ALL
+    );
+    var otpHttpClient = new OtpHttpClientFactory().create(
+      LoggerFactory.getLogger(GbfsFeedMapperTest.class)
+    );
+    var loader = new GbfsFeedLoader(params.url(), params.httpHeaders(), otpHttpClient);
+    var mapper = new GbfsFeedMapper(loader, params);
+
+    assertTrue(loader.update());
+
+    List<VehicleRentalPlace> stations = mapper.getUpdates();
+
+    // Should have 3 stations (station_1, station_duplicate, station_3)
+    // even though station_status has 4 entries (with duplicate station_duplicate)
+    assertEquals(3, stations.size());
+
+    // Verify the duplicate station uses the first occurrence data (10 vehicles available)
+    var duplicateStation = stations
+      .stream()
+      .filter(s -> s.id().getId().contains("station_duplicate"))
+      .findFirst()
+      .orElseThrow();
+    assertEquals(10, duplicateStation.vehiclesAvailable());
   }
 
   private static List<GBFSVehicleType> getDuplicatedGbfsVehicleTypes() {

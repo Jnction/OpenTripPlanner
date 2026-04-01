@@ -86,9 +86,12 @@ the instructions in your submitted text.
 - Tie such series of PRs together with an "epic issue" that explains the overall plan.
 - Use GitHub issue references e.g. "related to #12" or "closes #13" to connect PRs and issues
 together.
-- Consider squashing and rebasing to make the PR history easier to understand, eliminating extra "
-  noise" commits like accidental changes to organization specific code, abandoned experiments, or
+- Consider squashing and rebasing to make the PR history easier to understand, eliminating extra
+  "noise" commits like accidental changes to organization specific code, abandoned experiments, or
   reverted configuration changes.
+- If you use AI tools to assist with your contributions, you remain fully responsible for the
+  quality and correctness of the changes. Only submit pull requests that you understand and can
+  explain. PRs that are unclear, low-quality, or generated as spam will be rejected.
 
 In turn, in order to prevent OTP2 from turning into a "
 big-ball-of-mud" (https://en.wikipedia.org/wiki/Big_ball_of_mud) and ensure development does not
@@ -164,3 +167,19 @@ more resources. The goal of mainline OTP is not to be everything to everyone, bu
 the most solid code relied upon daily by the primary OTP contributor organizations (as well as
 Sandbox features that have been cleanly isolated from the core system). So in a sense it's
 encouraged for people to work on special-purpose forks.
+
+## Rejecting a PR - Standard Response
+
+For maintainers: Use this template when closing issues or pull requests that don't follow our
+contribution guidelines. Copy and paste as needed, adjusting the text if appropriate.
+
+```
+Hello!
+
+Thank you for your interest in contributing to OpenTripPlanner. Unfortunately we don't have the 
+resources to review changes unless they solve an actual issue, and/or follow our contribution 
+guidelines. If you would like to contribute, please feel free to join us at one of our developer
+meetings or talk to us on Gitter. We are happy to guide you through the process of creating a 
+PR and set the right expectations. You can find the links in our 
+[contribution guidelines](https://github.com/opentripplanner/OpenTripPlanner/blob/dev-2.x/CONTRIBUTING.md).
+```

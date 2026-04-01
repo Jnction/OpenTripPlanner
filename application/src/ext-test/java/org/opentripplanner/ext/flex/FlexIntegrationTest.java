@@ -3,7 +3,7 @@ package org.opentripplanner.ext.flex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.opentripplanner.routing.api.request.StreetMode.FLEXIBLE;
+import static org.opentripplanner.street.model.StreetMode.FLEXIBLE;
 import static org.opentripplanner.street.search.TraverseMode.WALK;
 import static org.opentripplanner.transit.model.basic.TransitMode.BUS;
 
@@ -18,21 +18,23 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.opentripplanner.TestOtpModel;
 import org.opentripplanner.TestServerContext;
+import org.opentripplanner.core.model.time.LocalDateInterval;
 import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.graph_builder.issue.api.DataImportIssueStore;
-import org.opentripplanner.graph_builder.module.DirectTransferGenerator;
 import org.opentripplanner.graph_builder.module.TestStreetLinkerModule;
+import org.opentripplanner.graph_builder.module.transfer.DirectTransferGenerator;
 import org.opentripplanner.gtfs.graphbuilder.GtfsBundleTestFactory;
 import org.opentripplanner.gtfs.graphbuilder.GtfsModule;
+import org.opentripplanner.gtfs.graphbuilder.GtfsModuleTestFactory;
 import org.opentripplanner.model.GenericLocation;
-import org.opentripplanner.model.calendar.ServiceDateInterval;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.routing.api.RoutingService;
 import org.opentripplanner.routing.api.request.RouteRequest;
-import org.opentripplanner.routing.api.request.StreetMode;
 import org.opentripplanner.routing.api.request.framework.TimeAndCostPenalty;
 import org.opentripplanner.routing.api.request.request.JourneyRequest;
-import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.street.graph.Graph;
+import org.opentripplanner.street.model.StreetMode;
+import org.opentripplanner.transfer.regular.TransferRepository;
 import org.opentripplanner.transit.service.TimetableRepository;
 
 /**
@@ -56,6 +58,8 @@ public class FlexIntegrationTest {
 
   static TimetableRepository timetableRepository;
 
+  static TransferRepository transferRepository;
+
   static RoutingService service;
 
   @BeforeAll
@@ -64,9 +68,11 @@ public class FlexIntegrationTest {
     TestOtpModel model = FlexIntegrationTestData.cobbOsm();
     graph = model.graph();
     timetableRepository = model.timetableRepository();
+    transferRepository = model.transferRepository();
     addGtfsToGraph(
       graph,
       timetableRepository,
+      transferRepository,
       List.of(
         FlexIntegrationTestData.COBB_BUS_30_GTFS,
         FlexIntegrationTestData.MARTA_BUS_856_GTFS,
@@ -76,6 +82,7 @@ public class FlexIntegrationTest {
     service = TestServerContext.createServerContext(
       graph,
       timetableRepository,
+      transferRepository,
       model.fareServiceFactory().makeFareService()
     ).routingService();
   }
@@ -188,15 +195,16 @@ public class FlexIntegrationTest {
   private static void addGtfsToGraph(
     Graph graph,
     TimetableRepository timetableRepository,
+    TransferRepository transferRepository,
     List<File> gtfsFiles
   ) {
     // GTFS
     var gtfsBundles = gtfsFiles.stream().map(GtfsBundleTestFactory::forTest).toList();
-    GtfsModule gtfsModule = GtfsModule.forTest(
+    GtfsModule gtfsModule = GtfsModuleTestFactory.forTest(
       gtfsBundles,
       timetableRepository,
       graph,
-      ServiceDateInterval.unbounded()
+      LocalDateInterval.unbounded()
     );
     gtfsModule.buildGraph();
 
@@ -213,6 +221,7 @@ public class FlexIntegrationTest {
     new DirectTransferGenerator(
       graph,
       timetableRepository,
+      transferRepository,
       DataImportIssueStore.NOOP,
       Duration.ofMinutes(10),
       List.of(req)
@@ -220,6 +229,7 @@ public class FlexIntegrationTest {
 
     timetableRepository.index();
     graph.index();
+    transferRepository.index();
   }
 
   private Itinerary getItinerary(GenericLocation from, GenericLocation to, int index) {
