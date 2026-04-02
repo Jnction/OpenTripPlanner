@@ -7,7 +7,7 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-- script: JAVA_HOME=$JAVA_HOME_21_X64 mvn package
+- script: JAVA_HOME=$JAVA_HOME_25_X64 mvn package
 - script: cp otp-shaded/target/otp-shaded-2.9.0.jar '$(Pipeline.Workspace)/otp-shaded.jar'
 - task: PublishPipelineArtifact@1
   inputs:
