@@ -4,6 +4,7 @@ import static org.opentripplanner.street.model.StreetTraversalPermission.ALL;
 import static org.opentripplanner.street.model.StreetTraversalPermission.NONE;
 
 import java.util.OptionalDouble;
+import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
 
 public class OsmNode extends OsmEntity {
@@ -44,12 +45,26 @@ public class OsmNode extends OsmEntity {
   }
 
   /**
-   * Checks if this node is a subway station entrance.
+   * Checks if this node is a station entrance.
    *
    * @return true if it is
    */
-  public boolean isSubwayEntrance() {
-    return hasTag("railway") && "subway_entrance".equals(getTag("railway"));
+  public boolean isStationEntrance() {
+    return (
+      isOneOfTags("railway", Set.of("subway_entrance", "train_station_entrance")) ||
+      isTag("public_transport", "entrance")
+    );
+  }
+
+  /**
+   * @return True if this entity provides an entrance to a platform or similar entity
+   */
+  public boolean isEntrance() {
+    return (
+      (isStationEntrance() || isTag("entrance", "yes") || isTag("entrance", "main")) &&
+      !isTag("access", "private") &&
+      !isTag("access", "no")
+    );
   }
 
   /** checks for units (m/ft) in an OSM ele tag value, and returns the value in meters */
@@ -79,8 +94,8 @@ public class OsmNode extends OsmEntity {
   }
 
   /**
-   * Check if this node represents a tagged barrier crossing if placed on an intersection
-   * of a highway and a barrier way.
+   * Check if this node represents a tagged barrier crossing if placed on an intersection of a
+   * highway and a barrier way.
    *
    * @return true if it has a barrier tag, or if it explicitly overrides permissions.
    */
