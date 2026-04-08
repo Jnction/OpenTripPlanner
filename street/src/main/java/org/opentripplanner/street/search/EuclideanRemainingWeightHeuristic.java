@@ -1,44 +1,53 @@
 package org.opentripplanner.street.search;
 
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.opentripplanner.astar.spi.RemainingWeightHeuristic;
 import org.opentripplanner.street.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.street.model.StreetConstants;
+import org.opentripplanner.street.model.VehicleRoutingOptimizeType;
 import org.opentripplanner.street.model.edge.Edge;
 import org.opentripplanner.street.model.edge.FreeEdge;
 import org.opentripplanner.street.model.vertex.Vertex;
+import org.opentripplanner.street.search.request.BikeRequest;
+import org.opentripplanner.street.search.request.ScooterRequest;
 import org.opentripplanner.street.search.request.StreetSearchRequest;
+import org.opentripplanner.street.search.request.TimeSlopeSafetyTriangle;
+import org.opentripplanner.street.search.request.WalkRequest;
 import org.opentripplanner.street.search.state.State;
 import org.opentripplanner.street.search.state.VehicleRentalState;
+import org.opentripplanner.street.service.StreetLimitationParametersService;
 
 /**
  * A Euclidean remaining weight strategy.
  */
 public class EuclideanRemainingWeightHeuristic implements RemainingWeightHeuristic<State> {
 
-  private static final Float DEFAULT_MAX_CAR_SPEED = StreetConstants.DEFAULT_MAX_CAR_SPEED;
-
   private double lat;
   private double lon;
-  private double maxStreetSpeed;
-  private double walkingSpeed;
+  private double minimumCostPerDistance;
+  private double walkingCostPerDistance;
+
   private boolean arriveBy;
-  private final float maxCarSpeed;
+  private final StreetLimitationParametersService streetLimitationParametersService;
 
   public EuclideanRemainingWeightHeuristic() {
-    this(DEFAULT_MAX_CAR_SPEED);
+    this(StreetLimitationParametersService.DEFAULT);
   }
 
-  public EuclideanRemainingWeightHeuristic(Float maxCarSpeed) {
-    this.maxCarSpeed = maxCarSpeed != null ? maxCarSpeed : DEFAULT_MAX_CAR_SPEED;
+  public EuclideanRemainingWeightHeuristic(
+    StreetLimitationParametersService streetLimitationParametersService
+  ) {
+    this.streetLimitationParametersService = streetLimitationParametersService;
   }
 
   // TODO This currently only uses the first toVertex. If there are multiple toVertices, it will
   //      not work correctly.
   public void initialize(Set<Vertex> toVertices, boolean arriveBy, StreetSearchRequest req) {
     Vertex target = toVertices.iterator().next();
-    maxStreetSpeed = getStreetSpeedUpperBound(req);
-    walkingSpeed = req.walk().speed();
+    minimumCostPerDistance = getMinimumCostPerDistance(req);
+    walkingCostPerDistance = getWalkingCostPerDistance(req.walk());
     this.arriveBy = arriveBy;
 
     if (target.getDegreeIn() == 1) {
@@ -52,20 +61,90 @@ public class EuclideanRemainingWeightHeuristic implements RemainingWeightHeurist
     lon = target.getLon();
   }
 
-  /** @return The highest speed for all possible road-modes. */
-  private double getStreetSpeedUpperBound(StreetSearchRequest req) {
-    // Assume carSpeed > bikeSpeed > walkSpeed
+  private static double scaleSafety(double safety, double safetyFactor) {
+    return 1 + (safety - 1) * safetyFactor;
+  }
+
+  private double getEffectiveSafetyForOptimization(
+    VehicleRoutingOptimizeType optimizeType,
+    TimeSlopeSafetyTriangle triangle,
+    double safety
+  ) {
+    return switch (optimizeType) {
+      case SHORTEST_DURATION -> 1.0;
+      case SAFE_STREETS -> safety;
+      case FLAT_STREETS -> 1.0;
+      case SAFEST_STREETS -> safety;
+      case TRIANGLE -> scaleSafety(
+        safety,
+        Objects.requireNonNull(
+          triangle,
+          "triangle must not be null if vehicleRoutingOptimizeType is TRIANGLE."
+        ).safety()
+      );
+    };
+  }
+
+  /**
+   * @return the minimum of (pace × reluctance × safety) for the applicable modes
+   */
+  private double getMinimumCostPerDistance(StreetSearchRequest req) {
     var streetMode = req.mode();
-    if (streetMode.includesDriving()) {
-      return maxCarSpeed;
-    }
-    if (streetMode.includesBiking()) {
-      return req.bike().speed();
-    }
-    if (streetMode.includesScooter()) {
-      return req.scooter().speed();
-    }
-    return req.walk().speed();
+    double drivingPace = streetMode.includesDriving()
+      ? 1.0 / streetLimitationParametersService.maxCarSpeed()
+      : Double.MAX_VALUE;
+    double cyclingPace = streetMode.includesBiking()
+      ? getCyclingCostPerDistance(req.bike())
+      : Double.MAX_VALUE;
+    double scooterPace = streetMode.includesScooter()
+      ? getScooterCostPerDistance(req.scooter())
+      : Double.MAX_VALUE;
+    double walkingPace = streetMode.includesWalking()
+      ? getWalkingCostPerDistance(req.walk())
+      : Double.MAX_VALUE;
+    return Stream.of(drivingPace, cyclingPace, scooterPace, walkingPace)
+      .min(Comparator.comparingDouble(x -> x))
+      .orElseThrow();
+  }
+
+  private double getWalkingCostPerDistance(WalkRequest walkRequest) {
+    return getCostPerDistance(
+      walkRequest.speed(),
+      walkRequest.reluctance(),
+      scaleSafety(streetLimitationParametersService.getBestWalkSafety(), walkRequest.safetyFactor())
+    );
+  }
+
+  private double getCyclingCostPerDistance(BikeRequest bikeRequest) {
+    return getCostPerDistance(
+      bikeRequest.speed(),
+      bikeRequest.reluctance(),
+      getEffectiveSafetyForOptimization(
+        bikeRequest.optimizeType(),
+        bikeRequest.optimizeTriangle(),
+        streetLimitationParametersService.getBestBikeSafety()
+      )
+    );
+  }
+
+  private double getScooterCostPerDistance(ScooterRequest scooterRequest) {
+    return getCostPerDistance(
+      scooterRequest.speed(),
+      scooterRequest.reluctance(),
+      getEffectiveSafetyForOptimization(
+        scooterRequest.optimizeType(),
+        scooterRequest.optimizeTriangle(),
+        streetLimitationParametersService.getBestBikeSafety()
+      )
+    );
+  }
+
+  private static double getCostPerDistance(
+    double speed,
+    double reluctance,
+    double effectiveMinimumSafety
+  ) {
+    return (1.0 / speed) * reluctance * effectiveMinimumSafety;
   }
 
   /**
@@ -90,7 +169,7 @@ public class EuclideanRemainingWeightHeuristic implements RemainingWeightHeurist
         s.isVehicleParked() || s.getVehicleRentalState() == VehicleRentalState.HAVE_RENTED;
     }
 
-    final double streetSpeed = useWalkSpeed ? walkingSpeed : maxStreetSpeed;
-    return euclideanDistance / streetSpeed;
+    final double costPerDistance = useWalkSpeed ? walkingCostPerDistance : minimumCostPerDistance;
+    return euclideanDistance * costPerDistance;
   }
 }
