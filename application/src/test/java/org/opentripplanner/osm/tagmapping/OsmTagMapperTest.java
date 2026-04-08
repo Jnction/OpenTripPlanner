@@ -99,6 +99,10 @@ class OsmTagMapperTest {
   void testFootway() {
     OsmWay footway = WayTestData.footway();
     assertEquals(PEDESTRIAN, WPS.getDataForEntity(footway).getPermission());
+    assertEquals(1.0, WPS.getDataForWay(footway).forward().walkSafety());
+
+    footway.addTag("sidewalk", "both");
+    assertEquals(1.0, WPS.getDataForWay(footway).forward().walkSafety());
   }
 
   @Test
@@ -373,16 +377,16 @@ class OsmTagMapperTest {
     var regular = WayTestData.highwayTertiary();
     var props = WPS.getDataForWay(regular);
     assertEquals(ALL, props.forward().getPermission());
-    assertEquals(1, props.forward().walkSafety());
+    assertEquals(1.25, props.forward().walkSafety());
     assertEquals(ALL, props.backward().getPermission());
-    assertEquals(1, props.backward().walkSafety());
+    assertEquals(1.25, props.backward().walkSafety());
 
     var discouraged = (OsmWay) WayTestData.highwayTertiary().addTag("foot", "discouraged");
     var discouragedProps = WPS.getDataForWay(discouraged);
     assertEquals(ALL, discouragedProps.forward().getPermission());
-    assertEquals(3, discouragedProps.forward().walkSafety());
+    assertEquals(3.75, discouragedProps.forward().walkSafety());
     assertEquals(ALL, discouragedProps.backward().getPermission());
-    assertEquals(3, discouragedProps.backward().walkSafety());
+    assertEquals(3.75, discouragedProps.backward().walkSafety());
   }
 
   @Test
@@ -407,16 +411,16 @@ class OsmTagMapperTest {
     var regular = WayTestData.highwayTertiary();
     var props = WPS.getDataForWay(regular);
     assertEquals(ALL, props.forward().getPermission());
-    assertEquals(1, props.forward().walkSafety());
+    assertEquals(1.25, props.forward().walkSafety());
     assertEquals(ALL, props.backward().getPermission());
-    assertEquals(1, props.backward().walkSafety());
+    assertEquals(1.25, props.backward().walkSafety());
 
     var useSidepath = (OsmWay) WayTestData.highwayTertiary().addTag("foot", "use_sidepath");
     var useSidepathProps = WPS.getDataForWay(useSidepath);
     assertEquals(ALL, useSidepathProps.forward().getPermission());
-    assertEquals(5, useSidepathProps.forward().walkSafety());
+    assertEquals(6.25, useSidepathProps.forward().walkSafety());
     assertEquals(ALL, useSidepathProps.backward().getPermission());
-    assertEquals(5, useSidepathProps.backward().walkSafety());
+    assertEquals(6.25, useSidepathProps.backward().walkSafety());
   }
 
   @Test
