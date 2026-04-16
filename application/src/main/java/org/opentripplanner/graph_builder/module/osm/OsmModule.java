@@ -126,7 +126,7 @@ public class OsmModule implements GraphBuilderModule {
       osmdb,
       graph,
       params.boardingAreaRefTags(),
-      params.includeOsmSubwayEntrances(),
+      params.includeOsmStationEntrances(),
       issueStore
     );
     for (var provider : providers) {
@@ -197,6 +197,9 @@ public class OsmModule implements GraphBuilderModule {
     // figure out which nodes that are actually intersections
     vertexGenerator.initIntersectionNodes();
     vertexGenerator.initNodesInBarrierWays();
+
+    // figure out entrances in stop areas, which should be treated as station entrances
+    vertexGenerator.initEntrancesInStopAreas();
 
     ElevatorProcessor elevatorProcessor = new ElevatorProcessor(
       issueStore,
@@ -436,7 +439,7 @@ public class OsmModule implements GraphBuilderModule {
           osmEndNode.hasTag("ele") ||
           osmEndNode.isBoardingLocation() ||
           osmEndNode.isBarrier() ||
-          osmEndNode.isStationEntrance() ||
+          osmEndNode.isEntrance() ||
           vertexGenerator.nodesInBarrierWays().containsKey(osmEndNode)
         ) {
           segmentCoordinates.add(osmEndNode.getCoordinate());
