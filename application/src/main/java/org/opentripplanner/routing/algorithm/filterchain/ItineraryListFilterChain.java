@@ -2,6 +2,7 @@ package org.opentripplanner.routing.algorithm.filterchain;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.opentripplanner.framework.application.OTPFeature;
 import org.opentripplanner.model.plan.Itinerary;
 import org.opentripplanner.routing.algorithm.filterchain.framework.filterchain.DeleteResultHandler;
 import org.opentripplanner.routing.algorithm.filterchain.framework.filterchain.RoutingErrorsAttacher;
@@ -43,15 +44,14 @@ public class ItineraryListFilterChain {
 
     result = deleteResultHandler.filter(result);
 
-    return result
-      .stream()
-      .map(itinerary -> {
+    return (OTPFeature.ParallelRouting.isOn() ? result.parallelStream() : result.stream()).map(
+      itinerary -> {
         for (var decorator : decorators) {
           itinerary = decorator.decorate(itinerary);
         }
         return itinerary;
-      })
-      .toList();
+      }
+    ).toList();
   }
 
   public List<RoutingError> getRoutingErrors() {
